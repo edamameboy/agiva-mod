@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>TikTokLiveMod</AssemblyName>
+    <AssemblyName>AgivaGameMod</AssemblyName>
     <NoWarn>NU1701</NoWarn>
-    <RootNamespace>TikTokLiveMod</RootNamespace>
+    <RootNamespace>AgivaGameMod</RootNamespace>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
@@ -102,10 +102,10 @@
 
   <!-- Post-build: copy DLL to BepInEx plugins -->
   <Target Name="CopyToBepInEx" AfterTargets="Build">
-    <MakeDir Directories="..\..\BepInEx\plugins\TikTokLiveMod" />
-    <Copy SourceFiles="$(OutputPath)\TikTokLiveMod.dll"
-          DestinationFolder="..\..\BepInEx\plugins\TikTokLiveMod"
+    <MakeDir Directories="..\..\BepInEx\plugins\AgivaGameMod" />
+    <Copy SourceFiles="$(OutputPath)\AgivaGameMod.dll"
+          DestinationFolder="..\..\BepInEx\plugins\AgivaGameMod"
           OverwriteReadOnlyFiles="true" />
-    <Message Text="✅ TikTokLiveMod.dll copied to BepInEx/plugins/TikTokLiveMod/" Importance="high" />
+    <Message Text="✅ AgivaGameMod.dll copied to BepInEx/plugins/AgivaGameMod/" Importance="high" />
   </Target>
 </Project>

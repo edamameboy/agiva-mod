@@ -6,7 +6,7 @@ using TikTokLiveMod.GameEffects;
 
 namespace TikTokLiveMod
 {
-    [BepInPlugin("com.liveMod.tiktoklive", "TikTok Live Mod", "1.0.0")]
+    [BepInPlugin("com.agivamod.tiktoklive", "Agiva Game Mod", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
         internal static ManualLogSource Log = null!;
@@ -17,14 +17,14 @@ namespace TikTokLiveMod
         {
             Instance = this;
             Log = Logger;
-            Log.LogInfo("[TikTokLiveMod] Loading v1.0.0...");
-            Log.LogMessage("[TikTokLiveMod] ✨ PLUGIN MADE BY MAMEBOII ✨");
+            Log.LogInfo("[AgivaGameMod] Loading v1.0.0...");
+            Log.LogMessage("[AgivaGameMod] ✨ PLUGIN MADE BY MAMEBOII ✨");
 
             ModConfig.Load();
 
-            _harmony = new Harmony("com.liveMod.tiktoklive");
+            _harmony = new Harmony("com.agivamod.tiktoklive");
             _harmony.PatchAll();
-            Log.LogInfo("[TikTokLiveMod] Harmony patches applied");
+            Log.LogInfo("[AgivaGameMod] Harmony patches applied");
         }
 
         private void Start()
@@ -49,7 +49,7 @@ namespace TikTokLiveMod
             {
                 var wsClient = gameObject.AddComponent<TikTokWebSocketClient>();
                 wsClient.Connect("ws://localhost:7827");
-                Log.LogInfo("[TikTokLiveMod] Ready — connecting to TikTok bridge at ws://localhost:7827");
+                Log.LogInfo("[AgivaGameMod] Ready — connecting to TikTok bridge at ws://localhost:7827");
             }
         }
 
