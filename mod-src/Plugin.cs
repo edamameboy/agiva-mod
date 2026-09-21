@@ -18,6 +18,7 @@ namespace TikTokLiveMod
             Instance = this;
             Log = Logger;
             Log.LogInfo("[TikTokLiveMod] Loading v1.0.0...");
+            Log.LogMessage("[TikTokLiveMod] ✨ PLUGIN MADE BY MAMEBOII ✨");
 
             ModConfig.Load();
 

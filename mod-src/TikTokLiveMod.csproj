@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <!-- BepInEx 6 Mono references -->
+    <Compile Include="AuthManager.cs" />
     <Reference Include="BepInEx.Core">
       <HintPath>..\..\BepInEx\core\BepInEx.Core.dll</HintPath>
       <Private>false</Private>

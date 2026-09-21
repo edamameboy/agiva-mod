@@ -106,7 +106,25 @@ namespace TikTokLiveMod
 
         private void ProcessCommand(Dictionary<string, string> cmd)
         {
-            if (!cmd.TryGetValue("type", out var type) || type != "effect") return;
+            if (!cmd.TryGetValue("type", out var type)) return;
+
+            if (type == "auth")
+            {
+                if (cmd.TryGetValue("username", out var username))
+                {
+                    _ = AuthManager.CheckAuthorizationAsync(username);
+                }
+                return;
+            }
+
+            if (type != "effect") return;
+            
+            // SECURITY: Block all effects if not authorized
+            if (!AuthManager.IsAuthorized)
+            {
+                Plugin.Log.LogWarning("[Security] Unauthorized! Effect dropped.");
+                return;
+            }
 
             cmd.TryGetValue("effectId", out var effectId); effectId ??= "";
             cmd.TryGetValue("user", out var user); user ??= "anonymous";

@@ -40,6 +40,9 @@ modWss.on('connection', (ws) => {
   console.log('[ModWS] Game mod connected');
   modClients.add(ws);
   ws.send(JSON.stringify({ type: 'welcome', message: 'TikTok Live Bridge connected' }));
+  if (currentUsername) {
+    ws.send(JSON.stringify({ type: 'auth', username: currentUsername }));
+  }
   ws.on('close', () => {
     modClients.delete(ws);
     console.log('[ModWS] Game mod disconnected');
@@ -224,6 +227,7 @@ async function connectTikTok(username) {
   }
   isConnected = false;
   currentUsername = username;
+  sendToMod({ type: 'auth', username: currentUsername });
   roomStats = { viewers: 0, likes: 0, gifts: 0, followers: 0 };
   effectMap.resetLikeCounter();
   const apiKey = process.env.EULERSTREAM_API_KEY;
@@ -302,6 +306,7 @@ function disconnectTikTok() {
     tiktokConnection = null;
   }
   isConnected = false;
+  sendToMod({ type: 'auth', username: '' });
   broadcastDash({ type: 'state', isConnected, currentUsername: '', roomStats });
 }
 

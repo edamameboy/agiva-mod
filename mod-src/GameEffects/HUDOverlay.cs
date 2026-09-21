@@ -46,6 +46,18 @@ namespace TikTokLiveMod.GameEffects
             }
 
             // Effect toast (top center)
+            if (AuthManager.HasChecked && !AuthManager.IsAuthorized)
+            {
+                GUIStyle warningStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 32,
+                    fontStyle = FontStyle.Bold,
+                    normal = { textColor = Color.red },
+                    alignment = TextAnchor.MiddleCenter
+                };
+                GUI.Label(new Rect(0, 50, Screen.width, 100), "UNREGISTERED TIKTOK ACCOUNT - EFFECT BLOCKED", warningStyle);
+            }
+
             if (_currentToast != null && Time.time < _toastExpiry)
             {
                 float alpha = Mathf.Clamp01((_toastExpiry - Time.time) / 0.5f);
