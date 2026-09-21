@@ -1,0 +1,9 @@
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.csproj.AssemblyReference.cache
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.AssemblyInfoInputs.cache
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.AssemblyInfo.cs
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.csproj.CoreCompileInputs.cache
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\bin\Release\TikTokLiveMod.dll
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\bin\Release\TikTokLiveMod.pdb
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.dll
+C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\obj\Release\TikTokLiveMod.pdb

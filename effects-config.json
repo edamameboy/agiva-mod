@@ -1,0 +1,229 @@
+{
+  "version": "2.0",
+  "games": {
+    "CarJunkyard": {
+      "name": "I Need to Fix My Dream Car",
+      "bepinexFolder": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\BepInEx",
+      "effects": {
+        "screen_blur": {
+          "id": "screen_blur",
+          "label": "Screen Blur & Dark",
+          "description": "Layar menjadi blur selama 3 detik",
+          "category": "visual",
+          "duration": 3000
+        },
+        "auto_drop": {
+          "id": "auto_drop",
+          "label": "Drop Item",
+          "description": "Menjatuhkan barang dipegang",
+          "category": "player",
+          "duration": 0
+        },
+        "spawn_junk": {
+          "id": "spawn_junk",
+          "label": "Spawn Junk (Default/Gacha)",
+          "description": "Munculkan sampah (Default/Gacha)",
+          "category": "world",
+          "duration": 0
+        },
+        "spawn_junk_gift": {
+          "id": "spawn_junk_gift",
+          "label": "Spawn Junk (Gift)",
+          "description": "Munculkan sampah menggunakan nominal Gift",
+          "category": "world",
+          "duration": 0
+        },
+        "spawn_junk_like": {
+          "id": "spawn_junk_like",
+          "label": "Spawn Junk (Like)",
+          "description": "Munculkan sampah menggunakan nominal Like",
+          "category": "world",
+          "duration": 0
+        },
+        "spawn_junk_car_gacha": {
+          "id": "spawn_junk_car_gacha",
+          "label": "Spawn Junk Car (Gacha)",
+          "description": "Munculkan mobil rongsok besar (Gacha)",
+          "category": "world",
+          "duration": 0
+        },
+        "spawn_junk_car_gift": {
+          "id": "spawn_junk_car_gift",
+          "label": "Spawn Junk Car (Gift)",
+          "description": "Munculkan mobil rongsok menggunakan nominal Gift",
+          "category": "world",
+          "duration": 0
+        },
+        "refill_stamina": {
+          "id": "refill_stamina",
+          "label": "Refill Stamina",
+          "description": "Isi penuh stamina",
+          "category": "player",
+          "duration": 0
+        },
+        "add_stamina_drink": {
+          "id": "add_stamina_drink",
+          "label": "Add Stamina Drink",
+          "description": "Tambah minuman stamina",
+          "category": "player",
+          "duration": 0
+        },
+        "random_teleport": {
+          "id": "random_teleport",
+          "label": "Random Teleport",
+          "description": "Teleport acak",
+          "category": "player",
+          "duration": 0
+        },
+        "auto_jump": {
+          "id": "auto_jump",
+          "label": "Auto Jump",
+          "description": "Player melompat otomatis berulang kali",
+          "category": "player",
+          "duration": 10000
+        },
+        "gacha": {
+          "id": "gacha",
+          "label": "Gacha Spin",
+          "description": "Putar Gacha UI",
+          "category": "special",
+          "duration": 3000
+        },
+        "reset_progress": {
+          "id": "reset_progress",
+          "label": "Reset Progress",
+          "description": "Wipe save & restart",
+          "category": "system",
+          "duration": 0
+        },
+        "force_close": {
+          "id": "force_close",
+          "label": "Force Close",
+          "description": "Menutup game paksa",
+          "category": "system",
+          "duration": 0
+        },
+        "remove_junk": {
+          "id": "remove_junk",
+          "label": "Remove Junk",
+          "description": "Membersihkan sampah di jalanan",
+          "category": "world",
+          "duration": 0
+        },
+        "remove_stamina_drink": {
+          "id": "remove_stamina_drink",
+          "label": "Remove Energy Drink",
+          "description": "Kurangi minuman stamina dari inventory",
+          "category": "player",
+          "duration": 0
+        }
+      }
+    }
+  },
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Drop Item",
+      "giftId": 16247,
+      "effectId": "remove_junk"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Teleport",
+      "giftId": 5487,
+      "effectId": "random_teleport"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Spawn Junk (Gift)",
+      "giftId": 5655,
+      "effectId": "spawn_junk_gift"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Refill Stamina",
+      "giftId": 5879,
+      "effectId": "refill_stamina"
+    },
+    {
+      "id": "tier_5",
+      "enabled": true,
+      "label": "Add Drink",
+      "giftId": 10716,
+      "effectId": "add_stamina_drink"
+    },
+    {
+      "id": "tier_6",
+      "enabled": true,
+      "label": "Auto Jump",
+      "giftId": 8913,
+      "effectId": "auto_jump"
+    },
+    {
+      "id": "tier_7",
+      "enabled": true,
+      "label": "Gacha Spin",
+      "giftId": 19447,
+      "effectId": "gacha"
+    },
+    {
+      "id": "tier_8",
+      "enabled": true,
+      "label": "Force Close",
+      "giftId": 5660,
+      "effectId": "force_close"
+    },
+    {
+      "id": "tier_9",
+      "enabled": true,
+      "label": "Gacha Absen",
+      "giftId": 7934,
+      "effectId": "gacha"
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "screen_blur",
+      "enabled": true
+    },
+    "member": {
+      "effectId": "auto_drop",
+      "enabled": false
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "spawn_junk_like",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "queueSettings": {
+    "maxQueueSize": 100,
+    "minDelayBetweenEffects": 500,
+    "dropOnFull": false
+  },
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "gacha",
+      "enabled": true
+    },
+    {
+      "eventType": "repost",
+      "effectId": "gacha",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "gacha",
+      "enabled": true
+    }
+  ]
+}

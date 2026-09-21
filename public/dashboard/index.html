@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Live Game Bridge — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">🎮</div>
+        <div class="brand-text">
+          <span class="brand-name">LiveMod</span>
+          <span class="brand-sub">Game Bridge</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="dashboard">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="configurator">
+          <span class="nav-icon">⚙️</span>
+          <span>Configurator</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="gifts">
+          <span class="nav-icon">🎁</span>
+          <span>TikTok Gifts Data</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="effects">
+          <span class="nav-icon">✨</span>
+          <span>Effects</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="events">
+          <span class="nav-icon">📋</span>
+          <span>Live Events</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="settings">
+          <span class="nav-icon">🔧</span>
+          <span>Settings</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/overlay" target="_blank" class="overlay-btn">
+          <span>📺</span> OBS Overlay
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-title">Dashboard</h1>
+          <button class="theme-toggle" id="btn-theme">🌓 Dark Mode</button>
+        </div>
+        <div class="topbar-right">
+          <!-- Game Selector -->
+          <div class="game-selector" id="game-selector">
+            <div class="game-badge" id="active-game-badge">
+              <span id="game-icon">🚗</span>
+              <span id="game-name">Loading...</span>
+              <span class="game-badge-arrow">▾</span>
+            </div>
+            <div class="game-dropdown" id="game-dropdown" style="display:none">
+              <div id="game-list"></div>
+            </div>
+          </div>
+
+          <!-- TikTok Connect -->
+          <div class="connect-area" id="connect-area">
+            <div class="connect-status disconnected" id="connect-status">
+              <span class="status-dot"></span>
+              <span id="status-label">Disconnected</span>
+            </div>
+            <div class="connect-input-wrap" id="connect-form">
+              <input type="text" id="username-input" class="username-input" placeholder="@username" autocomplete="off">
+              <button class="btn-connect" id="btn-connect">Connect</button>
+            </div>
+            <button class="btn-disconnect" id="btn-disconnect" style="display:none">Disconnect</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Tab: Dashboard -->
+      <section class="tab-content active" id="tab-dashboard">
+        <!-- Stats Row -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon">👁️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-viewers">0</div>
+              <div class="stat-label">Viewers</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">❤️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-likes">0</div>
+              <div class="stat-label">Likes</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🎁</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-gifts">0</div>
+              <div class="stat-label">Gifts</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👤</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-followers">0</div>
+              <div class="stat-label">Follows</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔌</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-modclients">0</div>
+              <div class="stat-label">Game Connected</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-queue">0</div>
+              <div class="stat-label">Queue</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="dashboard-grid">
+          <!-- Live Feed -->
+          <div class="card live-feed-card">
+            <div class="card-header">
+              <span>Live Event Feed</span>
+              <span class="live-indicator" id="live-dot">● LIVE</span>
+            </div>
+            <div class="live-feed" id="live-feed">
+              <div class="feed-empty">Menunggu event dari TikTok Live...</div>
+            </div>
+          </div>
+
+          <!-- Active Effect & Queue -->
+          <div class="side-cards">
+            <div class="card effect-card">
+              <div class="card-header">Active Effect</div>
+              <div class="active-effect" id="active-effect">
+                <div class="effect-idle">No active effect</div>
+              </div>
+            </div>
+            <div class="card queue-card">
+              <div class="card-header">
+                <span>Queue</span>
+                <button class="btn-sm danger" id="btn-clear-queue">Clear</button>
+              </div>
+              <div class="queue-list" id="queue-list">
+                <div class="queue-empty">Queue empty</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: TikTok Gifts Data -->
+      <section class="tab-content" id="tab-gifts">
+        <div class="gifts-header">
+          <h2>TikTok Gifts Data</h2>
+          <p class="config-desc">Database tiktok gift berdasarkan username tiktok kamu</p>
+          <div class="gifts-actions mt">
+            <input type="text" id="gifts-username-input" class="form-input" style="width:200px; display:inline-block;" placeholder="@username">
+            <button class="btn-primary" id="btn-update-gifts">🔄 Update Gift</button>
+          </div>
+          <p class="form-hint mt"><strong>Membutuhkan data gift terbaru?</strong> Masukkan username dan klik tombol update diatas.</p>
+        </div>
+        <div class="gifts-data-grid" id="gifts-data-grid">
+          <div class="feed-empty">Belum ada data gift. Silakan update.</div>
+        </div>
+      </section>
+
+      <!-- Tab: Configurator -->
+      <section class="tab-content" id="tab-configurator">
+        <div class="config-header">
+          <p class="config-desc">Atur gift tier, event, dan efek masing-masing. Drag untuk mengatur prioritas.</p>
+          <button class="btn-primary" id="btn-save-config">💾 Save Config</button>
+        </div>
+
+        <div class="config-sections">
+          <!-- Gift Tiers -->
+          <div class="card config-card">
+            <div class="card-header">
+              🎁 Gift Tier Mapping
+              <button class="btn-sm" id="btn-add-tier">+ Add Tier</button>
+            </div>
+            <div class="config-table-wrap">
+              <table class="config-table" id="gift-table">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Selected Gift</th>
+                    <th>Effect</th>
+                    <th>Enabled</th>
+                    <th>Test</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="gift-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Social Events -->
+          <div class="card config-card">
+            <div class="card-header">
+              👥 Social Event Mapping
+              <button class="btn-sm" id="btn-add-event">+ Add Event</button>
+            </div>
+            <div id="event-rows" class="config-table-wrap"></div>
+          </div>
+
+          <!-- Like Thresholds -->
+          <div class="card config-card">
+            <div class="card-header">
+              👍 Like Threshold Mapping
+              <button class="btn-sm" id="btn-add-threshold">+ Add</button>
+            </div>
+            <div class="config-table-wrap">
+              <table class="config-table" id="like-table">
+                <thead>
+                  <tr>
+                    <th>Every N Likes</th>
+                    <th>Effect</th>
+                    <th>Enabled</th>
+                    <th>Test</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="like-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Effects Library -->
+      <section class="tab-content" id="tab-effects">
+        <div class="effects-filter">
+          <button class="filter-btn active" data-cat="all">All</button>
+          <button class="filter-btn" data-cat="camera">📷 Camera</button>
+          <button class="filter-btn" data-cat="player">🏃 Player</button>
+          <button class="filter-btn" data-cat="minigame">🎮 Mini Game</button>
+          <button class="filter-btn" data-cat="world">🌍 World</button>
+          <button class="filter-btn" data-cat="visual">✨ Visual</button>
+          <button class="filter-btn" data-cat="special">⚡ Special</button>
+        </div>
+        <div class="effects-grid" id="effects-grid"></div>
+      </section>
+
+      <!-- Tab: Live Events -->
+      <section class="tab-content" id="tab-events">
+        <div class="events-toolbar">
+          <div class="events-filters">
+            <label><input type="checkbox" id="filter-gift" checked> 🎁 Gifts</label>
+            <label><input type="checkbox" id="filter-follow" checked> 👤 Follows</label>
+            <label><input type="checkbox" id="filter-member" checked> 👋 Joins</label>
+            <label><input type="checkbox" id="filter-like" checked> ❤️ Likes</label>
+          </div>
+        </div>
+        <div class="events-table-wrap">
+          <table class="events-table">
+            <thead>
+              <tr><th>Time</th><th>Type</th><th>User</th><th>Detail</th></tr>
+            </thead>
+            <tbody id="events-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab: Settings -->
+      <section class="tab-content" id="tab-settings">
+        <div class="settings-grid">
+          <div class="card settings-card">
+            <div class="card-header">🔑 API Configuration</div>
+            <div class="settings-form">
+              <label class="form-label">Eulerstream API Key</label>
+              <div class="input-row">
+                <input type="password" id="api-key-input" class="form-input" placeholder="Enter your Eulerstream API key">
+                <button class="btn-sm" id="btn-show-key">Show</button>
+              </div>
+              <button class="btn-primary mt" id="btn-save-key" style="margin-top:10px">Save API Key</button>
+              <p class="form-hint mt">Dapatkan API key di <a href="https://eulerstream.com" target="_blank">eulerstream.com</a></p>
+
+              <label class="form-label mt">TikTok Session ID (Optional)</label>
+              <div class="input-row">
+                <input type="password" id="session-id-input" class="form-input" placeholder="Paste your TikTok sessionid cookie">
+                <button class="btn-sm" id="btn-show-session">Show</button>
+              </div>
+              <button class="btn-primary mt" id="btn-save-session" style="margin-top:10px">Save Session ID</button>
+              <p class="form-hint mt">Gunakan jika koneksi sering gagal (error 403). Dapatkan dari cookie 'sessionid' browser saat login TikTok.</p>
+            </div>
+          </div>
+
+          <div class="card settings-card">
+            <div class="card-header">🔗 Webhook</div>
+            <div class="settings-form">
+              <label class="form-label">Webhook URL (opsional)</label>
+              <input type="url" id="webhook-url" class="form-input" placeholder="https://your-server.com/webhook">
+              <label class="form-label mt">Secret Key</label>
+              <input type="text" id="webhook-secret" class="form-input" placeholder="optional HMAC secret">
+              <button class="btn-primary mt" id="btn-save-webhook">Save Webhook</button>
+            </div>
+          </div>
+
+          <div class="card settings-card">
+            <div class="card-header">📦 Queue Settings</div>
+            <div class="settings-form">
+              <label class="form-label">Max Queue Size</label>
+              <input type="number" id="queue-size" class="form-input" value="10" min="1" max="50">
+              <label class="form-label mt">Min Delay Between Effects (ms)</label>
+              <input type="number" id="queue-delay" class="form-input" value="500" min="0" max="10000">
+              <label class="form-label mt">Drop on Full</label>
+              <select class="form-input" id="queue-drop">
+                <option value="false">Keep (drop oldest)</option>
+                <option value="true">Drop incoming</option>
+              </select>
+              <button class="btn-primary mt" id="btn-save-queue">Save Queue Settings</button>
+            </div>
+          </div>
+
+          <div class="card settings-card">
+            <div class="card-header">🎮 Connected Games</div>
+            <div id="settings-games"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
