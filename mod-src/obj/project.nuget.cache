@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "0yQUb15svmQ=",
+  "dgSpecHash": "/eICtUZUTKQ=",
   "success": true,
-  "projectFilePath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\TikTokLiveMod.csproj",
+  "projectFilePath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\TikTokLiveMod.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\PC\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.3\\microsoft.netframework.referenceassemblies.1.0.3.nupkg.sha512",
     "C:\\Users\\PC\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net472\\1.0.3\\microsoft.netframework.referenceassemblies.net472.1.0.3.nupkg.sha512"

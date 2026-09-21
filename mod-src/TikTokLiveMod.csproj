@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <!-- BepInEx 6 Mono references -->
-    <Compile Include="AuthManager.cs" />
     <Reference Include="BepInEx.Core">
       <HintPath>..\..\BepInEx\core\BepInEx.Core.dll</HintPath>
       <Private>false</Private>
@@ -39,6 +38,10 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\CarJunkyard_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>..\..\CarJunkyard_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.IMGUIModule">

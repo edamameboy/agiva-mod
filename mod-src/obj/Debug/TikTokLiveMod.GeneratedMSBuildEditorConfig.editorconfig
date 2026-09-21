@@ -1,6 +1,6 @@
 is_global = true
-build_property.RootNamespace = TikTokLiveMod
-build_property.ProjectDir = C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\TikTokBridge\mod-src\
+build_property.RootNamespace = AgivaGameMod
+build_property.ProjectDir = C:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\agiva-mod\mod-src\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false

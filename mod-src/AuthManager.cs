@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
+using UnityEngine.Networking;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -43,10 +43,22 @@ namespace TikTokLiveMod
 
             try
             {
-                using (HttpClient client = new HttpClient())
+                using (var www = UnityWebRequest.Get(GetUrl()))
                 {
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                    string content = await client.GetStringAsync(GetUrl());
+                    www.timeout = 10;
+                    var operation = www.SendWebRequest();
+                    
+                    while (!operation.isDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (www.isNetworkError || www.isHttpError)
+                    {
+                        throw new Exception(www.error);
+                    }
+
+                    string content = www.downloadHandler.text;
                     
                     _whitelist.Clear();
                     foreach (var line in content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))

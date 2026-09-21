@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\TikTokLiveMod.csproj": {}
+    "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\TikTokLiveMod.csproj": {}
   },
   "projects": {
-    "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\TikTokLiveMod.csproj": {
+    "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\TikTokLiveMod.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\TikTokLiveMod.csproj",
-        "projectName": "TikTokLiveMod",
-        "projectPath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\TikTokLiveMod.csproj",
+        "projectUniqueName": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\TikTokLiveMod.csproj",
+        "projectName": "AgivaGameMod",
+        "projectPath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\TikTokLiveMod.csproj",
         "packagesPath": "C:\\Users\\PC\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\obj\\",
+        "outputPath": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\TikTokBridge\\mod-src\\NuGet.Config",
+          "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\agiva-mod\\mod-src\\NuGet.Config",
           "C:\\Users\\PC\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
