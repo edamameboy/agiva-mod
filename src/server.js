@@ -240,11 +240,20 @@ async function connectTikTok(username) {
 
   const url = `wss://ws.eulerstream.com?uniqueId=${username}&apiKey=${apiKey}`;
   tiktokConnection = new WebSocket(url);
+  
+  let hasEstablishedConnection = false;
 
   tiktokConnection.on('open', () => {
     isConnected = true;
     console.log(`[TikTok] Connected to ${username} via Eulerstream WS`);
     broadcastDash({ type: 'state', isConnected, currentUsername, roomStats, roomId: username });
+    
+    // Eulerstream closes immediately if offline. If we stay connected for 5s, we consider it established.
+    setTimeout(() => {
+      if (isConnected) {
+        hasEstablishedConnection = true;
+      }
+    }, 5000);
   });
 
   tiktokConnection.on('message', (data) => {
@@ -282,10 +291,17 @@ async function connectTikTok(username) {
     console.log('[TikTok] Disconnected');
 
     if (!manualDisconnect && currentUsername) {
-      console.log(`[TikTok] Connection lost. Attempting to reconnect in 3 seconds...`);
-      reconnectTimer = setTimeout(() => {
-        connectTikTok(currentUsername).catch(e => console.error('[TikTok] Reconnect failed:', e.message));
-      }, 3000);
+      if (hasEstablishedConnection) {
+        console.log(`[TikTok] Connection lost. Attempting to reconnect in 3 seconds...`);
+        reconnectTimer = setTimeout(() => {
+          connectTikTok(currentUsername).catch(e => console.error('[TikTok] Reconnect failed:', e.message));
+        }, 3000);
+      } else {
+        console.log(`[TikTok] Account appears to be offline. Stopping auto-reconnect to prevent spam.`);
+        // Disconnect fully so UI resets
+        currentUsername = '';
+        broadcastDash({ type: 'state', isConnected, currentUsername: '', roomStats });
+      }
     }
   });
 

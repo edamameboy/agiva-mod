@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AgivaGameMod")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7515586c4ba7d87e8893ddb7afca09efe8f47554")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4dd357807261709a45f6a6f4e9c8e4a6b2630e19")]
 [assembly: System.Reflection.AssemblyProductAttribute("AgivaGameMod")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AgivaGameMod")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

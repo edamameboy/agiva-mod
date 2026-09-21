@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project outputDir="Confused" baseDir="." xmlns="http://confuser.network/Project/None">
+  <rule pattern="true" preset="maximum">
+    <protection id="anti debug" />
+    <protection id="anti dump" />
+    <protection id="anti ildasm" />
+    <protection id="anti tamper" />
+    <protection id="constants" />
+    <protection id="ctrl flow" />
+    <protection id="invalid metadata" />
+    <protection id="ref proxy" />
+    <protection id="rename" />
+  </rule>
+  <module path="AgivaGameMod.dll" />
+  <probePath>c:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\BepInEx\core</probePath>
+  <probePath>c:\Users\PC\Downloads\I.Need.to.Fix.My.Dream.Car\CarJunkyard_Data\Managed</probePath>
+</project>

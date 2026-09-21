@@ -20,6 +20,7 @@ namespace TikTokLiveMod
         private CancellationTokenSource _cts = new();
         private string _url = "";
         private bool _shouldRun;
+        private bool _hasConnectedOnce = false;
         private readonly byte[] _receiveBuffer = new byte[8192];
 
         // Commands queued from background thread → dispatched on Unity main thread
@@ -49,14 +50,21 @@ namespace TikTokLiveMod
         {
             while (_shouldRun)
             {
-                Plugin.Log.LogInfo($"[WS] Connecting to {_url}...");
+                if (_hasConnectedOnce)
+                {
+                    Plugin.Log.LogInfo($"[WS] Connecting to {_url}...");
+                }
+                
                 _cts = new CancellationTokenSource();
 
                 await ReceiveLoopAsync();
 
                 if (_shouldRun)
                 {
-                    Plugin.Log.LogWarning("[WS] Disconnected — retrying in 3s...");
+                    if (_hasConnectedOnce)
+                    {
+                        Plugin.Log.LogWarning("[WS] Disconnected — retrying in 3s...");
+                    }
                     await System.Threading.Tasks.Task.Delay(3000);
                 }
             }
@@ -68,7 +76,16 @@ namespace TikTokLiveMod
             {
                 _ws = new ClientWebSocket();
                 await _ws.ConnectAsync(new Uri(_url), _cts.Token);
-                Plugin.Log.LogInfo("[WS] Connected to TikTok Live Bridge!");
+                
+                if (!_hasConnectedOnce)
+                {
+                    Plugin.Log.LogInfo("[WS] Connected to TikTok Live Bridge!");
+                    _hasConnectedOnce = true;
+                }
+                else
+                {
+                    Plugin.Log.LogInfo("[WS] Reconnected to TikTok Live Bridge!");
+                }
 
                 // Identify as game mod
                 var hello = Encoding.UTF8.GetBytes("{\"type\":\"hello\",\"client\":\"game-mod\",\"game\":\"CarJunkyard\"}");
@@ -89,7 +106,10 @@ namespace TikTokLiveMod
             catch (OperationCanceledException) { /* normal shutdown */ }
             catch (Exception e)
             {
-                Plugin.Log.LogWarning($"[WS] Error: {e.Message}");
+                if (_hasConnectedOnce)
+                {
+                    Plugin.Log.LogWarning($"[WS] Error: {e.Message}");
+                }
             }
             finally
             {
