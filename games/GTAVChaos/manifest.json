@@ -1,0 +1,75 @@
+{
+  "id": "GTAVChaos",
+  "name": "GTA V / FiveM (Keystroke Chaos)",
+  "icon": "🚓",
+  "category": "Keystroke / Macro",
+  "driver": "keystroke",
+  "inputMethod": "sendinput",
+  "targetProcess": "GTA5.exe",
+  "description": "Kontrol GTA V atau FiveM tanpa mod eksternal menggunakan simulasi tombol hardware ScanCode",
+  "effects": {
+    "gta_exit_vehicle": {
+      "id": "gta_exit_vehicle",
+      "label": "Keluar Mobil Paksa (F)",
+      "description": "Melompat keluar dari kendaraan saat sedang melaju!",
+      "category": "player",
+      "duration": 300,
+      "driver": "keystroke",
+      "macro": "HOLD 200 F"
+    },
+    "gta_handbrake": {
+      "id": "gta_handbrake",
+      "label": "Rem Tangan Mendadak (2s)",
+      "description": "Tahan tombol SPACE selama 2 detik agar mobil nge-drift/berhenti",
+      "category": "world",
+      "duration": 2000,
+      "driver": "keystroke",
+      "macro": "HOLD 2000 SPACE"
+    },
+    "gta_steer_left": {
+      "id": "gta_steer_left",
+      "label": "Banting Setir Kiri (1.5s)",
+      "description": "Belok kiri paksa selama 1.5 detik",
+      "category": "player",
+      "duration": 1500,
+      "driver": "keystroke",
+      "macro": "HOLD 1500 A"
+    },
+    "gta_steer_right": {
+      "id": "gta_steer_right",
+      "label": "Banting Setir Kanan (1.5s)",
+      "description": "Belok kanan paksa selama 1.5 detik",
+      "category": "player",
+      "duration": 1500,
+      "driver": "keystroke",
+      "macro": "HOLD 1500 D"
+    },
+    "gta_cinematic_cam": {
+      "id": "gta_cinematic_cam",
+      "label": "Ganti Kamera / Cinematic (R / V)",
+      "description": "Mengubah sudut pandang kamera secara tiba-tiba",
+      "category": "camera",
+      "duration": 1000,
+      "driver": "keystroke",
+      "macro": "PRESS V; DELAY 300; HOLD 800 R"
+    },
+    "gta_fire_weapon": {
+      "id": "gta_fire_weapon",
+      "label": "Tembak Senjata (1.5s)",
+      "description": "Tahan klik kiri mouse selama 1.5 detik (pancing polisi!)",
+      "category": "special",
+      "duration": 1500,
+      "driver": "keystroke",
+      "macro": "HOLD 1500 MOUSELEFT"
+    },
+    "gta_horn": {
+      "id": "gta_horn",
+      "label": "Klakson Panjang (E)",
+      "description": "Tahan tombol klakson/sirine selama 2 detik",
+      "category": "visual",
+      "duration": 2000,
+      "driver": "keystroke",
+      "macro": "HOLD 2000 E"
+    }
+  }
+}

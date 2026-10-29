@@ -1,0 +1,109 @@
+{
+  "tts": {
+    "enabled": true,
+    "chatMode": "command",
+    "chatCommand": "!tts",
+    "allowedRole": "specific_users",
+    "allowedUsers": "",
+    "minGifterLevel": 1,
+    "voicePreset": "id-ID-Standard",
+    "volume": 0.9,
+    "rate": 1,
+    "pitch": 1,
+    "maxLength": 140,
+    "cooldownSec": 3,
+    "readGifts": true,
+    "minGiftCoinsForTts": 5,
+    "giftTemplate": "{nickname} mengirim {repeatcount} {giftname}!",
+    "readDonations": true,
+    "donationTemplate": "{nickname} donasi {amount} rupiah. {comment}",
+    "readFollows": false,
+    "followTemplate": "Terima kasih {nickname} sudah follow!",
+    "badwords": [
+      "anjing",
+      "babi",
+      "bangsat",
+      "kontol",
+      "memek",
+      "tolol",
+      "goblok",
+      "jancok",
+      "asu"
+    ],
+    "lang": "id-ID",
+    "specificUsers": [
+      "@sultan_agiva",
+      "vip_tester"
+    ]
+  },
+  "soundboard": {
+    "volume": 0.85,
+    "overlap": false,
+    "items": [
+      {
+        "id": "horn_basuri",
+        "name": "🎺 Klakson Telolet",
+        "file": "/sounds/horn_basuri.wav",
+        "icon": "🎺",
+        "color": "#f59e0b",
+        "hotkey": "Alt+5"
+      },
+      {
+        "id": "siren_police",
+        "name": "🚨 Sirene Polisi",
+        "file": "/sounds/siren_police.wav",
+        "icon": "🚨",
+        "color": "#ef4444",
+        "hotkey": "Alt+6"
+      },
+      {
+        "id": "coin_jackpot",
+        "name": "🪙 Koin Jackpot",
+        "file": "/sounds/coin_jackpot.wav",
+        "icon": "🪙",
+        "color": "#22c55e",
+        "hotkey": "Alt+7"
+      },
+      {
+        "id": "explosion_boom",
+        "name": "💥 Ledakan Boom",
+        "file": "/sounds/explosion_boom.wav",
+        "icon": "💥",
+        "color": "#f97316",
+        "hotkey": "Alt+8"
+      },
+      {
+        "id": "jump_boing",
+        "name": "🦘 Lompat Boing",
+        "file": "/sounds/jump_boing.wav",
+        "icon": "🦘",
+        "color": "#38bdf8",
+        "hotkey": ""
+      },
+      {
+        "id": "alert_danger",
+        "name": "⚠️ Danger Alarm",
+        "file": "/sounds/alert_danger.wav",
+        "icon": "⚠️",
+        "color": "#eab308",
+        "hotkey": ""
+      },
+      {
+        "id": "victory_fanfare",
+        "name": "🏆 Victory Fanfare",
+        "file": "/sounds/victory_fanfare.wav",
+        "icon": "🏆",
+        "color": "#a855f7",
+        "hotkey": ""
+      },
+      {
+        "id": "laser_zap",
+        "name": "⚡ Laser Zap",
+        "file": "/sounds/laser_zap.wav",
+        "icon": "⚡",
+        "color": "#ec4899",
+        "hotkey": ""
+      }
+    ]
+  }
+}

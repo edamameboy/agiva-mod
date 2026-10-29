@@ -1,0 +1,35 @@
+{
+  "id": "normal",
+  "name": "Mode Normal / Adventure (Cheat Ketik)",
+  "gameId": "Insaniquarium",
+  "description": "Untuk Adventure/Time Trial/Challenge (tanpa sandbox). Gift memicu cheat ketik bawaan game (toggle). JANGAN dipakai di Sandbox: huruf yang diketik akan spawn pet.",
+  "giftMappings": [
+    { "id": "n_rose", "enabled": true, "label": "Rose → Timer Level", "giftId": 5655, "effectId": "iq_cheat_time" },
+    { "id": "n_fingerheart", "enabled": true, "label": "Finger Heart → Layar Bergelombang", "giftId": 5487, "effectId": "iq_cheat_wavy" },
+    { "id": "n_rosa", "enabled": true, "label": "Rosa → Tank Luar Angkasa", "giftId": 8913, "effectId": "iq_cheat_space" },
+    { "id": "n_perfume", "enabled": true, "label": "Perfume → Background Putih", "giftId": 5658, "effectId": "iq_cheat_void" },
+    { "id": "n_doughnut", "enabled": true, "label": "Doughnut → Ikan Zombie", "giftId": 5879, "effectId": "iq_cheat_zombie" },
+    { "id": "n_crane", "enabled": true, "label": "Paper Crane → Suara Lahir Berisik", "giftId": 5659, "effectId": "iq_cheat_supermegaultra" },
+    { "id": "n_cap", "enabled": true, "label": "Cap → Suara Lahir Aneh", "giftId": 6104, "effectId": "iq_cheat_betatesters" },
+    { "id": "n_hat", "enabled": true, "label": "Hat and Mustache → Suara Prego Original", "giftId": 6427, "effectId": "iq_cheat_prego" },
+    { "id": "n_confetti", "enabled": true, "label": "Confetti → Klik Brutal 3 Detik", "giftId": 5585, "effectId": "iq_rapid_fire" }
+  ],
+  "coinTiers": [],
+  "socialEvents": [
+    { "eventType": "share", "effectId": "iq_cheat_wavy", "enabled": true }
+  ],
+  "eventMappings": {
+    "like": {
+      "thresholds": [
+        { "count": 1000, "effectId": "iq_cheat_zombie", "enabled": true }
+      ]
+    }
+  },
+  "chatCommands": [
+    { "command": "!wavy", "effectId": "iq_cheat_wavy", "cooldown": 30, "enabled": true },
+    { "command": "!space", "effectId": "iq_cheat_space", "cooldown": 30, "enabled": true }
+  ],
+  "donationTiers": [
+    { "minAmount": 10000, "effectId": "iq_cheat_zombie", "label": "Donasi Rp 10rb+ → Ikan Zombie", "enabled": true }
+  ]
+}

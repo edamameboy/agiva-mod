@@ -1,0 +1,26 @@
+{
+  "idrPerCoin": 250,
+  "autoTriggerCoinTiers": true,
+  "platforms": {
+    "saweria": {
+      "enabled": false,
+      "streamKey": "",
+      "status": "disconnected"
+    },
+    "sociabuzz": {
+      "enabled": false,
+      "streamKey": "",
+      "status": "disconnected"
+    },
+    "trakteer": {
+      "enabled": false,
+      "streamKey": "",
+      "status": "disconnected"
+    },
+    "bagibagi": {
+      "enabled": false,
+      "streamKey": "",
+      "status": "disconnected"
+    }
+  }
+}

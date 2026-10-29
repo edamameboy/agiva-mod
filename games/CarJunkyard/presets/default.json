@@ -1,0 +1,158 @@
+{
+  "id": "default",
+  "name": "Default (Standard)",
+  "gameId": "CarJunkyard",
+  "description": "Preset bawaan untuk I Need to Fix My Dream Car",
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Drop Item",
+      "giftId": 16247,
+      "effectId": "remove_junk"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Teleport",
+      "giftId": 5487,
+      "effectId": "random_teleport"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Spawn Junk (Gift)",
+      "giftId": 5655,
+      "effectId": "spawn_junk_gift"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Refill Stamina",
+      "giftId": 5879,
+      "effectId": "refill_stamina"
+    },
+    {
+      "id": "tier_5",
+      "enabled": true,
+      "label": "Add Drink",
+      "giftId": 10716,
+      "effectId": "add_stamina_drink"
+    },
+    {
+      "id": "tier_6",
+      "enabled": true,
+      "label": "Auto Jump",
+      "giftId": 8913,
+      "effectId": "auto_jump"
+    },
+    {
+      "id": "tier_7",
+      "enabled": true,
+      "label": "Gacha Spin",
+      "giftId": 19447,
+      "effectId": "gacha"
+    },
+    {
+      "id": "tier_8",
+      "enabled": true,
+      "label": "Force Close",
+      "giftId": 5660,
+      "effectId": "force_close"
+    },
+    {
+      "id": "tier_9",
+      "enabled": true,
+      "label": "Gacha Absen",
+      "giftId": 7934,
+      "effectId": "gacha"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "spawn_junk_gift",
+      "enabled": false
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 10,
+      "maxCoins": 99,
+      "effectId": "random_teleport",
+      "enabled": false
+    },
+    {
+      "id": "coin_3",
+      "minCoins": 100,
+      "maxCoins": 999999,
+      "effectId": "spawn_junk_car_gift",
+      "enabled": false
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "gacha",
+      "enabled": true
+    },
+    {
+      "eventType": "repost",
+      "effectId": "gacha",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "gacha",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "screen_blur",
+      "enabled": true
+    },
+    "member": {
+      "effectId": "auto_drop",
+      "enabled": false
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "spawn_junk_like",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!lompat",
+      "effectId": "auto_jump",
+      "cooldown": 15,
+      "enabled": true
+    },
+    {
+      "command": "!drop",
+      "effectId": "auto_drop",
+      "cooldown": 10,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "gacha",
+      "label": "Donasi Rp 10.000+",
+      "enabled": true
+    },
+    {
+      "minAmount": 50000,
+      "effectId": "spawn_junk_car_gift",
+      "label": "Donasi Rp 50.000+",
+      "enabled": true
+    }
+  ]
+}

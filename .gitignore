@@ -1,1 +1,32 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables & secrets (CRITICAL: Do NOT commit personal keys/sessions)
+.env
+.env.local
+.env.*.local
+
+# Electron build artifacts & installers
+dist/
+build/
+*.exe
+*.blockmap
+*.zip
+
+# Streamer session logs (contains user chat, gifts, timestamps)
+data/sessions/
+
+# Temporary files & OS logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# C# / Unity BepInEx build artifacts
+mod-src/bin/
+mod-src/obj/
+*.user
+*.suo
+.vs/

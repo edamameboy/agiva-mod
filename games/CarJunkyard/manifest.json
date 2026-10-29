@@ -1,0 +1,142 @@
+{
+  "id": "CarJunkyard",
+  "name": "I Need to Fix My Dream Car",
+  "icon": "🚗",
+  "category": "Unity Mod (BepInEx)",
+  "driver": "ws-mod",
+  "inputMethod": "sendinput",
+  "targetProcess": "INeedToFixMyDreamCar.exe",
+  "modFolder": "TikTokLiveMod",
+  "description": "Repair and customize your dream car in a junkyard (BepInEx WebSocket Mod)",
+  "bepinexFolder": "C:\\Users\\PC\\Downloads\\I.Need.to.Fix.My.Dream.Car\\BepInEx",
+  "effects": {
+    "screen_blur": {
+      "id": "screen_blur",
+      "label": "Screen Blur & Dark",
+      "description": "Layar menjadi blur selama 3 detik",
+      "category": "visual",
+      "duration": 3000,
+      "driver": "ws-mod"
+    },
+    "auto_drop": {
+      "id": "auto_drop",
+      "label": "Drop Item",
+      "description": "Menjatuhkan barang dipegang",
+      "category": "player",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "spawn_junk": {
+      "id": "spawn_junk",
+      "label": "Spawn Junk (Default/Gacha)",
+      "description": "Munculkan sampah (Default/Gacha)",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "spawn_junk_gift": {
+      "id": "spawn_junk_gift",
+      "label": "Spawn Junk (Gift)",
+      "description": "Munculkan sampah menggunakan nominal Gift",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "spawn_junk_like": {
+      "id": "spawn_junk_like",
+      "label": "Spawn Junk (Like)",
+      "description": "Munculkan sampah menggunakan nominal Like",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "spawn_junk_car_gacha": {
+      "id": "spawn_junk_car_gacha",
+      "label": "Spawn Junk Car (Gacha)",
+      "description": "Munculkan mobil rongsok besar (Gacha)",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "spawn_junk_car_gift": {
+      "id": "spawn_junk_car_gift",
+      "label": "Spawn Junk Car (Gift)",
+      "description": "Munculkan mobil rongsok menggunakan nominal Gift",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "refill_stamina": {
+      "id": "refill_stamina",
+      "label": "Refill Stamina",
+      "description": "Isi penuh stamina",
+      "category": "player",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "add_stamina_drink": {
+      "id": "add_stamina_drink",
+      "label": "Add Stamina Drink",
+      "description": "Tambah minuman stamina",
+      "category": "player",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "random_teleport": {
+      "id": "random_teleport",
+      "label": "Random Teleport",
+      "description": "Teleport acak",
+      "category": "player",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "auto_jump": {
+      "id": "auto_jump",
+      "label": "Auto Jump",
+      "description": "Player melompat otomatis berulang kali",
+      "category": "player",
+      "duration": 10000,
+      "driver": "ws-mod"
+    },
+    "gacha": {
+      "id": "gacha",
+      "label": "Gacha Spin",
+      "description": "Putar Gacha UI",
+      "category": "special",
+      "duration": 3000,
+      "driver": "ws-mod"
+    },
+    "reset_progress": {
+      "id": "reset_progress",
+      "label": "Reset Progress",
+      "description": "Wipe save & restart",
+      "category": "system",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "force_close": {
+      "id": "force_close",
+      "label": "Force Close",
+      "description": "Menutup game paksa",
+      "category": "system",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "remove_junk": {
+      "id": "remove_junk",
+      "label": "Remove Junk",
+      "description": "Membersihkan sampah di jalanan",
+      "category": "world",
+      "duration": 0,
+      "driver": "ws-mod"
+    },
+    "remove_stamina_drink": {
+      "id": "remove_stamina_drink",
+      "label": "Remove Energy Drink",
+      "description": "Kurangi minuman stamina dari inventory",
+      "category": "player",
+      "duration": 0,
+      "driver": "ws-mod"
+    }
+  }
+}

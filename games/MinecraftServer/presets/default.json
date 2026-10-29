@@ -1,0 +1,109 @@
+{
+  "id": "default",
+  "name": "Default TNT & Mobs Survival",
+  "gameId": "MinecraftServer",
+  "description": "Preset interaktif Minecraft Survival / Box TNT",
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Rose -> Zombie",
+      "giftId": 5655,
+      "effectId": "mc_zombie_horde"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Bantu Golden Apple",
+      "giftId": 5879,
+      "effectId": "mc_golden_apple"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Spawn Creeper",
+      "giftId": 5487,
+      "effectId": "mc_creeper"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Jatuhkan TNT!",
+      "giftId": 8913,
+      "effectId": "mc_tnt"
+    },
+    {
+      "id": "tier_5",
+      "enabled": true,
+      "label": "Sambaran Petir",
+      "giftId": 19447,
+      "effectId": "mc_lightning"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "mc_zombie_horde",
+      "enabled": true
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 10,
+      "maxCoins": 99,
+      "effectId": "mc_creeper",
+      "enabled": true
+    },
+    {
+      "id": "coin_3",
+      "minCoins": 100,
+      "maxCoins": 999999,
+      "effectId": "mc_tnt",
+      "enabled": true
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "mc_golden_apple",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "mc_drop_hand",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "mc_golden_apple",
+      "enabled": true
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "mc_creeper",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!drop",
+      "effectId": "mc_drop_hand",
+      "cooldown": 15,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "mc_tnt",
+      "label": "Donasi Rp 10rb+ (TNT)",
+      "enabled": true
+    }
+  ]
+}

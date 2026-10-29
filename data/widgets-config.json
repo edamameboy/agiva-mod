@@ -1,0 +1,178 @@
+{
+  "timer": {
+    "remainingSec": 3693,
+    "defaultSec": 3600,
+    "isRunning": false,
+    "title": "⏳ SUBATHON TIMER",
+    "autoAdd": {
+      "enabled": true,
+      "secPerCoin": 2,
+      "secPer100Likes": 5,
+      "secPerFollow": 10,
+      "secPer10kIdr": 60
+    }
+  },
+  "wheel": {
+    "title": "🎡 RODA GACHA STREAMER",
+    "autoTriggerEffect": true,
+    "isSpinning": false,
+    "lastWinner": {
+      "id": "seg_1",
+      "label": "⚡ Speed Boost",
+      "color": "#6366f1",
+      "weight": 25,
+      "effectId": "",
+      "user": "TestRunner",
+      "time": 1793099542231
+    },
+    "segments": [
+      {
+        "id": "seg_1",
+        "label": "⚡ Speed Boost",
+        "color": "#6366f1",
+        "weight": 25,
+        "effectId": ""
+      },
+      {
+        "id": "seg_2",
+        "label": "💰 Bonus Uang",
+        "color": "#22c55e",
+        "weight": 25,
+        "effectId": ""
+      },
+      {
+        "id": "seg_3",
+        "label": "🌧️ Cuaca Buruk",
+        "color": "#38bdf8",
+        "weight": 20,
+        "effectId": ""
+      },
+      {
+        "id": "seg_4",
+        "label": "🤡 Troll / Zonk",
+        "color": "#f59e0b",
+        "weight": 20,
+        "effectId": ""
+      },
+      {
+        "id": "seg_5",
+        "label": "💀 JACKPOT RUSUH",
+        "color": "#ef4444",
+        "weight": 10,
+        "effectId": ""
+      }
+    ]
+  },
+  "goals": {
+    "likes": {
+      "title": "❤️ Target Like",
+      "current": 132,
+      "target": 1000,
+      "autoScale": true,
+      "rewardEffectId": ""
+    },
+    "coins": {
+      "title": "💎 Target Koin Gift",
+      "current": 44,
+      "target": 500,
+      "autoScale": true,
+      "rewardEffectId": ""
+    },
+    "followers": {
+      "title": "👤 Target Follower Baru",
+      "current": 0,
+      "target": 50,
+      "autoScale": true,
+      "rewardEffectId": ""
+    },
+    "donations": {
+      "title": "💸 Target Donasi (Rp)",
+      "current": 50000,
+      "target": 100000,
+      "autoScale": true,
+      "rewardEffectId": ""
+    }
+  },
+  "counter": {
+    "title": "⚔️ REKOR TANTANGAN",
+    "wins": 0,
+    "loses": 0,
+    "streak": 0
+  },
+  "poll": {
+    "active": false,
+    "question": "Pilih Efek Game Berikutnya! (Ketik 1 / 2 / 3 di Chat)",
+    "endsAt": 0,
+    "durationSec": 45,
+    "winner": null,
+    "options": [
+      {
+        "key": "1",
+        "label": "Opsi 1: Bantu Streamer",
+        "votes": 0,
+        "effectId": ""
+      },
+      {
+        "key": "2",
+        "label": "Opsi 2: Rusuh / Kerjai",
+        "votes": 0,
+        "effectId": ""
+      },
+      {
+        "key": "3",
+        "label": "Opsi 3: Gacha Random",
+        "votes": 0,
+        "effectId": ""
+      }
+    ]
+  },
+  "giveaway": {
+    "active": true,
+    "title": "🎁 UNDIAN GIVEAWAY PENONTON",
+    "keyword": "!ikut",
+    "giftTickets": true,
+    "coinsPerTicket": 5,
+    "participants": [
+      {
+        "user": "Budi_Agiva",
+        "tickets": 1
+      },
+      {
+        "user": "petani_plenger",
+        "tickets": 6
+      }
+    ],
+    "winner": {
+      "user": "Budi_Agiva",
+      "tickets": 1,
+      "time": 1793099542268
+    }
+  },
+  "screens": {
+    "1": {
+      "name": "Screen 1 (Utama / Tengah)",
+      "position": "center",
+      "defaultDurationMs": 4000
+    },
+    "2": {
+      "name": "Screen 2 (Pojok Kanan Atas)",
+      "position": "top-right",
+      "defaultDurationMs": 4000
+    },
+    "3": {
+      "name": "Screen 3 (Pojok Kiri Atas)",
+      "position": "top-left",
+      "defaultDurationMs": 4000
+    },
+    "4": {
+      "name": "Screen 4 (Bawah / Memes)",
+      "position": "bottom",
+      "defaultDurationMs": 5000
+    },
+    "5": {
+      "name": "Screen 5 (Full Screen Jumpscare)",
+      "position": "fullscreen",
+      "defaultDurationMs": 3500
+    }
+  }
+}

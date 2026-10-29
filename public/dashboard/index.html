@@ -3,132 +3,203 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TikTok Live Game Bridge — Dashboard</title>
+  <title>Agiva LiveMod — Universal Streamer Game Bridge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="Main Navigation">
       <div class="sidebar-brand">
-        <div class="brand-icon">🎮</div>
+        <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
-          <span class="brand-name">LiveMod</span>
-          <span class="brand-sub">Game Bridge</span>
+          <span class="brand-name">Agiva Mod</span>
+          <span class="brand-sub">Universal Bridge v3.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
         <a href="#" class="nav-item active" data-tab="dashboard">
-          <span class="nav-icon">📊</span>
+          <span class="nav-icon" aria-hidden="true">📊</span>
           <span>Dashboard</span>
         </a>
         <a href="#" class="nav-item" data-tab="configurator">
-          <span class="nav-icon">⚙️</span>
-          <span>Configurator</span>
+          <span class="nav-icon" aria-hidden="true">⚙️</span>
+          <span>Actions &amp; Triggers</span>
         </a>
-        <a href="#" class="nav-item" data-tab="gifts">
-          <span class="nav-icon">🎁</span>
-          <span>TikTok Gifts Data</span>
+        <a href="#" class="nav-item" data-tab="tts">
+          <span class="nav-icon" aria-hidden="true">🔊</span>
+          <span>TTS &amp; Soundboard</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="widgets">
+          <span class="nav-icon" aria-hidden="true">🎡</span>
+          <span>Stream Widgets</span>
         </a>
         <a href="#" class="nav-item" data-tab="effects">
-          <span class="nav-icon">✨</span>
-          <span>Effects</span>
+          <span class="nav-icon" aria-hidden="true">✨</span>
+          <span>Effects Library</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="integrations">
+          <span class="nav-icon" aria-hidden="true">🔌</span>
+          <span>OBS, Ports &amp; Analytics</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="gifts">
+          <span class="nav-icon" aria-hidden="true">🎁</span>
+          <span>TikTok Gifts Data</span>
         </a>
         <a href="#" class="nav-item" data-tab="events">
-          <span class="nav-icon">📋</span>
+          <span class="nav-icon" aria-hidden="true">📋</span>
           <span>Live Events</span>
         </a>
         <a href="#" class="nav-item" data-tab="settings">
-          <span class="nav-icon">🔧</span>
-          <span>Settings</span>
+          <span class="nav-icon" aria-hidden="true">🔧</span>
+          <span>Settings &amp; Drivers</span>
         </a>
       </nav>
       <div class="sidebar-footer">
+        <button type="button" class="simulator-open-btn" id="btn-open-simulator">
+          <span aria-hidden="true">🧪</span> Event Simulator
+        </button>
         <a href="/overlay" target="_blank" class="overlay-btn">
-          <span>📺</span> OBS Overlay
+          <span aria-hidden="true">📺</span> OBS Overlay
         </a>
       </div>
     </aside>
 
     <!-- Main Content -->
     <main class="main">
-      <!-- Header -->
+      <!-- Topbar Header -->
       <header class="topbar">
         <div class="topbar-left">
           <h1 id="page-title">Dashboard</h1>
-          <button class="theme-toggle" id="btn-theme">🌓 Dark Mode</button>
+          <button type="button" class="theme-toggle" id="btn-theme" aria-label="Toggle Dark or Light Mode">🌓 Theme</button>
+          <button type="button" class="update-badge-btn" id="btn-topbar-update" style="display:none;" title="Lihat update versi baru">
+            <span class="pulse-dot"></span> <span id="topbar-update-text">✨ Update Tersedia</span>
+          </button>
         </div>
+
         <div class="topbar-right">
-          <!-- Game Selector -->
-          <div class="game-selector" id="game-selector">
-            <div class="game-badge" id="active-game-badge">
-              <span id="game-icon">🚗</span>
-              <span id="game-name">Loading...</span>
-              <span class="game-badge-arrow">▾</span>
+          <!-- Game & Preset Modular SelectorBar -->
+          <div class="selector-group">
+            <!-- Game Selector -->
+            <div class="game-selector" id="game-selector">
+              <button type="button" class="game-badge" id="active-game-badge" aria-haspopup="listbox" aria-expanded="false" title="Pilih Game Aktif">
+                <span id="game-icon">🚗</span>
+                <div class="game-badge-meta">
+                  <span class="game-badge-label">GAME AKTIF</span>
+                  <span id="game-name">Loading...</span>
+                </div>
+                <span class="driver-pill" id="game-driver-pill">WS-MOD</span>
+                <span class="game-badge-arrow" aria-hidden="true">▾</span>
+              </button>
+              <div class="game-dropdown" id="game-dropdown" role="listbox" style="display:none">
+                <div class="dropdown-section-title">Pilih Game Target</div>
+                <div id="game-list"></div>
+                <div class="dropdown-footer-actions">
+                  <button type="button" class="btn-dropdown-action primary" id="btn-open-add-game">+ Tambah Game Baru</button>
+                </div>
+              </div>
             </div>
-            <div class="game-dropdown" id="game-dropdown" style="display:none">
-              <div id="game-list"></div>
+
+            <!-- Preset Selector -->
+            <div class="preset-selector" id="preset-selector">
+              <div class="preset-badge-wrap">
+                <label for="preset-select" class="preset-badge-label">PRESET</label>
+                <select id="preset-select" class="preset-select" aria-label="Pilih Preset Game"></select>
+              </div>
+              <button type="button" class="btn-icon-sq" id="btn-new-preset" title="Buat / Duplikat Preset Baru" aria-label="Buat Preset Baru">+</button>
+              <button type="button" class="btn-icon-sq" id="btn-export-preset" title="Export Preset (.json)" aria-label="Export Preset">📤</button>
+              <button type="button" class="btn-icon-sq" id="btn-import-preset" title="Import Preset (.json)" aria-label="Import Preset">📥</button>
+              <input type="file" id="preset-file-input" accept=".json" style="display:none">
             </div>
           </div>
 
           <!-- TikTok Connect -->
           <div class="connect-area" id="connect-area">
-            <div class="connect-status disconnected" id="connect-status">
+            <div class="connect-status disconnected" id="connect-status" role="status">
               <span class="status-dot"></span>
               <span id="status-label">Disconnected</span>
             </div>
             <div class="connect-input-wrap" id="connect-form">
-              <input type="text" id="username-input" class="username-input" placeholder="@username" autocomplete="off">
-              <button class="btn-connect" id="btn-connect">Connect</button>
+              <input type="text" id="username-input" class="username-input" placeholder="@username" aria-label="TikTok Username" autocomplete="off">
+              <button type="button" class="btn-connect" id="btn-connect">Connect</button>
             </div>
-            <button class="btn-disconnect" id="btn-disconnect" style="display:none">Disconnect</button>
+            <button type="button" class="btn-disconnect" id="btn-disconnect" style="display:none">Disconnect</button>
           </div>
         </div>
       </header>
+
+      <!-- Master Kill-Switches Subbar (Sakelar Kontrol) -->
+      <div class="control-bar" aria-label="Sakelar Kontrol Interaksi">
+        <div class="control-bar-left">
+          <span class="control-bar-title">⚡ Sakelar Kontrol:</span>
+          <button type="button" class="switch-pill active" id="sw-all" data-switch="all" title="Matikan/Nyalakan Semua Interaksi">
+            <span class="sw-dot"></span> Semua Interaksi
+          </button>
+          <button type="button" class="switch-pill active" id="sw-wsMod" data-switch="wsMod" title="Koneksi Mod C# / Unity WebSocket">
+            <span class="sw-dot"></span> Unity / WS Mod
+          </button>
+          <button type="button" class="switch-pill active" id="sw-keystroke" data-switch="keystroke" title="Simulasi Tombol Keyboard & Mouse">
+            <span class="sw-dot"></span> Keystroke Macro
+          </button>
+          <button type="button" class="switch-pill active" id="sw-rcon" data-switch="rcon" title="Perintah Server Minecraft / RCON">
+            <span class="sw-dot"></span> RCON / Minecraft
+          </button>
+          <button type="button" class="switch-pill active" id="sw-tts" data-switch="tts" title="Matikan/Nyalakan Suara TTS & Soundboard">
+            <span class="sw-dot"></span> TTS &amp; Sound
+          </button>
+          <button type="button" class="switch-pill active" id="sw-obs" data-switch="obs" title="Matikan/Nyalakan Aksi OBS Studio">
+            <span class="sw-dot"></span> OBS Studio
+          </button>
+        </div>
+        <div class="control-bar-right" style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="btn-sm" id="btn-topbar-hud" title="Buka Jendela Melayang Transparan (Mode 1 Monitor)">🪟 Floating HUD</button>
+          <span class="active-target-info" id="active-target-info">Target: CarJunkyard (WS-Mod)</span>
+        </div>
+      </div>
 
       <!-- Tab: Dashboard -->
       <section class="tab-content active" id="tab-dashboard">
         <!-- Stats Row -->
         <div class="stats-row">
           <div class="stat-card">
-            <div class="stat-icon">👁️</div>
+            <div class="stat-icon" aria-hidden="true">👁️</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-viewers">0</div>
               <div class="stat-label">Viewers</div>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">❤️</div>
+            <div class="stat-icon" aria-hidden="true">❤️</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-likes">0</div>
               <div class="stat-label">Likes</div>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">🎁</div>
+            <div class="stat-icon" aria-hidden="true">🎁</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-gifts">0</div>
               <div class="stat-label">Gifts</div>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">👤</div>
+            <div class="stat-icon" aria-hidden="true">👤</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-followers">0</div>
               <div class="stat-label">Follows</div>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">🔌</div>
+            <div class="stat-icon" aria-hidden="true">🔌</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-modclients">0</div>
-              <div class="stat-label">Game Connected</div>
+              <div class="stat-label">Mod Connected</div>
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">📦</div>
+            <div class="stat-icon" aria-hidden="true">📦</div>
             <div class="stat-info">
               <div class="stat-value" id="stat-queue">0</div>
               <div class="stat-label">Queue</div>
@@ -141,11 +212,14 @@
           <!-- Live Feed -->
           <div class="card live-feed-card">
             <div class="card-header">
-              <span>Live Event Feed</span>
-              <span class="live-indicator" id="live-dot">● LIVE</span>
+              <span>Live Event Feed (Multi-Platform)</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" class="btn-sm" id="btn-quick-sim">🧪 Simulasi Cepat</button>
+                <span class="live-indicator" id="live-dot">● LIVE</span>
+              </div>
             </div>
             <div class="live-feed" id="live-feed">
-              <div class="feed-empty">Menunggu event dari TikTok Live...</div>
+              <div class="feed-empty">Menunggu event dari TikTok Live / Saweria / Simulator...</div>
             </div>
           </div>
 
@@ -159,8 +233,8 @@
             </div>
             <div class="card queue-card">
               <div class="card-header">
-                <span>Queue</span>
-                <button class="btn-sm danger" id="btn-clear-queue">Clear</button>
+                <span>Execution Queue</span>
+                <button type="button" class="btn-sm danger" id="btn-clear-queue">Clear</button>
               </div>
               <div class="queue-list" id="queue-list">
                 <div class="queue-empty">Queue empty</div>
@@ -174,12 +248,12 @@
       <section class="tab-content" id="tab-gifts">
         <div class="gifts-header">
           <h2>TikTok Gifts Data</h2>
-          <p class="config-desc">Database tiktok gift berdasarkan username tiktok kamu</p>
+          <p class="config-desc">Database TikTok gift berdasarkan username TikTok atau file katalog lokal</p>
           <div class="gifts-actions mt">
-            <input type="text" id="gifts-username-input" class="form-input" style="width:200px; display:inline-block;" placeholder="@username">
-            <button class="btn-primary" id="btn-update-gifts">🔄 Update Gift</button>
+            <input type="text" id="gifts-username-input" class="form-input" style="width:220px; display:inline-block; margin-bottom:0;" placeholder="@username">
+            <button type="button" class="btn-primary" id="btn-update-gifts">🔄 Update Gift</button>
           </div>
-          <p class="form-hint mt"><strong>Membutuhkan data gift terbaru?</strong> Masukkan username dan klik tombol update diatas.</p>
+          <p class="form-hint mt"><strong>Membutuhkan data gift terbaru?</strong> Masukkan username dan klik tombol update di atas.</p>
         </div>
         <div class="gifts-data-grid" id="gifts-data-grid">
           <div class="feed-empty">Belum ada data gift. Silakan update.</div>
@@ -188,17 +262,30 @@
 
       <!-- Tab: Configurator -->
       <section class="tab-content" id="tab-configurator">
-        <div class="config-header">
-          <p class="config-desc">Atur gift tier, event, dan efek masing-masing. Drag untuk mengatur prioritas.</p>
-          <button class="btn-primary" id="btn-save-config">💾 Save Config</button>
+        <!-- Active Game & Preset Context Banner -->
+        <div class="config-context-banner" id="config-context-banner">
+          <div class="ccb-left">
+            <span class="ccb-icon" id="ccb-icon">🚗</span>
+            <div>
+              <div class="ccb-title">
+                Mengatur Preset: <strong id="ccb-preset-name">Default</strong> — Game: <strong id="ccb-game-name">I Need to Fix My Dream Car</strong>
+              </div>
+              <div class="ccb-sub" id="ccb-driver-desc">Driver: Unity Mod WebSocket (:7827) · Semua perubahan otomatis tersimpan ke preset aktif</div>
+            </div>
+          </div>
+          <div class="ccb-actions">
+            <button type="button" class="btn-sm" id="btn-cfg-add-effect">+ Buat Efek Baru</button>
+            <button type="button" class="btn-sm danger" id="btn-delete-preset" title="Hapus Preset Ini">🗑️ Hapus Preset</button>
+            <button type="button" class="btn-primary" id="btn-save-config">💾 Save Preset Config</button>
+          </div>
         </div>
 
         <div class="config-sections">
-          <!-- Gift Tiers -->
+          <!-- 1. Specific Gift Tiers -->
           <div class="card config-card">
             <div class="card-header">
-              🎁 Gift Tier Mapping
-              <button class="btn-sm" id="btn-add-tier">+ Add Tier</button>
+              <span>🎁 Specific Gift Mapping (Mendukung Multi-Action: Efek Game + Sound + TTS + Roda Gacha)</span>
+              <button type="button" class="btn-sm" id="btn-add-tier">+ Add Gift Mapping</button>
             </div>
             <div class="config-table-wrap">
               <table class="config-table" id="gift-table">
@@ -206,8 +293,11 @@
                   <tr>
                     <th>Label</th>
                     <th>Selected Gift</th>
-                    <th>Effect</th>
-                    <th>Enabled</th>
+                    <th>Effect (Game Aktif / Gacha)</th>
+                    <th>Role / Specific Users</th>
+                    <th>Multi-Action (Sound / TTS / Wheel)</th>
+                    <th>Combo xN</th>
+                    <th>ON</th>
                     <th>Test</th>
                     <th></th>
                   </tr>
@@ -217,27 +307,100 @@
             </div>
           </div>
 
-          <!-- Social Events -->
+          <!-- 2. Coin Range Tiers (Fallback) -->
           <div class="card config-card">
             <div class="card-header">
-              👥 Social Event Mapping
-              <button class="btn-sm" id="btn-add-event">+ Add Event</button>
+              <span>💎 Minimum / Range Coin Tiers (Fallback jika Gift tidak terdaftar di atas)</span>
+              <button type="button" class="btn-sm" id="btn-add-cointier">+ Add Coin Tier</button>
+            </div>
+            <div class="config-table-wrap">
+              <table class="config-table" id="coin-table">
+                <thead>
+                  <tr>
+                    <th>Min Coins (💎)</th>
+                    <th>Max Coins (💎)</th>
+                    <th>Effect (Game Aktif / Gacha)</th>
+                    <th>Multi-Action (Sound / Wheel)</th>
+                    <th>Enabled</th>
+                    <th>Test</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="coin-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 3. Chat Command Mapping -->
+          <div class="card config-card">
+            <div class="card-header">
+              <span>💬 Chat Command Triggers (Filter Role, Specific Users Whitelist &amp; Dual Cooldown)</span>
+              <button type="button" class="btn-sm" id="btn-add-chatcmd">+ Add Command</button>
+            </div>
+            <div class="config-table-wrap">
+              <table class="config-table" id="chatcmd-table">
+                <thead>
+                  <tr>
+                    <th>Command (mis. !lompat)</th>
+                    <th>Filter Role Penonton</th>
+                    <th>Specific Users / Level</th>
+                    <th>Global CD (s)</th>
+                    <th>User CD (s)</th>
+                    <th>Effect (Game Aktif)</th>
+                    <th>ON</th>
+                    <th>Test</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="chatcmd-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 4. External Donation Tiers (Saweria / Sociabuzz / Trakteer / BagiBagi) -->
+          <div class="card config-card">
+            <div class="card-header">
+              <span>💸 Platform Donasi Rupiah (Saweria, Sociabuzz, Trakteer, BagiBagi)</span>
+              <button type="button" class="btn-sm" id="btn-add-donation">+ Add Donation Tier</button>
+            </div>
+            <div class="config-table-wrap">
+              <table class="config-table" id="donation-table">
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>Minimal Nominal (Rp)</th>
+                    <th>Effect (Game Aktif)</th>
+                    <th>Enabled</th>
+                    <th>Test</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="donation-rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 5. Social Events -->
+          <div class="card config-card">
+            <div class="card-header">
+              <span>👥 Social Event Mapping (Follow, Share, Repost, Join)</span>
+              <button type="button" class="btn-sm" id="btn-add-event">+ Add Social Event</button>
             </div>
             <div id="event-rows" class="config-table-wrap"></div>
           </div>
 
-          <!-- Like Thresholds -->
+          <!-- 6. Like Thresholds -->
           <div class="card config-card">
             <div class="card-header">
-              👍 Like Threshold Mapping
-              <button class="btn-sm" id="btn-add-threshold">+ Add</button>
+              <span>👍 Like Threshold Mapping (Kelipatan Tap-Tap Layar)</span>
+              <button type="button" class="btn-sm" id="btn-add-threshold">+ Add Like Goal</button>
             </div>
             <div class="config-table-wrap">
               <table class="config-table" id="like-table">
                 <thead>
                   <tr>
                     <th>Every N Likes</th>
-                    <th>Effect</th>
+                    <th>Effect (Game Aktif)</th>
                     <th>Enabled</th>
                     <th>Test</th>
                     <th></th>
@@ -252,14 +415,17 @@
 
       <!-- Tab: Effects Library -->
       <section class="tab-content" id="tab-effects">
-        <div class="effects-filter">
-          <button class="filter-btn active" data-cat="all">All</button>
-          <button class="filter-btn" data-cat="camera">📷 Camera</button>
-          <button class="filter-btn" data-cat="player">🏃 Player</button>
-          <button class="filter-btn" data-cat="minigame">🎮 Mini Game</button>
-          <button class="filter-btn" data-cat="world">🌍 World</button>
-          <button class="filter-btn" data-cat="visual">✨ Visual</button>
-          <button class="filter-btn" data-cat="special">⚡ Special</button>
+        <div class="effects-header-bar">
+          <div class="effects-filter">
+            <button type="button" class="filter-btn active" data-cat="all">All</button>
+            <button type="button" class="filter-btn" data-cat="player">🏃 Player</button>
+            <button type="button" class="filter-btn" data-cat="world">🌍 World</button>
+            <button type="button" class="filter-btn" data-cat="camera">📷 Camera</button>
+            <button type="button" class="filter-btn" data-cat="visual">✨ Visual</button>
+            <button type="button" class="filter-btn" data-cat="special">⚡ Special</button>
+            <button type="button" class="filter-btn" data-cat="system">🛑 System</button>
+          </div>
+          <button type="button" class="btn-primary" id="btn-open-add-effect">+ Tambah Efek Baru</button>
         </div>
         <div class="effects-grid" id="effects-grid"></div>
       </section>
@@ -272,6 +438,8 @@
             <label><input type="checkbox" id="filter-follow" checked> 👤 Follows</label>
             <label><input type="checkbox" id="filter-member" checked> 👋 Joins</label>
             <label><input type="checkbox" id="filter-like" checked> ❤️ Likes</label>
+            <label><input type="checkbox" id="filter-chat" checked> 💬 Chat</label>
+            <label><input type="checkbox" id="filter-donation" checked> 💸 Donations</label>
           </div>
         </div>
         <div class="events-table-wrap">
@@ -287,65 +455,684 @@
       <!-- Tab: Settings -->
       <section class="tab-content" id="tab-settings">
         <div class="settings-grid">
+          <!-- Card 1: TikTok & Hybrid Connection Settings -->
           <div class="card settings-card">
-            <div class="card-header">🔑 API Configuration</div>
+            <div class="card-header">🔑 TikTok Live &amp; Eulerstream Configuration</div>
             <div class="settings-form">
-              <label class="form-label">Eulerstream API Key</label>
+              <label class="form-label" for="connection-mode-select">Mode Koneksi TikTok Live</label>
+              <select id="connection-mode-select" class="form-input">
+                <option value="eulerstream">Eulerstream WebSocket (Default — Gunakan API Key)</option>
+                <option value="hybrid">Hybrid (Eulerstream Utama + Fallback Native Connector)</option>
+                <option value="connector">Native Connector Gratis (Tanpa Eulerstream Key)</option>
+              </select>
+              <p class="form-hint">Pengaturan Eulerstream Anda tetap aman dan menjadi prioritas utama.</p>
+
+              <label class="form-label" for="api-key-input">Eulerstream API Key</label>
               <div class="input-row">
                 <input type="password" id="api-key-input" class="form-input" placeholder="Enter your Eulerstream API key">
-                <button class="btn-sm" id="btn-show-key">Show</button>
+                <button type="button" class="btn-sm" id="btn-show-key">Show</button>
               </div>
-              <button class="btn-primary mt" id="btn-save-key" style="margin-top:10px">Save API Key</button>
-              <p class="form-hint mt">Dapatkan API key di <a href="https://eulerstream.com" target="_blank">eulerstream.com</a></p>
+              <button type="button" class="btn-primary" id="btn-save-key">Save API Key</button>
+              <p class="form-hint">Dapatkan API key di <a href="https://eulerstream.com" target="_blank" rel="noopener">eulerstream.com</a></p>
 
-              <label class="form-label mt">TikTok Session ID (Optional)</label>
+              <label class="form-label" for="session-id-input">TikTok Session ID (Optional)</label>
               <div class="input-row">
                 <input type="password" id="session-id-input" class="form-input" placeholder="Paste your TikTok sessionid cookie">
-                <button class="btn-sm" id="btn-show-session">Show</button>
+                <button type="button" class="btn-sm" id="btn-show-session">Show</button>
               </div>
-              <button class="btn-primary mt" id="btn-save-session" style="margin-top:10px">Save Session ID</button>
-              <p class="form-hint mt">Gunakan jika koneksi sering gagal (error 403). Dapatkan dari cookie 'sessionid' browser saat login TikTok.</p>
+              <button type="button" class="btn-primary" id="btn-save-session">Save Session ID</button>
             </div>
           </div>
 
+          <!-- Card 2: Active Game Driver & Input Method Configuration -->
           <div class="card settings-card">
-            <div class="card-header">🔗 Webhook</div>
+            <div class="card-header">🎮 Pengaturan Driver Game Aktif</div>
             <div class="settings-form">
-              <label class="form-label">Webhook URL (opsional)</label>
+              <label class="form-label" for="driver-input-method">Metode Keystroke Engine (Untuk Game Keystroke)</label>
+              <select id="driver-input-method" class="form-input">
+                <option value="sendinput">Win32 SendInput (Hardware ScanCode — Terbaik untuk GTA/Roblox/3D)</option>
+                <option value="autoit">AutoIt Runner (keystroke.exe — Cocok untuk Windowed/Emulator)</option>
+              </select>
+              <p class="form-hint">Kedua metode berjalan di satu antrean tunggal (Unified Mutex) sehingga tidak akan pernah bentrok.</p>
+
+              <label class="form-label" for="driver-target-process">Target Process / Window Game (.exe)</label>
+              <div class="input-row">
+                <input type="text" id="driver-target-process" class="form-input" placeholder="mis. RobloxPlayerBeta.exe atau GTA5.exe">
+                <button type="button" class="btn-sm" id="btn-scan-windows">🔄 Scan</button>
+              </div>
+              <select id="running-windows-select" class="form-input" style="display:none; margin-top:8px;"></select>
+
+              <button type="button" class="btn-primary" id="btn-save-driver-settings">Simpan Pengaturan Driver Game</button>
+            </div>
+          </div>
+
+          <!-- Card 3: Donation Platform Webhook & Outgoing Webhook -->
+          <div class="card settings-card">
+            <div class="card-header">💸 Webhook Donasi (Saweria / Sociabuzz / Trakteer) &amp; Outgoing</div>
+            <div class="settings-form">
+              <label class="form-label">Incoming Webhook URL (Paste di Saweria / Sociabuzz / Trakteer)</label>
+              <div class="input-row">
+                <input type="text" id="incoming-webhook-url" class="form-input" readonly value="http://localhost:3939/api/webhook/donation/saweria">
+                <button type="button" class="btn-sm success" id="btn-copy-webhook">Copy</button>
+              </div>
+              <p class="form-hint">Ganti akhiran <code>/saweria</code> dengan <code>/sociabuzz</code>, <code>/trakteer</code>, atau <code>/bagibagi</code>.</p>
+
+              <label class="form-label" for="webhook-url">Outgoing Webhook URL (Opsional)</label>
               <input type="url" id="webhook-url" class="form-input" placeholder="https://your-server.com/webhook">
-              <label class="form-label mt">Secret Key</label>
+              <label class="form-label" for="webhook-secret">Secret Key</label>
               <input type="text" id="webhook-secret" class="form-input" placeholder="optional HMAC secret">
-              <button class="btn-primary mt" id="btn-save-webhook">Save Webhook</button>
+              <button type="button" class="btn-primary" id="btn-save-webhook">Save Outgoing Webhook</button>
             </div>
           </div>
 
+          <!-- Card 4: Queue & Catalog Management -->
           <div class="card settings-card">
-            <div class="card-header">📦 Queue Settings</div>
+            <div class="card-header">📦 Queue Settings &amp; Katalog Game</div>
             <div class="settings-form">
-              <label class="form-label">Max Queue Size</label>
-              <input type="number" id="queue-size" class="form-input" value="10" min="1" max="50">
-              <label class="form-label mt">Min Delay Between Effects (ms)</label>
+              <label class="form-label" for="queue-size">Max Queue Size</label>
+              <input type="number" id="queue-size" class="form-input" value="100" min="1" max="500">
+              <label class="form-label" for="queue-delay">Min Delay Between Effects (ms)</label>
               <input type="number" id="queue-delay" class="form-input" value="500" min="0" max="10000">
-              <label class="form-label mt">Drop on Full</label>
+              <label class="form-label" for="queue-drop">Drop on Full</label>
               <select class="form-input" id="queue-drop">
                 <option value="false">Keep (drop oldest)</option>
                 <option value="true">Drop incoming</option>
               </select>
-              <button class="btn-primary mt" id="btn-save-queue">Save Queue Settings</button>
+              <button type="button" class="btn-primary" id="btn-save-queue">Save Queue Settings</button>
+
+              <div class="form-label" style="margin-top:16px">Daftar Game Terdaftar (<span id="games-count-label">0</span>)</div>
+              <div id="settings-games"></div>
             </div>
           </div>
 
+          <!-- Card 5: App Information & Update Checker -->
+          <div class="card settings-card" id="card-app-updates">
+            <div class="card-header">
+              <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
+              <span class="badge info" id="app-version-badge">v1.2.1</span>
+            </div>
+            <div class="settings-form">
+              <div class="app-info-grid">
+                <div class="info-item">
+                  <span class="info-label">Versi Terinstal:</span>
+                  <span class="info-val" id="info-current-ver">v1.2.1</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Mode Aplikasi:</span>
+                  <span class="info-val" id="info-app-mode">Memuat...</span>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  <span class="info-label">Lokasi Data &amp; Preset:</span>
+                  <span class="info-val code-path" id="info-storage-path">Memuat...</span>
+                </div>
+              </div>
+
+              <div class="update-status-panel" id="update-status-panel">
+                <div class="update-status-header">
+                  <span id="update-status-icon">🔄</span>
+                  <div class="update-status-text">
+                    <strong id="update-status-title">Status Pembaruan</strong>
+                    <p id="update-status-desc">Klik tombol di bawah untuk memeriksa versi terbaru dari GitHub.</p>
+                  </div>
+                </div>
+
+                <!-- Box when update is available -->
+                <div class="update-banner" id="update-banner" style="display: none;">
+                  <div class="update-banner-title">
+                    <span class="badge success" id="update-new-ver-badge">v1.2.2</span>
+                    <strong id="update-release-title">Agiva Mod Rilis Baru!</strong>
+                  </div>
+                  <div class="update-notes-box" id="update-release-notes"></div>
+                  <div class="update-actions" id="update-download-actions">
+                    <button type="button" class="btn-primary" id="btn-download-portable" style="display: none;">⬇️ Download Portable (.exe)</button>
+                    <button type="button" class="btn-secondary" id="btn-download-setup" style="display: none;">⬇️ Download Installer (.exe)</button>
+                    <button type="button" class="btn-sm" id="btn-open-release-page">🌐 Buka Halaman Rilis GitHub</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="button-group" style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn-primary" id="btn-check-updates">🔍 Periksa Pembaruan Sekarang</button>
+                <button type="button" class="btn-secondary" id="btn-visit-github">⭐ Kunjungi GitHub Repo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: TTS & Soundboard (Batch A) -->
+      <section class="tab-content" id="tab-tts">
+        <div class="settings-grid">
+          <!-- Card 1: Free Indonesian TTS Settings -->
           <div class="card settings-card">
-            <div class="card-header">🎮 Connected Games</div>
-            <div id="settings-games"></div>
+            <div class="card-header">
+              <span>🔊 Pengaturan TTS Bahasa Indonesia Gratis</span>
+              <div class="card-actions">
+                <button type="button" class="btn-sm danger" id="btn-tts-skip">⏭️ Skip Suara Aktif</button>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="tts-enabled-select">Status TTS Engine</label>
+                  <select id="tts-enabled-select" class="form-input">
+                    <option value="true">Aktif (Suara Otomatis Nyala)</option>
+                    <option value="false">Nonaktif (Mute TTS)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="tts-lang-select">Bahasa &amp; Aksen Suara (100% Gratis)</label>
+                  <select id="tts-lang-select" class="form-input">
+                    <option value="id-ID">🇮🇩 Bahasa Indonesia (Gadis / Natural)</option>
+                    <option value="jv-ID">🇮🇩 Bahasa Jawa</option>
+                    <option value="su-ID">🇮🇩 Bahasa Sunda</option>
+                    <option value="ms-MY">🇲🇾 Bahasa Melayu</option>
+                    <option value="en-US">🇺🇸 English (US)</option>
+                    <option value="ja-JP">🇯🇵 Japanese (Anime Accent)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="tts-volume-range">Volume Suara (<span id="tts-vol-val">100</span>%)</label>
+                  <input type="range" id="tts-volume-range" class="form-input" min="0" max="100" value="100">
+                </div>
+                <div>
+                  <label class="form-label" for="tts-speed-range">Kecepatan Bicara (<span id="tts-speed-val">1.0</span>x)</label>
+                  <input type="range" id="tts-speed-range" class="form-input" min="0.5" max="1.8" step="0.1" value="1.0">
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="tts-role-select">Siapa yang Boleh Trigger TTS Chat?</label>
+                  <select id="tts-role-select" class="form-input">
+                    <option value="everyone">Semua Penonton (Everyone)</option>
+                    <option value="follower">Hanya Follower</option>
+                    <option value="subscriber">Hanya Subscriber / Superfan</option>
+                    <option value="moderator">Hanya Moderator</option>
+                    <option value="min_gifter">Minimal Gifter (Koin)</option>
+                    <option value="specific_users">Hanya Specific Users (Whitelist Username)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="tts-prefix-input">Trigger Mode Komentar</label>
+                  <input type="text" id="tts-prefix-input" class="form-input" placeholder="Kosongkan = baca semua chat, atau isi !tts">
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="tts-specific-users">Whitelist Specific Users (Pisahkan koma)</label>
+                  <input type="text" id="tts-specific-users" class="form-input" placeholder="mis. @sultan_agiva, @moderator1, @vip_user">
+                </div>
+                <div>
+                  <label class="form-label" for="tts-min-coins">Min. Koin Gifter / Cooldown User (detik)</label>
+                  <div class="input-row">
+                    <input type="number" id="tts-min-coins" class="form-input" placeholder="Min Koin (0)" value="0" min="0">
+                    <input type="number" id="tts-cooldown-sec" class="form-input" placeholder="Cooldown (8s)" value="8" min="0">
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <label class="checkbox-label"><input type="checkbox" id="tts-read-chat" checked> Baca Live Chat</label>
+                <label class="checkbox-label"><input type="checkbox" id="tts-read-gift" checked> Baca Alert Gift</label>
+                <label class="checkbox-label"><input type="checkbox" id="tts-read-donation" checked> Baca Alert Saweria/Donasi</label>
+                <label class="checkbox-label"><input type="checkbox" id="tts-play-in-dashboard" checked> Putar Suara Langsung di Dashboard Ini</label>
+              </div>
+
+              <label class="form-label" for="tts-template-gift">Template Kalimat Gift / Donasi</label>
+              <input type="text" id="tts-template-gift" class="form-input" value="Terima kasih {user} atas {gift} sebanyak {repeat} kali">
+
+              <label class="form-label" for="tts-badwords">Filter Kata Kasar / Badwords (Pisahkan koma)</label>
+              <input type="text" id="tts-badwords" class="form-input" placeholder="anjing, tolol, goblok, slot, judi">
+
+              <div class="input-row" style="margin-top:6px;">
+                <input type="text" id="tts-test-input" class="form-input" placeholder="Ketik kalimat untuk tes suara TTS Bahasa Indonesia..." value="Halo streamer Agiva, terima kasih sultan sudah kirim gift!">
+                <button type="button" class="btn-sm success" id="btn-tts-test">▶️ Tes Suara TTS</button>
+                <button type="button" class="btn-primary" id="btn-tts-save">💾 Simpan Pengaturan TTS</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Soundboard Meme & Custom Audio Upload -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🎵 Soundboard Instan &amp; Efek Suara Meme</span>
+              <div class="card-actions">
+                <label class="btn-sm primary" style="cursor:pointer; margin:0;">
+                  + Upload MP3/WAV
+                  <input type="file" id="soundboard-upload-input" accept=".mp3,.wav,.ogg" style="display:none">
+                </label>
+              </div>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Klik tombol di bawah untuk memutar efek suara secara instan di Stream Overlay &amp; Dashboard. Anda juga bisa memasang setiap suara ini ke Gift / Koin / Chat di tab Configurator.</p>
+              <div class="soundboard-grid" id="soundboard-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Stream Widgets & Multi-Screen Overlay (Batch B) -->
+      <section class="tab-content" id="tab-widgets">
+        <!-- Multi-Screen OBS URL Generator Bar -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <span>🖥️ Multi-Screen Overlay &amp; OBS Browser Source URLs (Klik untuk Copy URL)</span>
+            <span class="form-hint" style="margin:0;">Tempel URL ke Browser Source OBS Studio / TikTok Live Studio</span>
+          </div>
+          <div class="overlay-urls-bar" id="overlay-urls-bar">
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?screen=1">📋 Screen 1 (Utama)</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?screen=2">📋 Screen 2 (Meme/Video)</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?screen=3">📋 Screen 3 (Sound/TTS)</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?screen=4">📋 Screen 4 (Khusus Sultan)</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=timer">⏱️ URL Subathon Timer</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=wheel">🎡 URL Spin Wheel</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=goal">🎯 URL Goal Bar</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=winlose">🏆 URL Win/Lose</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=leaderboard">👑 URL Leaderboard</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=poll">📊 URL Live Poll</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=giveaway">🎁 URL Giveaway</button>
+            <button type="button" class="btn-sm primary" data-copy-overlay="/overlay?widget=all">🌟 URL Semua Widget</button>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Widget 1: Subathon Countdown Timer -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>⏱️ Subathon Countdown Timer</span>
+              <span class="badge-pill" id="widget-timer-preview">01:00:00</span>
+            </div>
+            <div class="settings-form">
+              <div class="input-row">
+                <button type="button" class="btn-sm success" id="btn-timer-start">▶️ Start</button>
+                <button type="button" class="btn-sm" id="btn-timer-pause">⏸️ Pause</button>
+                <button type="button" class="btn-sm" id="btn-timer-add60">+1 Menit</button>
+                <button type="button" class="btn-sm" id="btn-timer-add300">+5 Menit</button>
+                <button type="button" class="btn-sm danger" id="btn-timer-reset">🔄 Reset</button>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="timer-title-input">Judul Timer</label>
+                  <input type="text" id="timer-title-input" class="form-input" value="SUBATHON TIMER">
+                </div>
+                <div>
+                  <label class="form-label" for="timer-sec-per-coin">Tambah Detik Otomatis per 1 Koin Gift</label>
+                  <input type="number" id="timer-sec-per-coin" class="form-input" value="2" min="0" max="3600">
+                </div>
+              </div>
+              <button type="button" class="btn-primary" id="btn-timer-save">Simpan Konfigurasi Timer</button>
+            </div>
+          </div>
+
+          <!-- Widget 2: Spin Wheel / Lucky Wheel -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🎡 Spin Wheel / Roda Gacha Keberuntungan</span>
+              <button type="button" class="btn-sm success" id="btn-wheel-spin">🎰 PUTAR RODA SEKARANG!</button>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Daftar segmen roda gacha (Format per baris: <code>Label Hadiah | effectId | WarnaHex</code>)</p>
+              <textarea id="wheel-segments-input" class="form-input" rows="5" placeholder="⚡ Thor Strike | thor | #ff6b35&#10;💀 Kill Player | kill | #ef4444&#10;🚀 Fling | fling | #3b82f6"></textarea>
+              <button type="button" class="btn-primary" id="btn-wheel-save">Simpan Segmen Spin Wheel</button>
+            </div>
+          </div>
+
+          <!-- Widget 3: Goal Bar & Win/Lose Counter -->
+          <div class="card settings-card">
+            <div class="card-header">🎯 Target Goal Bar &amp; 🏆 Win / Lose Counter</div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="goal-coins-title">Judul Goal Koin</label>
+                  <input type="text" id="goal-coins-title" class="form-input" value="Target Koin Hari Ini">
+                </div>
+                <div>
+                  <label class="form-label" for="goal-coins-target">Target Koin</label>
+                  <input type="number" id="goal-coins-target" class="form-input" value="1000" min="10">
+                </div>
+              </div>
+              <div class="input-row">
+                <button type="button" class="btn-primary" id="btn-goal-save">Simpan Goal Bar</button>
+                <button type="button" class="btn-sm danger" id="btn-goal-reset">Reset Progress Goal</button>
+              </div>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+              <label class="form-label">Win / Lose Scoreboard (<span id="winlose-preview">WIN 0 - 0 LOSE</span>)</label>
+              <div class="input-row">
+                <button type="button" class="btn-sm success" id="btn-win-plus">+1 WIN</button>
+                <button type="button" class="btn-sm" id="btn-win-minus">-1 WIN</button>
+                <button type="button" class="btn-sm danger" id="btn-lose-plus">+1 LOSE</button>
+                <button type="button" class="btn-sm" id="btn-lose-minus">-1 LOSE</button>
+                <button type="button" class="btn-sm" id="btn-winlose-reset">Reset Skor</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Widget 4: Live Chat Poll & Giveaway -->
+          <div class="card settings-card">
+            <div class="card-header">📊 Live Voting Poll &amp; 🎁 Undian Giveaway</div>
+            <div class="settings-form">
+              <label class="form-label" for="poll-question-input">Pertanyaan Voting (Penonton ketik <code>!vote 1</code>, <code>!vote 2</code>)</label>
+              <input type="text" id="poll-question-input" class="form-input" value="Game selanjutnya apa?">
+              <input type="text" id="poll-options-input" class="form-input" value="GTA V Chaos, Roblox Tower, Minecraft, Horror Game" placeholder="Pisahkan opsi dengan koma">
+              <div class="input-row">
+                <button type="button" class="btn-sm success" id="btn-poll-start">▶️ Mulai Poll</button>
+                <button type="button" class="btn-sm danger" id="btn-poll-stop">⏹️ Tutup Poll</button>
+              </div>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+              <label class="form-label">Giveaway Live (<span id="giveaway-count-label">0 Peserta</span> — Ketik <code id="giveaway-kw-preview">!ikut</code>)</label>
+              <div class="input-row">
+                <input type="text" id="giveaway-keyword-input" class="form-input" value="!ikut" style="max-width:120px;">
+                <button type="button" class="btn-sm primary" id="btn-giveaway-open">Buka Pendaftaran</button>
+                <button type="button" class="btn-sm success" id="btn-giveaway-draw">🎲 Undi Pemenang!</button>
+                <button type="button" class="btn-sm danger" id="btn-giveaway-clear">Reset</button>
+              </div>
+              <div id="giveaway-winner-banner" class="form-hint" style="font-weight:700; color:var(--accent);"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Ports, OBS, Donation Stream & Analytics (Batch C) -->
+      <section class="tab-content" id="tab-integrations">
+        <div class="settings-grid">
+          <!-- Card 1: Toggleable IndoFinity Compatibility Bridge Ports -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🔌 Port Kompatibilitas IndoFinity / Fusion (:62024, :62025, :62030)</span>
+              <span class="badge-pill" id="compat-master-badge">ON</span>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Semua port di bawah dapat <strong>dinyalakan atau dimatikan (On/Off)</strong> kapan saja. Gunakan jika Anda memakai plugin mod GTA/Minecraft/Roblox/Godot eksternal yang sebelumnya dibuat untuk IndoFinity.</p>
+              <div class="port-toggle-list">
+                <div class="port-toggle-row">
+                  <div>
+                    <strong>Master Switch Semua Port Kompatibilitas</strong>
+                    <div class="form-hint">Matikan jika tidak butuh port bridge eksternal</div>
+                  </div>
+                  <input type="checkbox" id="compat-enabled-master" checked>
+                </div>
+                <div class="port-toggle-row">
+                  <div>
+                    <strong>Port <code>:62024</code> — Raw WebSocket Bridge</strong>
+                    <div class="form-hint" id="port-status-62024">Status: Checking...</div>
+                  </div>
+                  <input type="checkbox" id="compat-port-62024" checked>
+                </div>
+                <div class="port-toggle-row">
+                  <div>
+                    <strong>Port <code>:62025</code> — Secondary Socket Bridge</strong>
+                    <div class="form-hint" id="port-status-62025">Status: Checking...</div>
+                  </div>
+                  <input type="checkbox" id="compat-port-62025" checked>
+                </div>
+                <div class="port-toggle-row">
+                  <div>
+                    <strong>Port <code>:62030</code> — Local REST API (<code>/v1/interaksi</code>, <code>/v1/timer</code>, dll)</strong>
+                    <div class="form-hint" id="port-status-62030">Status: Checking...</div>
+                  </div>
+                  <input type="checkbox" id="compat-port-62030" checked>
+                </div>
+              </div>
+              <button type="button" class="btn-primary" id="btn-save-compat-ports">Terapkan Status Port (On/Off)</button>
+            </div>
+          </div>
+
+          <!-- Card 2: Direct Donation Stream Key Listener (Tanpa Ngrok) -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>💸 Direct Donation Listener (Tanpa Ngrok) + Konversi Koin</span>
+              <span class="badge-pill" id="saweria-socket-badge">OFF</span>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Masukkan Stream Key Saweria untuk menerima donasi secara <strong>langsung tanpa Ngrok</strong>. Nominal Rupiah otomatis dikonversi menjadi Koin sehingga langsung memicu <em>Tiered Coin Rules</em>!</p>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="donation-idr-per-coin">Kurs Konversi Rp ke 1 Koin TikTok</label>
+                  <input type="number" id="donation-idr-per-coin" class="form-input" value="250" min="1">
+                </div>
+                <div>
+                  <label class="form-label" for="saweria-enabled-select">Koneksi Langsung Saweria Socket</label>
+                  <select id="saweria-enabled-select" class="form-input">
+                    <option value="false">Nonaktif</option>
+                    <option value="true">Aktif (Real-Time Stream Key)</option>
+                  </select>
+                </div>
+              </div>
+              <label class="form-label" for="saweria-stream-key">Saweria Stream Key (Dari halaman Overlay Saweria)</label>
+              <input type="password" id="saweria-stream-key" class="form-input" placeholder="Paste streamKey dari URL overlay Saweria Anda">
+              <div class="input-row">
+                <button type="button" class="btn-primary" id="btn-save-donation-config">Simpan &amp; Hubungkan Donasi</button>
+                <button type="button" class="btn-sm success" id="btn-test-donation">💸 Simulasi Donasi Rp 25.000 (100 Koin)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: OBS Studio WebSocket v5 + Desktop HUD & Global Hotkeys -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🎥 OBS Studio WebSocket v5 &amp; 📌 Floating In-Game HUD</span>
+              <span class="badge-pill" id="obs-status-badge">DISCONNECTED</span>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="obs-url-input">OBS WebSocket URL</label>
+                  <input type="text" id="obs-url-input" class="form-input" value="ws://127.0.0.1:4455">
+                </div>
+                <div>
+                  <label class="form-label" for="obs-password-input">OBS WebSocket Password</label>
+                  <input type="password" id="obs-password-input" class="form-input" placeholder="Kosongkan jika tanpa password">
+                </div>
+              </div>
+              <div class="input-row">
+                <button type="button" class="btn-primary" id="btn-obs-connect">Hubungkan ke OBS Studio</button>
+                <button type="button" class="btn-sm" id="btn-obs-disconnect">Putuskan</button>
+              </div>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+              <label class="form-label">Kontrol Desktop App (Electron HUD &amp; TikTok Login)</label>
+              <div class="input-row">
+                <button type="button" class="btn-sm primary" id="btn-open-floating-hud">📌 Toggle Floating HUD (Always-on-Top)</button>
+                <button type="button" class="btn-sm" id="btn-open-tt-login">🔑 Login TikTok 1-Klik (Ambil SessionID)</button>
+              </div>
+              <p class="form-hint">Global Hotkeys Aktif: <code>Alt+Shift+P</code> (Pause Queue), <code>Alt+Shift+S</code> (Skip TTS), <code>Alt+Shift+W</code> (Putar Spin Wheel), <code>Alt+Shift+H</code> (Toggle HUD).</p>
+            </div>
+          </div>
+
+          <!-- Card 4: Persistent Session Analytics & Gift Tracker -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>📈 Riwayat Sesi Live &amp; Gift Tracker (Export CSV)</span>
+              <div class="card-actions">
+                <a href="/api/analytics/export.csv" target="_blank" class="btn-sm success" style="text-decoration:none;">📥 Export CSV</a>
+                <button type="button" class="btn-sm" id="btn-new-analytics-session">🔄 Sesi Baru</button>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="analytics-summary-grid" id="analytics-summary-grid">
+                <div class="mini-stat-box"><span>Total Koin Sesi</span><strong id="an-total-coins">0</strong></div>
+                <div class="mini-stat-box"><span>Total Donasi (IDR)</span><strong id="an-total-idr">Rp 0</strong></div>
+                <div class="mini-stat-box"><span>Total Gift Masuk</span><strong id="an-total-gifts">0</strong></div>
+                <div class="mini-stat-box"><span>Peak Viewers</span><strong id="an-peak-viewers">0</strong></div>
+              </div>
+              <label class="form-label">Top Gifter Sesi Ini</label>
+              <div id="analytics-top-gifters" class="form-hint">Belum ada data gift pada sesi ini.</div>
+            </div>
           </div>
         </div>
       </section>
     </main>
   </div>
 
+  <!-- MODAL 1: Add / Edit Game Wizard -->
+  <div class="modal-backdrop" id="modal-add-game" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-game-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-game-title">🎮 Tambah Preset Game Baru</span>
+        <button type="button" class="btn-close-modal" data-close="modal-add-game" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div>
+            <label class="form-label" for="new-game-name">Nama Game</label>
+            <input type="text" id="new-game-name" class="form-input" placeholder="mis. Valorant / Resident Evil 4">
+          </div>
+          <div>
+            <label class="form-label" for="new-game-icon">Ikon</label>
+            <input type="text" id="new-game-icon" class="form-input" value="🎮" maxlength="4">
+          </div>
+        </div>
+        <label class="form-label" for="new-game-driver">Tipe Integrasi (Driver)</label>
+        <select id="new-game-driver" class="form-input">
+          <option value="keystroke">⌨️ Universal Keystroke &amp; Mouse Macro (Tanpa Mod — Cocok Semua Game PC/Emulator)</option>
+          <option value="ws-mod">🔌 Unity / C# / Lua WebSocket Mod (Port 7827)</option>
+          <option value="rcon">⛏️ Minecraft / RCON / ServerTap Command</option>
+        </select>
+
+        <div id="new-game-keystroke-opts">
+          <label class="form-label" for="new-game-input-method">Metode Keystroke</label>
+          <select id="new-game-input-method" class="form-input">
+            <option value="sendinput">Win32 SendInput (Hardware ScanCode — Direkomendasikan untuk Game 3D)</option>
+            <option value="autoit">AutoIt Runner (keystroke.exe — Untuk Game Windowed/Background)</option>
+          </select>
+          <label class="form-label" for="new-game-process">Proses Executable Game (.exe) — Opsional</label>
+          <input type="text" id="new-game-process" class="form-input" placeholder="mis. VALORANT-Win64-Shipping.exe">
+        </div>
+
+        <label class="form-label" for="new-game-desc">Deskripsi Singkat</label>
+        <input type="text" id="new-game-desc" class="form-input" placeholder="Deskripsi preset game ini">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-sm" data-close="modal-add-game">Batal</button>
+        <button type="button" class="btn-primary" id="btn-submit-new-game">✨ Buat Game &amp; Buka Preset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Add Effect to Current Game -->
+  <div class="modal-backdrop" id="modal-add-effect" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-effect-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-effect-title">✨ Tambah Efek ke Game Aktif</span>
+        <button type="button" class="btn-close-modal" data-close="modal-add-effect" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row-2">
+          <div>
+            <label class="form-label" for="new-eff-label">Nama Efek (Label)</label>
+            <input type="text" id="new-eff-label" class="form-input" placeholder="mis. Jatuhkan Senjata / Lompat">
+          </div>
+          <div>
+            <label class="form-label" for="new-eff-id">ID Efek (Unik)</label>
+            <input type="text" id="new-eff-id" class="form-input" placeholder="mis. drop_weapon">
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label class="form-label" for="new-eff-cat">Kategori</label>
+            <select id="new-eff-cat" class="form-input">
+              <option value="player">🏃 Player</option>
+              <option value="world">🌍 World</option>
+              <option value="camera">📷 Camera</option>
+              <option value="visual">✨ Visual</option>
+              <option value="special">⚡ Special</option>
+              <option value="system">🛑 System</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="new-eff-duration">Durasi Cooldown/Tunggu (ms)</label>
+            <input type="number" id="new-eff-duration" class="form-input" value="500" min="0" step="100">
+          </div>
+        </div>
+        <label class="form-label" for="new-eff-driver">Driver Eksekusi Efek</label>
+        <select id="new-eff-driver" class="form-input">
+          <option value="keystroke">⌨️ Keystroke / Mouse Macro</option>
+          <option value="ws-mod">🔌 WebSocket Game Mod (Kirim ID Efek ke Mod C#)</option>
+          <option value="rcon">⛏️ RCON / ServerTap Command (Minecraft)</option>
+        </select>
+
+        <div id="new-eff-macro-box">
+          <label class="form-label" for="new-eff-macro">Sintaks Macro Keystroke / Mouse</label>
+          <input type="text" id="new-eff-macro" class="form-input" placeholder="Contoh: HOLD 1000 W; DELAY 200; PRESS SPACE">
+          <p class="form-hint">Contoh perintah: <code>HOLD 500 SPACE</code>, <code>PRESS G</code>, <code>HOLD 1000 MOUSELEFT</code>, <code>DELAY 500</code>, <code>CTRL+S</code></p>
+        </div>
+
+        <div id="new-eff-cmd-box" style="display:none">
+          <label class="form-label" for="new-eff-cmd">Perintah RCON / ServerTap</label>
+          <input type="text" id="new-eff-cmd" class="form-input" placeholder="Contoh: execute at {player} run summon creeper ~ ~ ~">
+          <p class="form-hint">Gunakan placeholder <code>{user}</code>, <code>{player}</code>, <code>{giftname}</code>, <code>{coins}</code>.</p>
+        </div>
+
+        <label class="form-label" for="new-eff-desc">Deskripsi</label>
+        <input type="text" id="new-eff-desc" class="form-input" placeholder="Penjelasan singkat efek ini">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-sm" data-close="modal-add-effect">Batal</button>
+        <button type="button" class="btn-primary" id="btn-submit-new-effect">💾 Simpan Efek</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Live Event Simulator -->
+  <div class="modal-backdrop" id="modal-simulator" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-sim-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-sim-title">🧪 Live Event Simulator (Tes Tanpa Harus Live)</span>
+        <button type="button" class="btn-close-modal" data-close="modal-simulator" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="sim-user">Nama Penonton Simulasi</label>
+        <input type="text" id="sim-user" class="form-input" value="Budi_Agiva">
+
+        <div class="sim-section">
+          <div class="sim-section-title">🎁 Simulasi Kirim Gift TikTok</div>
+          <div class="form-row-2">
+            <select id="sim-gift-select" class="form-input"></select>
+            <button type="button" class="btn-primary" id="btn-sim-gift">🎁 Kirim Gift</button>
+          </div>
+        </div>
+
+        <div class="sim-section">
+          <div class="sim-section-title">❤️ Simulasi Tap-Tap Like &amp; Social</div>
+          <div class="sim-btn-grid">
+            <button type="button" class="btn-sm success" data-sim="like" data-count="50">❤️ +50 Likes</button>
+            <button type="button" class="btn-sm success" data-sim="like" data-count="100">❤️ +100 Likes</button>
+            <button type="button" class="btn-sm" data-sim="follow">👤 Follow</button>
+            <button type="button" class="btn-sm" data-sim="share">🔄 Share</button>
+          </div>
+        </div>
+
+        <div class="sim-section">
+          <div class="sim-section-title">💬 Simulasi Chat Command</div>
+          <div class="input-row">
+            <input type="text" id="sim-chat-input" class="form-input" value="!lompat" placeholder="Ketik komentar atau !command">
+            <button type="button" class="btn-primary" id="btn-sim-chat">Kirim Chat</button>
+          </div>
+        </div>
+
+        <div class="sim-section">
+          <div class="sim-section-title">💸 Simulasi Donasi (Saweria / Sociabuzz / Trakteer)</div>
+          <div class="form-row-2">
+            <input type="number" id="sim-donation-amount" class="form-input" value="10000" step="5000">
+            <button type="button" class="btn-primary" id="btn-sim-donation">💸 Kirim Donasi Rp</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notifications -->
-  <div class="toast-container" id="toast-container"></div>
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>

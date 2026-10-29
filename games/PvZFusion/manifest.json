@@ -1,0 +1,670 @@
+{
+  "id": "PvZFusion",
+  "name": "Plants vs. Zombies Fusion (Stream Mod)",
+  "icon": "🌻",
+  "category": "RCON / Hybrid",
+  "driver": "rcon",
+  "inputMethod": "sendinput",
+  "targetProcess": "PlantsVsZombiesRH.exe",
+  "description": "Integrasi langsung S2EPvZFusionMod (Tanpa Limit 7 Interaksi) — Spawn Zombie, Tanaman Odyssey/Ultimate, Kartu, Sun, Meteor, & Buffs lengkap dengan nama penonton TikTok.",
+  "rconConfig": {
+    "mode": "servertap",
+    "host": "127.0.0.1",
+    "port": 55001,
+    "password": "s2e",
+    "targetPlayer": "@a"
+  },
+  "effects": {
+    "pvz_zombie_normal": {
+      "id": "pvz_zombie_normal",
+      "label": "🧟 Zombie Biasa (Nama Viewer)",
+      "category": "Zombie Biasa",
+      "driver": "rcon",
+      "command": "/spawnzombie 0 {user}"
+    },
+    "pvz_zombie_cone": {
+      "id": "pvz_zombie_cone",
+      "label": "🧟‍♂️ Conehead Zombie",
+      "category": "Zombie Biasa",
+      "driver": "rcon",
+      "command": "/spawnzombie 2 {user}"
+    },
+    "pvz_zombie_bucket": {
+      "id": "pvz_zombie_bucket",
+      "label": "🪣 Buckethead Zombie",
+      "category": "Zombie Biasa",
+      "driver": "rcon",
+      "command": "/spawnzombie 4 {user}"
+    },
+    "pvz_zombie_newspaper": {
+      "id": "pvz_zombie_newspaper",
+      "label": "📰 Newspaper Zombie",
+      "category": "Zombie Biasa",
+      "driver": "rcon",
+      "command": "/spawnzombie 5 {user}"
+    },
+    "pvz_zombie_football": {
+      "id": "pvz_zombie_football",
+      "label": "🏈 Football Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 7 {user}"
+    },
+    "pvz_zombie_michael": {
+      "id": "pvz_zombie_michael",
+      "label": "🕺 Michael Jackson Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 8 {user}"
+    },
+    "pvz_zombie_zomboni": {
+      "id": "pvz_zombie_zomboni",
+      "label": "🚜 Zomboni (Mobil Es)",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 12 {user}"
+    },
+    "pvz_zombie_jackbox": {
+      "id": "pvz_zombie_jackbox",
+      "label": "🤡 Jack-in-the-Box Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 15 {user}"
+    },
+    "pvz_zombie_balloon": {
+      "id": "pvz_zombie_balloon",
+      "label": "🎈 Balloon Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 16 {user}"
+    },
+    "pvz_zombie_digger": {
+      "id": "pvz_zombie_digger",
+      "label": "⛏️ Digger Miner Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 17 {user}"
+    },
+    "pvz_zombie_pogo": {
+      "id": "pvz_zombie_pogo",
+      "label": "🦘 Pogo Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 18 {user}"
+    },
+    "pvz_zombie_catapult": {
+      "id": "pvz_zombie_catapult",
+      "label": "🏀 Catapult Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 22 {user}"
+    },
+    "pvz_zombie_kirov": {
+      "id": "pvz_zombie_kirov",
+      "label": "🛩️ Kirov Airship Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 28 {user}"
+    },
+    "pvz_zombie_tallnut_football": {
+      "id": "pvz_zombie_tallnut_football",
+      "label": "🛡️ Black Football Tall-Nut Zombie",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 34 {user}"
+    },
+    "pvz_zombie_cherry_zomboni": {
+      "id": "pvz_zombie_cherry_zomboni",
+      "label": "🍒🚜 Cherry Zomboni",
+      "category": "Zombie Elite",
+      "driver": "rcon",
+      "command": "/spawnzombie 42 {user}"
+    },
+    "pvz_zombie_gargantuar": {
+      "id": "pvz_zombie_gargantuar",
+      "label": "👹 Gargantuar",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 23 {user}"
+    },
+    "pvz_zombie_red_gargantuar": {
+      "id": "pvz_zombie_red_gargantuar",
+      "label": "😡 Red-Eye Gargantuar",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 32 {user}"
+    },
+    "pvz_zombie_super_gargantuar": {
+      "id": "pvz_zombie_super_gargantuar",
+      "label": "🔥 Super Gargantuar",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 35 {user}"
+    },
+    "pvz_zombie_zomboss": {
+      "id": "pvz_zombie_zomboss",
+      "label": "🤖 Dr. Zomboss Robot",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 47 {user}"
+    },
+    "pvz_zombie_ultimate_football": {
+      "id": "pvz_zombie_ultimate_football",
+      "label": "⚡🏈 Ultimate Rugby Zombie",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 200 {user}"
+    },
+    "pvz_zombie_ultimate_gargantuar": {
+      "id": "pvz_zombie_ultimate_gargantuar",
+      "label": "💜👹 Ultimate Abyss Gargantuar",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 201 {user}"
+    },
+    "pvz_zombie_ultimate_zomboni": {
+      "id": "pvz_zombie_ultimate_zomboni",
+      "label": "❄️🚜 Ultimate Ice Zomboni",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 209 {user}"
+    },
+    "pvz_zombie_ultimate_kirov": {
+      "id": "pvz_zombie_ultimate_kirov",
+      "label": "💣🛩️ Ultimate Kirov Airship",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 212 {user}"
+    },
+    "pvz_zombie_horse_boss": {
+      "id": "pvz_zombie_horse_boss",
+      "label": "🐎💀 Skeleton Horse Boss",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 219 {user}"
+    },
+    "pvz_zombie_imp_king": {
+      "id": "pvz_zombie_imp_king",
+      "label": "👑👿 Imp King Boss",
+      "category": "Zombie Boss & Gargantuar",
+      "driver": "rcon",
+      "command": "/spawnzombie 228 {user}"
+    },
+    "pvz_zombie_random": {
+      "id": "pvz_zombie_random",
+      "label": "🎲 Gacha Zombie Random",
+      "category": "Zombie Gacha & Horde",
+      "driver": "rcon",
+      "command": "/spawnzombie random {user}"
+    },
+    "pvz_zombie_boss_random": {
+      "id": "pvz_zombie_boss_random",
+      "label": "🎰 Gacha Boss / Ultimate Zombie",
+      "category": "Zombie Gacha & Horde",
+      "driver": "rcon",
+      "command": "/spawnzombie boss {user}"
+    },
+    "pvz_zombie_horde_5": {
+      "id": "pvz_zombie_horde_5",
+      "label": "🧟‍♀️🧟‍♂️ Serbuan 5 Zombie Random",
+      "category": "Zombie Gacha & Horde",
+      "driver": "rcon",
+      "command": "/spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}"
+    },
+    "pvz_zombie_garg_raid": {
+      "id": "pvz_zombie_garg_raid",
+      "label": "🚨 Trio Gargantuar Raid!",
+      "category": "Zombie Gacha & Horde",
+      "driver": "rcon",
+      "command": "/spawnzombie 23 {user}; /spawnzombie 32 {user}; /spawnzombie 35 {user}"
+    },
+    "pvz_plant_peashooter": {
+      "id": "pvz_plant_peashooter",
+      "label": "🌱 Peashooter",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 0 {user}"
+    },
+    "pvz_plant_sunflower": {
+      "id": "pvz_plant_sunflower",
+      "label": "🌻 Sunflower",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 1 {user}"
+    },
+    "pvz_plant_cherrybomb": {
+      "id": "pvz_plant_cherrybomb",
+      "label": "🍒 Cherry Bomb",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 2 {user}"
+    },
+    "pvz_plant_wallnut": {
+      "id": "pvz_plant_wallnut",
+      "label": "🥜 Wall-nut",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 3 {user}"
+    },
+    "pvz_plant_potatomine": {
+      "id": "pvz_plant_potatomine",
+      "label": "🥔 Potato Mine",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 4 {user}"
+    },
+    "pvz_plant_chomper": {
+      "id": "pvz_plant_chomper",
+      "label": "💜 Chomper",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 5 {user}"
+    },
+    "pvz_plant_doomshroom": {
+      "id": "pvz_plant_doomshroom",
+      "label": "🍄💥 Doom-shroom",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 14 {user}"
+    },
+    "pvz_plant_squash": {
+      "id": "pvz_plant_squash",
+      "label": "🍐 Squash",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 16 {user}"
+    },
+    "pvz_plant_jalapeno": {
+      "id": "pvz_plant_jalapeno",
+      "label": "🌶️ Jalapeno",
+      "category": "Tanaman Klasik",
+      "driver": "rcon",
+      "command": "/spawnplant 19 {user}"
+    },
+    "pvz_plant_gatling": {
+      "id": "pvz_plant_gatling",
+      "label": "🔫 Gatling Pea",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 26 {user}"
+    },
+    "pvz_plant_twinsunflower": {
+      "id": "pvz_plant_twinsunflower",
+      "label": "🌻🌻 Twin Sunflower",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 27 {user}"
+    },
+    "pvz_plant_cattail": {
+      "id": "pvz_plant_cattail",
+      "label": "🐱 Cattail",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 29 {user}"
+    },
+    "pvz_plant_cobcannon": {
+      "id": "pvz_plant_cobcannon",
+      "label": "🌽🚀 Cob Cannon",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 30 {user}"
+    },
+    "pvz_plant_cherry_gatling": {
+      "id": "pvz_plant_cherry_gatling",
+      "label": "🍒🔫 Cherry Gatling Pea",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 1000 {user}"
+    },
+    "pvz_plant_ice_doom": {
+      "id": "pvz_plant_ice_doom",
+      "label": "❄️🍄 Ice Doom-shroom",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 1025 {user}"
+    },
+    "pvz_plant_super_chomper": {
+      "id": "pvz_plant_super_chomper",
+      "label": "🦖 Super Chomper",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 1032 {user}"
+    },
+    "pvz_plant_hypno_doom": {
+      "id": "pvz_plant_hypno_doom",
+      "label": "🔮🍄 Empress Hypno Doom",
+      "category": "Tanaman Fusion & Upgrade",
+      "driver": "rcon",
+      "command": "/spawnplant 1042 {user}"
+    },
+    "pvz_plant_ultimate_cannon": {
+      "id": "pvz_plant_ultimate_cannon",
+      "label": "☢️🌽 Ultimate Cob Cannon (900)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 900 {user}"
+    },
+    "pvz_plant_ultimate_gatling": {
+      "id": "pvz_plant_ultimate_gatling",
+      "label": "🔥🔫 Ultimate Gatling Pea (901)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 901 {user}"
+    },
+    "pvz_plant_ultimate_sun_cabbage": {
+      "id": "pvz_plant_ultimate_sun_cabbage",
+      "label": "☀️🥬 Ultimate Sun Cabbage (902)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 902 {user}"
+    },
+    "pvz_plant_ultimate_chomper": {
+      "id": "pvz_plant_ultimate_chomper",
+      "label": "🍒🦖 Ultimate Cherry Chomper (903)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 903 {user}"
+    },
+    "pvz_plant_doom_gatling": {
+      "id": "pvz_plant_doom_gatling",
+      "label": "💀🔫 Ultimate Doom Gatling (907)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 907 {user}"
+    },
+    "pvz_plant_ultimate_gloom": {
+      "id": "pvz_plant_ultimate_gloom",
+      "label": "💜🍄 Ultimate Gloom-shroom (910)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 910 {user}"
+    },
+    "pvz_plant_ultimate_tallnut": {
+      "id": "pvz_plant_ultimate_tallnut",
+      "label": "💎🛡️ Ultimate Obsidian Tall-nut (913)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 913 {user}"
+    },
+    "pvz_plant_ultimate_hypno": {
+      "id": "pvz_plant_ultimate_hypno",
+      "label": "👑🔮 Ultimate Hypno Empress (923)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 923 {user}"
+    },
+    "pvz_plant_nuclear_cherry": {
+      "id": "pvz_plant_nuclear_cherry",
+      "label": "☢️🍒 Nuclear Doom Cherry (959)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 959 {user}"
+    },
+    "pvz_plant_nuclear_squash": {
+      "id": "pvz_plant_nuclear_squash",
+      "label": "☢️🍐 Nuclear Squash (965)",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant 965 {user}"
+    },
+    "pvz_plant_random": {
+      "id": "pvz_plant_random",
+      "label": "🎲 Gacha Tanaman Random",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant random {user}"
+    },
+    "pvz_plant_ultimate_random": {
+      "id": "pvz_plant_ultimate_random",
+      "label": "🌟 Gacha Tanaman Ultimate / Odyssey",
+      "category": "Tanaman Ultimate / Odyssey",
+      "driver": "rcon",
+      "command": "/spawnplant ultimate {user}"
+    },
+    "pvz_card_random": {
+      "id": "pvz_card_random",
+      "label": "🃏 Drop Kartu Tanaman Random",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/card random"
+    },
+    "pvz_card_ultimate_random": {
+      "id": "pvz_card_ultimate_random",
+      "label": "🃏✨ Drop Kartu Ultimate Random",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/card ultimate"
+    },
+    "pvz_card_ultimate_gatling": {
+      "id": "pvz_card_ultimate_gatling",
+      "label": "🃏🔥 Drop Kartu Ultimate Gatling",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/card 901"
+    },
+    "pvz_card_ultimate_cannon": {
+      "id": "pvz_card_ultimate_cannon",
+      "label": "🃏🚀 Drop Kartu Ultimate Cob Cannon",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/card 900"
+    },
+    "pvz_card_doomshroom": {
+      "id": "pvz_card_doomshroom",
+      "label": "🃏🍄 Drop Kartu Doom-shroom",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/card 14"
+    },
+    "pvz_seed_rain_5": {
+      "id": "pvz_seed_rain_5",
+      "label": "🌧️🌱 Hujan 5 Kartu Tanaman",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/seedrain 5"
+    },
+    "pvz_seed_rain_15": {
+      "id": "pvz_seed_rain_15",
+      "label": "⛈️🌱 Badai Hujan 15 Kartu Tanaman",
+      "category": "Kartu & Hujan Benih",
+      "driver": "rcon",
+      "command": "/seedrain 15"
+    },
+    "pvz_sun_add_500": {
+      "id": "pvz_sun_add_500",
+      "label": "☀️ Tambah +500 Sun",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/addsun 500"
+    },
+    "pvz_sun_add_2000": {
+      "id": "pvz_sun_add_2000",
+      "label": "☀️☀️ Tambah +2000 Sun",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/addsun 2000"
+    },
+    "pvz_sun_sub_500": {
+      "id": "pvz_sun_sub_500",
+      "label": "🌑 Sedot -500 Sun",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/addsun -500"
+    },
+    "pvz_sun_reset_0": {
+      "id": "pvz_sun_reset_0",
+      "label": "🕳️ Reset Sun Jadi 0!",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/setsun 0"
+    },
+    "pvz_sun_unlimited_15s": {
+      "id": "pvz_sun_unlimited_15s",
+      "label": "♾️☀️ Unlimited Sun (15 Detik)",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/unlimitedsun 15"
+    },
+    "pvz_coins_add_1000": {
+      "id": "pvz_coins_add_1000",
+      "label": "💰 Tambah +1000 Koin",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/addcoins 1000"
+    },
+    "pvz_coins_reset_0": {
+      "id": "pvz_coins_reset_0",
+      "label": "💸 Reset Koin Jadi 0",
+      "category": "Sun & Koin",
+      "driver": "rcon",
+      "command": "/setcoins 0"
+    },
+    "pvz_free_cooldown_15s": {
+      "id": "pvz_free_cooldown_15s",
+      "label": "⚡ Kartu Tanpa Cooldown (15 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/freecooldown 15"
+    },
+    "pvz_invulnerable_plants_15s": {
+      "id": "pvz_invulnerable_plants_15s",
+      "label": "🛡️ Tanaman Kebal / Invulnerable (15 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/invulnerableplants 15"
+    },
+    "pvz_kill_all_zombies": {
+      "id": "pvz_kill_all_zombies",
+      "label": "💀⚡ Bunuh Semua Zombie (Clear Board)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/killallzombies"
+    },
+    "pvz_kill_all_plants": {
+      "id": "pvz_kill_all_plants",
+      "label": "🔥🥀 Hancurkan Semua Tanaman! (Sabotase)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/killallplants"
+    },
+    "pvz_charm_all_zombies": {
+      "id": "pvz_charm_all_zombies",
+      "label": "💖🧟 Hipnotis Semua Zombie!",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/charmallzombies"
+    },
+    "pvz_zombies_x2_dmg_15s": {
+      "id": "pvz_zombies_x2_dmg_15s",
+      "label": "⚔️ Zombie Damage 2x Lipat (15 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/zombiesx2demage 15"
+    },
+    "pvz_zombies_x100_dmg_10s": {
+      "id": "pvz_zombies_x100_dmg_10s",
+      "label": "☠️ Zombie One-Hit Kill Tanaman (10 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/zombiesx100demage 10"
+    },
+    "pvz_zombies_x0_dmg_15s": {
+      "id": "pvz_zombies_x0_dmg_15s",
+      "label": "🕊️ Zombie 0 Damage / Damai (15 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/zombiesx0demage 15"
+    },
+    "pvz_stop_zombie_spawn_15s": {
+      "id": "pvz_stop_zombie_spawn_15s",
+      "label": "⏸️ Hentikan Spawn Zombie Alami (15 Detik)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/stopzombiespawn 15"
+    },
+    "pvz_plant_everywhere": {
+      "id": "pvz_plant_everywhere",
+      "label": "🗺️ Toggle Bebas Tanam Di Mana Saja",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/planteverywhere"
+    },
+    "pvz_stop_gameover": {
+      "id": "pvz_stop_gameover",
+      "label": "🛑 Toggle Anti Game Over (Zombie Masuk Rumah Aman)",
+      "category": "Buff & Efek Spesial",
+      "driver": "rcon",
+      "command": "/stopgameover"
+    },
+    "pvz_spawn_meteor": {
+      "id": "pvz_spawn_meteor",
+      "label": "☄️ Jatuhkan Meteor Ultimate!",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnmeteor"
+    },
+    "pvz_spawn_trophy": {
+      "id": "pvz_spawn_trophy",
+      "label": "🏆 Drop Trophy (Auto Menang Level)",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawntrophy"
+    },
+    "pvz_spawn_mecha": {
+      "id": "pvz_spawn_mecha",
+      "label": "⚙️ Drop Mecha Fragment",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnmecha"
+    },
+    "pvz_spawn_supermecha": {
+      "id": "pvz_spawn_supermecha",
+      "label": "🤖🥜 Drop Super Mecha-Nut",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnsupermecha"
+    },
+    "pvz_spawn_fertilizer": {
+      "id": "pvz_spawn_fertilizer",
+      "label": "💩 Drop Pupuk (Fertilizer)",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnfertilizer"
+    },
+    "pvz_spawn_bucket": {
+      "id": "pvz_spawn_bucket",
+      "label": "🪣 Drop Item Ember Besi",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnbucket"
+    },
+    "pvz_spawn_helmet": {
+      "id": "pvz_spawn_helmet",
+      "label": "🪖 Drop Item Helm Rugby",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnhelmet"
+    },
+    "pvz_spawn_jack": {
+      "id": "pvz_spawn_jack",
+      "label": "🎁 Drop Item Jack-in-the-Box",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnjack"
+    },
+    "pvz_spawn_pickaxe": {
+      "id": "pvz_spawn_pickaxe",
+      "label": "⛏️ Drop Item Pickaxe (Beliung)",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnpickaxe"
+    },
+    "pvz_spawn_sprout": {
+      "id": "pvz_spawn_sprout",
+      "label": "🌱 Drop Bibit Zen Garden (Sprout)",
+      "category": "Item & Drop Spesial",
+      "driver": "rcon",
+      "command": "/spawnsprout"
+    }
+  }
+}

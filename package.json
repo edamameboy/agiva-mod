@@ -3,17 +3,51 @@
   "version": "1.2.1",
   "description": "TikTok Live bridge server for game mods",
   "main": "src/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edamameboy/agiva-mod.git"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "start:app": "electron .",
-    "build:app": "electron-builder --windows"
+    "build:app": "electron-builder --windows",
+    "build:nsis": "electron-builder --windows nsis",
+    "build:portable": "electron-builder --windows portable",
+    "build:all": "electron-builder --windows"
   },
   "build": {
     "appId": "com.junkyardmod.app",
     "productName": "junkyard-mod-agiva",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "games/**/*",
+      "data/**/*",
+      "!data/sessions/**/*",
+      "effects-config.json",
+      "gifts-data.json",
+      ".env.example",
+      "package.json",
+      "!**/*.map",
+      "!**/*.pdb"
+    ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
     }
   },
   "dependencies": {

@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "wsPort": 62024,
+  "sioPort": 62025,
+  "apiPort": 62030
+}

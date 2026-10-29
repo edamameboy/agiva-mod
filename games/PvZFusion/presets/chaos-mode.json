@@ -1,0 +1,179 @@
+{
+  "id": "chaos-mode",
+  "name": "Odyssey Chaos & Boss Rush",
+  "gameId": "PvZFusion",
+  "description": "Mode rusuh penuh Boss Zombie, Ultimate Odyssey Plants, Meteor, dan Sabotase Sun!",
+  "giftMappings": [
+    {
+      "id": "chaos_1",
+      "enabled": true,
+      "label": "Rose -> Gacha Zombie Random",
+      "giftId": 5655,
+      "effectId": "pvz_zombie_random"
+    },
+    {
+      "id": "chaos_2",
+      "enabled": true,
+      "label": "TikTok -> Gacha Tanaman Ultimate",
+      "giftId": 5269,
+      "effectId": "pvz_plant_ultimate_random"
+    },
+    {
+      "id": "chaos_3",
+      "enabled": true,
+      "label": "GG -> Serbuan 5 Zombie Random",
+      "giftId": 6064,
+      "effectId": "pvz_zombie_horde_5"
+    },
+    {
+      "id": "chaos_4",
+      "enabled": true,
+      "label": "Finger Heart -> Unlimited Sun 15s",
+      "giftId": 5487,
+      "effectId": "pvz_sun_unlimited_15s"
+    },
+    {
+      "id": "chaos_5",
+      "enabled": true,
+      "label": "Rosa -> Gacha Boss / Ultimate Zombie",
+      "giftId": 8913,
+      "effectId": "pvz_zombie_boss_random"
+    },
+    {
+      "id": "chaos_6",
+      "enabled": true,
+      "label": "Doughnut -> Trio Gargantuar Raid!",
+      "giftId": 5879,
+      "effectId": "pvz_zombie_garg_raid"
+    },
+    {
+      "id": "chaos_7",
+      "enabled": true,
+      "label": "Cap -> Jatuhkan Meteor Ultimate!",
+      "giftId": 6093,
+      "effectId": "pvz_spawn_meteor"
+    },
+    {
+      "id": "chaos_8",
+      "enabled": true,
+      "label": "Hand Hearts -> Hipnotis Semua Zombie!",
+      "giftId": 5660,
+      "effectId": "pvz_charm_all_zombies"
+    },
+    {
+      "id": "chaos_9",
+      "enabled": true,
+      "label": "Corgi ->Zombie One-Hit Kill (10s)",
+      "giftId": 6267,
+      "effectId": "pvz_zombies_x100_dmg_10s"
+    },
+    {
+      "id": "chaos_10",
+      "enabled": true,
+      "label": "Money Gun -> Hancurkan Semua Tanaman!",
+      "giftId": 7168,
+      "effectId": "pvz_kill_all_plants"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "c_coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "pvz_zombie_horde_5",
+      "enabled": true
+    },
+    {
+      "id": "c_coin_2",
+      "minCoins": 10,
+      "maxCoins": 49,
+      "effectId": "pvz_zombie_boss_random",
+      "enabled": true
+    },
+    {
+      "id": "c_coin_3",
+      "minCoins": 50,
+      "maxCoins": 199,
+      "effectId": "pvz_zombie_garg_raid",
+      "enabled": true
+    },
+    {
+      "id": "c_coin_4",
+      "minCoins": 200,
+      "maxCoins": 999999,
+      "effectId": "pvz_kill_all_plants",
+      "enabled": true
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "pvz_plant_ultimate_random",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "pvz_card_ultimate_random",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "pvz_plant_ultimate_random",
+      "enabled": true
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "pvz_zombie_boss_random",
+          "enabled": true
+        },
+        {
+          "count": 300,
+          "effectId": "pvz_seed_rain_15",
+          "enabled": true
+        },
+        {
+          "count": 500,
+          "effectId": "pvz_spawn_meteor",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!boss",
+      "effectId": "pvz_zombie_boss_random",
+      "cooldown": 20,
+      "enabled": true
+    },
+    {
+      "command": "!odyssey",
+      "effectId": "pvz_plant_ultimate_random",
+      "cooldown": 20,
+      "enabled": true
+    },
+    {
+      "command": "!reset",
+      "effectId": "pvz_sun_reset_0",
+      "cooldown": 45,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "pvz_zombie_zomboss",
+      "label": "Donasi Rp 10rb+ (Spawn Dr. Zomboss)",
+      "enabled": true
+    },
+    {
+      "minAmount": 25000,
+      "effectId": "pvz_kill_all_plants",
+      "label": "Donasi Rp 25rb+ (Ratakan Semua Tanaman!)",
+      "enabled": true
+    }
+  ]
+}

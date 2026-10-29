@@ -1,0 +1,107 @@
+{
+  "id": "chaos-mode",
+  "name": "🔥 Mode Chaos (Hardcore)",
+  "gameId": "CarJunkyard",
+  "description": "Efek ekstrem dengan frekuensi tinggi untuk keramaian maksimal",
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Mawar Rusuh",
+      "giftId": 5655,
+      "effectId": "spawn_junk_car_gift"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Teleport Acak",
+      "giftId": 5487,
+      "effectId": "random_teleport"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Lompat Terus",
+      "giftId": 8913,
+      "effectId": "auto_jump"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Force Close",
+      "giftId": 5660,
+      "effectId": "force_close"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "auto_drop",
+      "enabled": true
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 10,
+      "maxCoins": 99,
+      "effectId": "spawn_junk_car_gacha",
+      "enabled": true
+    },
+    {
+      "id": "coin_3",
+      "minCoins": 100,
+      "maxCoins": 999999,
+      "effectId": "reset_progress",
+      "enabled": true
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "auto_drop",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "random_teleport",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "auto_drop",
+      "enabled": true
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 50,
+          "effectId": "spawn_junk_like",
+          "enabled": true
+        },
+        {
+          "count": 200,
+          "effectId": "screen_blur",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!rusuh",
+      "effectId": "spawn_junk",
+      "cooldown": 10,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "spawn_junk_car_gift",
+      "label": "Donasi Rp 10rb+",
+      "enabled": true
+    }
+  ]
+}

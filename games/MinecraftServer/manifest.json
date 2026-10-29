@@ -1,0 +1,73 @@
+{
+  "id": "MinecraftServer",
+  "name": "Minecraft (ServerTap / RCON & Keystroke)",
+  "icon": "⛏️",
+  "category": "RCON / Hybrid",
+  "driver": "rcon",
+  "inputMethod": "sendinput",
+  "targetProcess": "javaw.exe",
+  "rconConfig": {
+    "mode": "servertap",
+    "host": "127.0.0.1",
+    "port": 4567,
+    "password": "change_me",
+    "targetPlayer": "@a"
+  },
+  "description": "Integrasi Minecraft via ServerTap / RCON Command maupun Keystroke (Drop Item / Lompat)",
+  "effects": {
+    "mc_creeper": {
+      "id": "mc_creeper",
+      "label": "Spawn Creeper",
+      "description": "Munculkan Creeper dengan nama penonton di dekat player",
+      "category": "world",
+      "duration": 500,
+      "driver": "rcon",
+      "command": "execute at {player} run summon creeper ~ ~1 ~ {CustomName:'\"🎁 {user}\"',CustomNameVisible:1b}"
+    },
+    "mc_tnt": {
+      "id": "mc_tnt",
+      "label": "Spawn Primed TNT",
+      "description": "Jatuhkan TNT aktif di atas kepala player (Fuse 60 tick)",
+      "category": "special",
+      "duration": 1000,
+      "driver": "rcon",
+      "command": "execute at {player} run summon tnt ~ ~2 ~ {Fuse:60}"
+    },
+    "mc_zombie_horde": {
+      "id": "mc_zombie_horde",
+      "label": "Zombie Horde (3x)",
+      "description": "Munculkan 3 Zombie sekaligus di sekitar player",
+      "category": "world",
+      "duration": 1000,
+      "driver": "rcon",
+      "command": "execute at {player} run summon zombie ~1 ~ ~; execute at {player} run summon zombie ~-1 ~ ~; execute at {player} run summon zombie ~ ~ ~1"
+    },
+    "mc_lightning": {
+      "id": "mc_lightning",
+      "label": "Sambaran Petir",
+      "description": "Sambar lokasi player dengan petir (lightning_bolt)",
+      "category": "visual",
+      "duration": 500,
+      "driver": "rcon",
+      "command": "execute at {player} run summon lightning_bolt ~ ~ ~"
+    },
+    "mc_golden_apple": {
+      "id": "mc_golden_apple",
+      "label": "Beri Golden Apple",
+      "description": "Bantu streamer dengan 1 Golden Apple",
+      "category": "player",
+      "duration": 200,
+      "driver": "rcon",
+      "command": "give {player} golden_apple 1"
+    },
+    "mc_drop_hand": {
+      "id": "mc_drop_hand",
+      "label": "Drop Item di Tangan (Keystroke Q)",
+      "description": "Tekan tombol Q untuk membuang item yang sedang dipegang",
+      "category": "player",
+      "duration": 200,
+      "driver": "keystroke",
+      "macro": "PRESS Q"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "id": "RobloxUniversal",
+  "name": "Roblox (Universal Keystroke)",
+  "icon": "🟥",
+  "category": "Keystroke / Macro",
+  "driver": "keystroke",
+  "inputMethod": "sendinput",
+  "targetProcess": "RobloxPlayerBeta.exe",
+  "description": "Kontrol semua game Roblox (Obby, Tower of Hell, Horror) menggunakan simulasi tombol hardware ScanCode",
+  "effects": {
+    "rbx_jump": {
+      "id": "rbx_jump",
+      "label": "Force Jump",
+      "description": "Paksa karakter melompat (HOLD SPACE 350ms)",
+      "category": "player",
+      "duration": 400,
+      "driver": "keystroke",
+      "macro": "HOLD 350 SPACE"
+    },
+    "rbx_walk_forward": {
+      "id": "rbx_walk_forward",
+      "label": "Maju Tanpa Henti (2 Detik)",
+      "description": "Karakter jalan maju otomatis selama 2 detik (rawan jatuh di Obby!)",
+      "category": "player",
+      "duration": 2000,
+      "driver": "keystroke",
+      "macro": "HOLD 2000 W"
+    },
+    "rbx_walk_back": {
+      "id": "rbx_walk_back",
+      "label": "Mundur Paksa (1.5 Detik)",
+      "description": "Karakter jalan mundur selama 1.5 detik",
+      "category": "player",
+      "duration": 1500,
+      "driver": "keystroke",
+      "macro": "HOLD 1500 S"
+    },
+    "rbx_strafe_left": {
+      "id": "rbx_strafe_left",
+      "label": "Geser Kiri (1 Detik)",
+      "description": "Tahan tombol A selama 1 detik",
+      "category": "player",
+      "duration": 1000,
+      "driver": "keystroke",
+      "macro": "HOLD 1000 A"
+    },
+    "rbx_strafe_right": {
+      "id": "rbx_strafe_right",
+      "label": "Geser Kanan (1 Detik)",
+      "description": "Tahan tombol D selama 1 detik",
+      "category": "player",
+      "duration": 1000,
+      "driver": "keystroke",
+      "macro": "HOLD 1000 D"
+    },
+    "rbx_drop_item": {
+      "id": "rbx_drop_item",
+      "label": "Drop Tool / Item",
+      "description": "Tekan Backspace untuk menjatuhkan item yang sedang dipegang",
+      "category": "world",
+      "duration": 200,
+      "driver": "keystroke",
+      "macro": "PRESS BACKSPACE"
+    },
+    "rbx_zoom_in_out": {
+      "id": "rbx_zoom_in_out",
+      "label": "Camera Zoom Gangguan",
+      "description": "Ubah zoom kamera dengan tombol I / O",
+      "category": "camera",
+      "duration": 800,
+      "driver": "keystroke",
+      "macro": "HOLD 400 I; DELAY 100; HOLD 400 O"
+    },
+    "rbx_bunny_hop": {
+      "id": "rbx_bunny_hop",
+      "label": "Bunny Hop 3x",
+      "description": "Lompat maju 3 kali berturut-turut",
+      "category": "special",
+      "duration": 1800,
+      "driver": "keystroke",
+      "macro": "HOLD 300 SPACE; DELAY 250; HOLD 300 SPACE; DELAY 250; HOLD 300 SPACE"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "id": "default",
+  "name": "Default Obby / Horror",
+  "gameId": "RobloxUniversal",
+  "description": "Preset siap pakai untuk Roblox Obby & Horror",
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Rose -> Lompat",
+      "giftId": 5655,
+      "effectId": "rbx_jump"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Maju 2 Detik",
+      "giftId": 5487,
+      "effectId": "rbx_walk_forward"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Mundur Paksa",
+      "giftId": 5879,
+      "effectId": "rbx_walk_back"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Bunny Hop 3x",
+      "giftId": 8913,
+      "effectId": "rbx_bunny_hop"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 5,
+      "effectId": "rbx_jump",
+      "enabled": true
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 6,
+      "maxCoins": 50,
+      "effectId": "rbx_walk_forward",
+      "enabled": true
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "rbx_jump",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "rbx_zoom_in_out",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "rbx_jump",
+      "enabled": true
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "rbx_jump",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!lompat",
+      "effectId": "rbx_jump",
+      "cooldown": 10,
+      "enabled": true
+    },
+    {
+      "command": "!kiri",
+      "effectId": "rbx_strafe_left",
+      "cooldown": 10,
+      "enabled": true
+    },
+    {
+      "command": "!kanan",
+      "effectId": "rbx_strafe_right",
+      "cooldown": 10,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "rbx_walk_forward",
+      "label": "Donasi Rp 10rb+",
+      "enabled": true
+    }
+  ]
+}

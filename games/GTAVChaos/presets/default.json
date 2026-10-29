@@ -1,0 +1,115 @@
+{
+  "id": "default",
+  "name": "Default GTA V Chaos",
+  "gameId": "GTAVChaos",
+  "description": "Preset Chaos untuk GTA V / FiveM",
+  "giftMappings": [
+    {
+      "id": "tier_1",
+      "enabled": true,
+      "label": "Klakson",
+      "giftId": 5655,
+      "effectId": "gta_horn"
+    },
+    {
+      "id": "tier_2",
+      "enabled": true,
+      "label": "Banting Setir Kiri",
+      "giftId": 5487,
+      "effectId": "gta_steer_left"
+    },
+    {
+      "id": "tier_3",
+      "enabled": true,
+      "label": "Rem Tangan",
+      "giftId": 5879,
+      "effectId": "gta_handbrake"
+    },
+    {
+      "id": "tier_4",
+      "enabled": true,
+      "label": "Lompat dari Mobil!",
+      "giftId": 8913,
+      "effectId": "gta_exit_vehicle"
+    },
+    {
+      "id": "tier_5",
+      "enabled": true,
+      "label": "Tembak Senjata",
+      "giftId": 19447,
+      "effectId": "gta_fire_weapon"
+    }
+  ],
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "gta_horn",
+      "enabled": true
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 10,
+      "maxCoins": 49,
+      "effectId": "gta_handbrake",
+      "enabled": true
+    },
+    {
+      "id": "coin_3",
+      "minCoins": 50,
+      "maxCoins": 999999,
+      "effectId": "gta_exit_vehicle",
+      "enabled": true
+    }
+  ],
+  "socialEvents": [
+    {
+      "eventType": "follow",
+      "effectId": "gta_horn",
+      "enabled": true
+    },
+    {
+      "eventType": "share",
+      "effectId": "gta_cinematic_cam",
+      "enabled": true
+    }
+  ],
+  "eventMappings": {
+    "follow": {
+      "effectId": "gta_horn",
+      "enabled": true
+    },
+    "like": {
+      "thresholds": [
+        {
+          "count": 100,
+          "effectId": "gta_handbrake",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "chatCommands": [
+    {
+      "command": "!klakson",
+      "effectId": "gta_horn",
+      "cooldown": 10,
+      "enabled": true
+    },
+    {
+      "command": "!kamera",
+      "effectId": "gta_cinematic_cam",
+      "cooldown": 15,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "gta_exit_vehicle",
+      "label": "Donasi Rp 10rb+ (Lompat Mobil)",
+      "enabled": true
+    }
+  ]
+}

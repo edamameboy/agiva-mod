@@ -10,112 +10,1563 @@
           "label": "Screen Blur & Dark",
           "description": "Layar menjadi blur selama 3 detik",
           "category": "visual",
-          "duration": 3000
+          "duration": 3000,
+          "driver": "ws-mod"
         },
         "auto_drop": {
           "id": "auto_drop",
           "label": "Drop Item",
           "description": "Menjatuhkan barang dipegang",
           "category": "player",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "spawn_junk": {
           "id": "spawn_junk",
           "label": "Spawn Junk (Default/Gacha)",
           "description": "Munculkan sampah (Default/Gacha)",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "spawn_junk_gift": {
           "id": "spawn_junk_gift",
           "label": "Spawn Junk (Gift)",
           "description": "Munculkan sampah menggunakan nominal Gift",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "spawn_junk_like": {
           "id": "spawn_junk_like",
           "label": "Spawn Junk (Like)",
           "description": "Munculkan sampah menggunakan nominal Like",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "spawn_junk_car_gacha": {
           "id": "spawn_junk_car_gacha",
           "label": "Spawn Junk Car (Gacha)",
           "description": "Munculkan mobil rongsok besar (Gacha)",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "spawn_junk_car_gift": {
           "id": "spawn_junk_car_gift",
           "label": "Spawn Junk Car (Gift)",
           "description": "Munculkan mobil rongsok menggunakan nominal Gift",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "refill_stamina": {
           "id": "refill_stamina",
           "label": "Refill Stamina",
           "description": "Isi penuh stamina",
           "category": "player",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "add_stamina_drink": {
           "id": "add_stamina_drink",
           "label": "Add Stamina Drink",
           "description": "Tambah minuman stamina",
           "category": "player",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "random_teleport": {
           "id": "random_teleport",
           "label": "Random Teleport",
           "description": "Teleport acak",
           "category": "player",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "auto_jump": {
           "id": "auto_jump",
           "label": "Auto Jump",
           "description": "Player melompat otomatis berulang kali",
           "category": "player",
-          "duration": 10000
+          "duration": 10000,
+          "driver": "ws-mod"
         },
         "gacha": {
           "id": "gacha",
           "label": "Gacha Spin",
           "description": "Putar Gacha UI",
           "category": "special",
-          "duration": 3000
+          "duration": 3000,
+          "driver": "ws-mod"
         },
         "reset_progress": {
           "id": "reset_progress",
           "label": "Reset Progress",
           "description": "Wipe save & restart",
           "category": "system",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "force_close": {
           "id": "force_close",
           "label": "Force Close",
           "description": "Menutup game paksa",
           "category": "system",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "remove_junk": {
           "id": "remove_junk",
           "label": "Remove Junk",
           "description": "Membersihkan sampah di jalanan",
           "category": "world",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
         },
         "remove_stamina_drink": {
           "id": "remove_stamina_drink",
           "label": "Remove Energy Drink",
           "description": "Kurangi minuman stamina dari inventory",
           "category": "player",
-          "duration": 0
+          "duration": 0,
+          "driver": "ws-mod"
+        }
+      },
+      "id": "CarJunkyard",
+      "icon": "🚗",
+      "category": "Unity Mod (BepInEx)",
+      "driver": "ws-mod",
+      "inputMethod": "sendinput",
+      "targetProcess": "INeedToFixMyDreamCar.exe",
+      "modFolder": "TikTokLiveMod",
+      "description": "Repair and customize your dream car in a junkyard (BepInEx WebSocket Mod)"
+    },
+    "GTAVChaos": {
+      "id": "GTAVChaos",
+      "name": "GTA V / FiveM (Keystroke Chaos)",
+      "icon": "🚓",
+      "category": "Keystroke / Macro",
+      "driver": "keystroke",
+      "inputMethod": "sendinput",
+      "targetProcess": "GTA5.exe",
+      "description": "Kontrol GTA V atau FiveM tanpa mod eksternal menggunakan simulasi tombol hardware ScanCode",
+      "effects": {
+        "gta_exit_vehicle": {
+          "id": "gta_exit_vehicle",
+          "label": "Keluar Mobil Paksa (F)",
+          "description": "Melompat keluar dari kendaraan saat sedang melaju!",
+          "category": "player",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "HOLD 200 F"
+        },
+        "gta_handbrake": {
+          "id": "gta_handbrake",
+          "label": "Rem Tangan Mendadak (2s)",
+          "description": "Tahan tombol SPACE selama 2 detik agar mobil nge-drift/berhenti",
+          "category": "world",
+          "duration": 2000,
+          "driver": "keystroke",
+          "macro": "HOLD 2000 SPACE"
+        },
+        "gta_steer_left": {
+          "id": "gta_steer_left",
+          "label": "Banting Setir Kiri (1.5s)",
+          "description": "Belok kiri paksa selama 1.5 detik",
+          "category": "player",
+          "duration": 1500,
+          "driver": "keystroke",
+          "macro": "HOLD 1500 A"
+        },
+        "gta_steer_right": {
+          "id": "gta_steer_right",
+          "label": "Banting Setir Kanan (1.5s)",
+          "description": "Belok kanan paksa selama 1.5 detik",
+          "category": "player",
+          "duration": 1500,
+          "driver": "keystroke",
+          "macro": "HOLD 1500 D"
+        },
+        "gta_cinematic_cam": {
+          "id": "gta_cinematic_cam",
+          "label": "Ganti Kamera / Cinematic (R / V)",
+          "description": "Mengubah sudut pandang kamera secara tiba-tiba",
+          "category": "camera",
+          "duration": 1000,
+          "driver": "keystroke",
+          "macro": "PRESS V; DELAY 300; HOLD 800 R"
+        },
+        "gta_fire_weapon": {
+          "id": "gta_fire_weapon",
+          "label": "Tembak Senjata (1.5s)",
+          "description": "Tahan klik kiri mouse selama 1.5 detik (pancing polisi!)",
+          "category": "special",
+          "duration": 1500,
+          "driver": "keystroke",
+          "macro": "HOLD 1500 MOUSELEFT"
+        },
+        "gta_horn": {
+          "id": "gta_horn",
+          "label": "Klakson Panjang (E)",
+          "description": "Tahan tombol klakson/sirine selama 2 detik",
+          "category": "visual",
+          "duration": 2000,
+          "driver": "keystroke",
+          "macro": "HOLD 2000 E"
+        }
+      }
+    },
+    "MinecraftServer": {
+      "id": "MinecraftServer",
+      "name": "Minecraft (ServerTap / RCON & Keystroke)",
+      "icon": "⛏️",
+      "category": "RCON / Hybrid",
+      "driver": "rcon",
+      "inputMethod": "sendinput",
+      "targetProcess": "javaw.exe",
+      "rconConfig": {
+        "mode": "servertap",
+        "host": "127.0.0.1",
+        "port": 4567,
+        "password": "change_me",
+        "targetPlayer": "@a"
+      },
+      "description": "Integrasi Minecraft via ServerTap / RCON Command maupun Keystroke (Drop Item / Lompat)",
+      "effects": {
+        "mc_creeper": {
+          "id": "mc_creeper",
+          "label": "Spawn Creeper",
+          "description": "Munculkan Creeper dengan nama penonton di dekat player",
+          "category": "world",
+          "duration": 500,
+          "driver": "rcon",
+          "command": "execute at {player} run summon creeper ~ ~1 ~ {CustomName:'\"🎁 {user}\"',CustomNameVisible:1b}"
+        },
+        "mc_tnt": {
+          "id": "mc_tnt",
+          "label": "Spawn Primed TNT",
+          "description": "Jatuhkan TNT aktif di atas kepala player (Fuse 60 tick)",
+          "category": "special",
+          "duration": 1000,
+          "driver": "rcon",
+          "command": "execute at {player} run summon tnt ~ ~2 ~ {Fuse:60}"
+        },
+        "mc_zombie_horde": {
+          "id": "mc_zombie_horde",
+          "label": "Zombie Horde (3x)",
+          "description": "Munculkan 3 Zombie sekaligus di sekitar player",
+          "category": "world",
+          "duration": 1000,
+          "driver": "rcon",
+          "command": "execute at {player} run summon zombie ~1 ~ ~; execute at {player} run summon zombie ~-1 ~ ~; execute at {player} run summon zombie ~ ~ ~1"
+        },
+        "mc_lightning": {
+          "id": "mc_lightning",
+          "label": "Sambaran Petir",
+          "description": "Sambar lokasi player dengan petir (lightning_bolt)",
+          "category": "visual",
+          "duration": 500,
+          "driver": "rcon",
+          "command": "execute at {player} run summon lightning_bolt ~ ~ ~"
+        },
+        "mc_golden_apple": {
+          "id": "mc_golden_apple",
+          "label": "Beri Golden Apple",
+          "description": "Bantu streamer dengan 1 Golden Apple",
+          "category": "player",
+          "duration": 200,
+          "driver": "rcon",
+          "command": "give {player} golden_apple 1"
+        },
+        "mc_drop_hand": {
+          "id": "mc_drop_hand",
+          "label": "Drop Item di Tangan (Keystroke Q)",
+          "description": "Tekan tombol Q untuk membuang item yang sedang dipegang",
+          "category": "player",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "PRESS Q"
+        }
+      }
+    },
+    "RobloxUniversal": {
+      "id": "RobloxUniversal",
+      "name": "Roblox (Universal Keystroke)",
+      "icon": "🟥",
+      "category": "Keystroke / Macro",
+      "driver": "keystroke",
+      "inputMethod": "sendinput",
+      "targetProcess": "RobloxPlayerBeta.exe",
+      "description": "Kontrol semua game Roblox (Obby, Tower of Hell, Horror) menggunakan simulasi tombol hardware ScanCode",
+      "effects": {
+        "rbx_jump": {
+          "id": "rbx_jump",
+          "label": "Force Jump",
+          "description": "Paksa karakter melompat (HOLD SPACE 350ms)",
+          "category": "player",
+          "duration": 400,
+          "driver": "keystroke",
+          "macro": "HOLD 350 SPACE"
+        },
+        "rbx_walk_forward": {
+          "id": "rbx_walk_forward",
+          "label": "Maju Tanpa Henti (2 Detik)",
+          "description": "Karakter jalan maju otomatis selama 2 detik (rawan jatuh di Obby!)",
+          "category": "player",
+          "duration": 2000,
+          "driver": "keystroke",
+          "macro": "HOLD 2000 W"
+        },
+        "rbx_walk_back": {
+          "id": "rbx_walk_back",
+          "label": "Mundur Paksa (1.5 Detik)",
+          "description": "Karakter jalan mundur selama 1.5 detik",
+          "category": "player",
+          "duration": 1500,
+          "driver": "keystroke",
+          "macro": "HOLD 1500 S"
+        },
+        "rbx_strafe_left": {
+          "id": "rbx_strafe_left",
+          "label": "Geser Kiri (1 Detik)",
+          "description": "Tahan tombol A selama 1 detik",
+          "category": "player",
+          "duration": 1000,
+          "driver": "keystroke",
+          "macro": "HOLD 1000 A"
+        },
+        "rbx_strafe_right": {
+          "id": "rbx_strafe_right",
+          "label": "Geser Kanan (1 Detik)",
+          "description": "Tahan tombol D selama 1 detik",
+          "category": "player",
+          "duration": 1000,
+          "driver": "keystroke",
+          "macro": "HOLD 1000 D"
+        },
+        "rbx_drop_item": {
+          "id": "rbx_drop_item",
+          "label": "Drop Tool / Item",
+          "description": "Tekan Backspace untuk menjatuhkan item yang sedang dipegang",
+          "category": "world",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "PRESS BACKSPACE"
+        },
+        "rbx_zoom_in_out": {
+          "id": "rbx_zoom_in_out",
+          "label": "Camera Zoom Gangguan",
+          "description": "Ubah zoom kamera dengan tombol I / O",
+          "category": "camera",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "HOLD 400 I; DELAY 100; HOLD 400 O"
+        },
+        "rbx_bunny_hop": {
+          "id": "rbx_bunny_hop",
+          "label": "Bunny Hop 3x",
+          "description": "Lompat maju 3 kali berturut-turut",
+          "category": "special",
+          "duration": 1800,
+          "driver": "keystroke",
+          "macro": "HOLD 300 SPACE; DELAY 250; HOLD 300 SPACE; DELAY 250; HOLD 300 SPACE"
+        }
+      }
+    },
+    "PvZFusion": {
+      "id": "PvZFusion",
+      "name": "Plants vs. Zombies Fusion (Stream Mod)",
+      "icon": "🌻",
+      "category": "RCON / Hybrid",
+      "driver": "rcon",
+      "inputMethod": "sendinput",
+      "targetProcess": "PlantsVsZombiesRH.exe",
+      "description": "Integrasi langsung S2EPvZFusionMod (Tanpa Limit 7 Interaksi) — Spawn Zombie, Tanaman Odyssey/Ultimate, Kartu, Sun, Meteor, & Buffs lengkap dengan nama penonton TikTok.",
+      "rconConfig": {
+        "mode": "servertap",
+        "host": "127.0.0.1",
+        "port": 55001,
+        "password": "s2e",
+        "targetPlayer": "@a"
+      },
+      "effects": {
+        "pvz_zombie_normal": {
+          "id": "pvz_zombie_normal",
+          "label": "🧟 Zombie Biasa (Nama Viewer)",
+          "category": "Zombie Biasa",
+          "driver": "rcon",
+          "command": "/spawnzombie 0 {user}"
+        },
+        "pvz_zombie_cone": {
+          "id": "pvz_zombie_cone",
+          "label": "🧟‍♂️ Conehead Zombie",
+          "category": "Zombie Biasa",
+          "driver": "rcon",
+          "command": "/spawnzombie 2 {user}"
+        },
+        "pvz_zombie_bucket": {
+          "id": "pvz_zombie_bucket",
+          "label": "🪣 Buckethead Zombie",
+          "category": "Zombie Biasa",
+          "driver": "rcon",
+          "command": "/spawnzombie 4 {user}"
+        },
+        "pvz_zombie_newspaper": {
+          "id": "pvz_zombie_newspaper",
+          "label": "📰 Newspaper Zombie",
+          "category": "Zombie Biasa",
+          "driver": "rcon",
+          "command": "/spawnzombie 5 {user}"
+        },
+        "pvz_zombie_football": {
+          "id": "pvz_zombie_football",
+          "label": "🏈 Football Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 7 {user}"
+        },
+        "pvz_zombie_michael": {
+          "id": "pvz_zombie_michael",
+          "label": "🕺 Michael Jackson Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 8 {user}"
+        },
+        "pvz_zombie_zomboni": {
+          "id": "pvz_zombie_zomboni",
+          "label": "🚜 Zomboni (Mobil Es)",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 12 {user}"
+        },
+        "pvz_zombie_jackbox": {
+          "id": "pvz_zombie_jackbox",
+          "label": "🤡 Jack-in-the-Box Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 15 {user}"
+        },
+        "pvz_zombie_balloon": {
+          "id": "pvz_zombie_balloon",
+          "label": "🎈 Balloon Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 16 {user}"
+        },
+        "pvz_zombie_digger": {
+          "id": "pvz_zombie_digger",
+          "label": "⛏️ Digger Miner Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 17 {user}"
+        },
+        "pvz_zombie_pogo": {
+          "id": "pvz_zombie_pogo",
+          "label": "🦘 Pogo Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 18 {user}"
+        },
+        "pvz_zombie_catapult": {
+          "id": "pvz_zombie_catapult",
+          "label": "🏀 Catapult Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 22 {user}"
+        },
+        "pvz_zombie_kirov": {
+          "id": "pvz_zombie_kirov",
+          "label": "🛩️ Kirov Airship Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 28 {user}"
+        },
+        "pvz_zombie_tallnut_football": {
+          "id": "pvz_zombie_tallnut_football",
+          "label": "🛡️ Black Football Tall-Nut Zombie",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 34 {user}"
+        },
+        "pvz_zombie_cherry_zomboni": {
+          "id": "pvz_zombie_cherry_zomboni",
+          "label": "🍒🚜 Cherry Zomboni",
+          "category": "Zombie Elite",
+          "driver": "rcon",
+          "command": "/spawnzombie 42 {user}"
+        },
+        "pvz_zombie_gargantuar": {
+          "id": "pvz_zombie_gargantuar",
+          "label": "👹 Gargantuar",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 23 {user}"
+        },
+        "pvz_zombie_red_gargantuar": {
+          "id": "pvz_zombie_red_gargantuar",
+          "label": "😡 Red-Eye Gargantuar",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 32 {user}"
+        },
+        "pvz_zombie_super_gargantuar": {
+          "id": "pvz_zombie_super_gargantuar",
+          "label": "🔥 Super Gargantuar",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 35 {user}"
+        },
+        "pvz_zombie_zomboss": {
+          "id": "pvz_zombie_zomboss",
+          "label": "🤖 Dr. Zomboss Robot",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 47 {user}"
+        },
+        "pvz_zombie_ultimate_football": {
+          "id": "pvz_zombie_ultimate_football",
+          "label": "⚡🏈 Ultimate Rugby Zombie",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 200 {user}"
+        },
+        "pvz_zombie_ultimate_gargantuar": {
+          "id": "pvz_zombie_ultimate_gargantuar",
+          "label": "💜👹 Ultimate Abyss Gargantuar",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 201 {user}"
+        },
+        "pvz_zombie_ultimate_zomboni": {
+          "id": "pvz_zombie_ultimate_zomboni",
+          "label": "❄️🚜 Ultimate Ice Zomboni",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 209 {user}"
+        },
+        "pvz_zombie_ultimate_kirov": {
+          "id": "pvz_zombie_ultimate_kirov",
+          "label": "💣🛩️ Ultimate Kirov Airship",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 212 {user}"
+        },
+        "pvz_zombie_horse_boss": {
+          "id": "pvz_zombie_horse_boss",
+          "label": "🐎💀 Skeleton Horse Boss",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 219 {user}"
+        },
+        "pvz_zombie_imp_king": {
+          "id": "pvz_zombie_imp_king",
+          "label": "👑👿 Imp King Boss",
+          "category": "Zombie Boss & Gargantuar",
+          "driver": "rcon",
+          "command": "/spawnzombie 228 {user}"
+        },
+        "pvz_zombie_random": {
+          "id": "pvz_zombie_random",
+          "label": "🎲 Gacha Zombie Random",
+          "category": "Zombie Gacha & Horde",
+          "driver": "rcon",
+          "command": "/spawnzombie random {user}"
+        },
+        "pvz_zombie_boss_random": {
+          "id": "pvz_zombie_boss_random",
+          "label": "🎰 Gacha Boss / Ultimate Zombie",
+          "category": "Zombie Gacha & Horde",
+          "driver": "rcon",
+          "command": "/spawnzombie boss {user}"
+        },
+        "pvz_zombie_horde_5": {
+          "id": "pvz_zombie_horde_5",
+          "label": "🧟‍♀️🧟‍♂️ Serbuan 5 Zombie Random",
+          "category": "Zombie Gacha & Horde",
+          "driver": "rcon",
+          "command": "/spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}; /spawnzombie random {user}"
+        },
+        "pvz_zombie_garg_raid": {
+          "id": "pvz_zombie_garg_raid",
+          "label": "🚨 Trio Gargantuar Raid!",
+          "category": "Zombie Gacha & Horde",
+          "driver": "rcon",
+          "command": "/spawnzombie 23 {user}; /spawnzombie 32 {user}; /spawnzombie 35 {user}"
+        },
+        "pvz_plant_peashooter": {
+          "id": "pvz_plant_peashooter",
+          "label": "🌱 Peashooter",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 0 {user}"
+        },
+        "pvz_plant_sunflower": {
+          "id": "pvz_plant_sunflower",
+          "label": "🌻 Sunflower",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 1 {user}"
+        },
+        "pvz_plant_cherrybomb": {
+          "id": "pvz_plant_cherrybomb",
+          "label": "🍒 Cherry Bomb",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 2 {user}"
+        },
+        "pvz_plant_wallnut": {
+          "id": "pvz_plant_wallnut",
+          "label": "🥜 Wall-nut",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 3 {user}"
+        },
+        "pvz_plant_potatomine": {
+          "id": "pvz_plant_potatomine",
+          "label": "🥔 Potato Mine",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 4 {user}"
+        },
+        "pvz_plant_chomper": {
+          "id": "pvz_plant_chomper",
+          "label": "💜 Chomper",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 5 {user}"
+        },
+        "pvz_plant_doomshroom": {
+          "id": "pvz_plant_doomshroom",
+          "label": "🍄💥 Doom-shroom",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 14 {user}"
+        },
+        "pvz_plant_squash": {
+          "id": "pvz_plant_squash",
+          "label": "🍐 Squash",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 16 {user}"
+        },
+        "pvz_plant_jalapeno": {
+          "id": "pvz_plant_jalapeno",
+          "label": "🌶️ Jalapeno",
+          "category": "Tanaman Klasik",
+          "driver": "rcon",
+          "command": "/spawnplant 19 {user}"
+        },
+        "pvz_plant_gatling": {
+          "id": "pvz_plant_gatling",
+          "label": "🔫 Gatling Pea",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 26 {user}"
+        },
+        "pvz_plant_twinsunflower": {
+          "id": "pvz_plant_twinsunflower",
+          "label": "🌻🌻 Twin Sunflower",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 27 {user}"
+        },
+        "pvz_plant_cattail": {
+          "id": "pvz_plant_cattail",
+          "label": "🐱 Cattail",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 29 {user}"
+        },
+        "pvz_plant_cobcannon": {
+          "id": "pvz_plant_cobcannon",
+          "label": "🌽🚀 Cob Cannon",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 30 {user}"
+        },
+        "pvz_plant_cherry_gatling": {
+          "id": "pvz_plant_cherry_gatling",
+          "label": "🍒🔫 Cherry Gatling Pea",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 1000 {user}"
+        },
+        "pvz_plant_ice_doom": {
+          "id": "pvz_plant_ice_doom",
+          "label": "❄️🍄 Ice Doom-shroom",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 1025 {user}"
+        },
+        "pvz_plant_super_chomper": {
+          "id": "pvz_plant_super_chomper",
+          "label": "🦖 Super Chomper",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 1032 {user}"
+        },
+        "pvz_plant_hypno_doom": {
+          "id": "pvz_plant_hypno_doom",
+          "label": "🔮🍄 Empress Hypno Doom",
+          "category": "Tanaman Fusion & Upgrade",
+          "driver": "rcon",
+          "command": "/spawnplant 1042 {user}"
+        },
+        "pvz_plant_ultimate_cannon": {
+          "id": "pvz_plant_ultimate_cannon",
+          "label": "☢️🌽 Ultimate Cob Cannon (900)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 900 {user}"
+        },
+        "pvz_plant_ultimate_gatling": {
+          "id": "pvz_plant_ultimate_gatling",
+          "label": "🔥🔫 Ultimate Gatling Pea (901)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 901 {user}"
+        },
+        "pvz_plant_ultimate_sun_cabbage": {
+          "id": "pvz_plant_ultimate_sun_cabbage",
+          "label": "☀️🥬 Ultimate Sun Cabbage (902)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 902 {user}"
+        },
+        "pvz_plant_ultimate_chomper": {
+          "id": "pvz_plant_ultimate_chomper",
+          "label": "🍒🦖 Ultimate Cherry Chomper (903)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 903 {user}"
+        },
+        "pvz_plant_doom_gatling": {
+          "id": "pvz_plant_doom_gatling",
+          "label": "💀🔫 Ultimate Doom Gatling (907)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 907 {user}"
+        },
+        "pvz_plant_ultimate_gloom": {
+          "id": "pvz_plant_ultimate_gloom",
+          "label": "💜🍄 Ultimate Gloom-shroom (910)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 910 {user}"
+        },
+        "pvz_plant_ultimate_tallnut": {
+          "id": "pvz_plant_ultimate_tallnut",
+          "label": "💎🛡️ Ultimate Obsidian Tall-nut (913)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 913 {user}"
+        },
+        "pvz_plant_ultimate_hypno": {
+          "id": "pvz_plant_ultimate_hypno",
+          "label": "👑🔮 Ultimate Hypno Empress (923)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 923 {user}"
+        },
+        "pvz_plant_nuclear_cherry": {
+          "id": "pvz_plant_nuclear_cherry",
+          "label": "☢️🍒 Nuclear Doom Cherry (959)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 959 {user}"
+        },
+        "pvz_plant_nuclear_squash": {
+          "id": "pvz_plant_nuclear_squash",
+          "label": "☢️🍐 Nuclear Squash (965)",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant 965 {user}"
+        },
+        "pvz_plant_random": {
+          "id": "pvz_plant_random",
+          "label": "🎲 Gacha Tanaman Random",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant random {user}"
+        },
+        "pvz_plant_ultimate_random": {
+          "id": "pvz_plant_ultimate_random",
+          "label": "🌟 Gacha Tanaman Ultimate / Odyssey",
+          "category": "Tanaman Ultimate / Odyssey",
+          "driver": "rcon",
+          "command": "/spawnplant ultimate {user}"
+        },
+        "pvz_card_random": {
+          "id": "pvz_card_random",
+          "label": "🃏 Drop Kartu Tanaman Random",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/card random"
+        },
+        "pvz_card_ultimate_random": {
+          "id": "pvz_card_ultimate_random",
+          "label": "🃏✨ Drop Kartu Ultimate Random",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/card ultimate"
+        },
+        "pvz_card_ultimate_gatling": {
+          "id": "pvz_card_ultimate_gatling",
+          "label": "🃏🔥 Drop Kartu Ultimate Gatling",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/card 901"
+        },
+        "pvz_card_ultimate_cannon": {
+          "id": "pvz_card_ultimate_cannon",
+          "label": "🃏🚀 Drop Kartu Ultimate Cob Cannon",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/card 900"
+        },
+        "pvz_card_doomshroom": {
+          "id": "pvz_card_doomshroom",
+          "label": "🃏🍄 Drop Kartu Doom-shroom",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/card 14"
+        },
+        "pvz_seed_rain_5": {
+          "id": "pvz_seed_rain_5",
+          "label": "🌧️🌱 Hujan 5 Kartu Tanaman",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/seedrain 5"
+        },
+        "pvz_seed_rain_15": {
+          "id": "pvz_seed_rain_15",
+          "label": "⛈️🌱 Badai Hujan 15 Kartu Tanaman",
+          "category": "Kartu & Hujan Benih",
+          "driver": "rcon",
+          "command": "/seedrain 15"
+        },
+        "pvz_sun_add_500": {
+          "id": "pvz_sun_add_500",
+          "label": "☀️ Tambah +500 Sun",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/addsun 500"
+        },
+        "pvz_sun_add_2000": {
+          "id": "pvz_sun_add_2000",
+          "label": "☀️☀️ Tambah +2000 Sun",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/addsun 2000"
+        },
+        "pvz_sun_sub_500": {
+          "id": "pvz_sun_sub_500",
+          "label": "🌑 Sedot -500 Sun",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/addsun -500"
+        },
+        "pvz_sun_reset_0": {
+          "id": "pvz_sun_reset_0",
+          "label": "🕳️ Reset Sun Jadi 0!",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/setsun 0"
+        },
+        "pvz_sun_unlimited_15s": {
+          "id": "pvz_sun_unlimited_15s",
+          "label": "♾️☀️ Unlimited Sun (15 Detik)",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/unlimitedsun 15"
+        },
+        "pvz_coins_add_1000": {
+          "id": "pvz_coins_add_1000",
+          "label": "💰 Tambah +1000 Koin",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/addcoins 1000"
+        },
+        "pvz_coins_reset_0": {
+          "id": "pvz_coins_reset_0",
+          "label": "💸 Reset Koin Jadi 0",
+          "category": "Sun & Koin",
+          "driver": "rcon",
+          "command": "/setcoins 0"
+        },
+        "pvz_free_cooldown_15s": {
+          "id": "pvz_free_cooldown_15s",
+          "label": "⚡ Kartu Tanpa Cooldown (15 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/freecooldown 15"
+        },
+        "pvz_invulnerable_plants_15s": {
+          "id": "pvz_invulnerable_plants_15s",
+          "label": "🛡️ Tanaman Kebal / Invulnerable (15 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/invulnerableplants 15"
+        },
+        "pvz_kill_all_zombies": {
+          "id": "pvz_kill_all_zombies",
+          "label": "💀⚡ Bunuh Semua Zombie (Clear Board)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/killallzombies"
+        },
+        "pvz_kill_all_plants": {
+          "id": "pvz_kill_all_plants",
+          "label": "🔥🥀 Hancurkan Semua Tanaman! (Sabotase)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/killallplants"
+        },
+        "pvz_charm_all_zombies": {
+          "id": "pvz_charm_all_zombies",
+          "label": "💖🧟 Hipnotis Semua Zombie!",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/charmallzombies"
+        },
+        "pvz_zombies_x2_dmg_15s": {
+          "id": "pvz_zombies_x2_dmg_15s",
+          "label": "⚔️ Zombie Damage 2x Lipat (15 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/zombiesx2demage 15"
+        },
+        "pvz_zombies_x100_dmg_10s": {
+          "id": "pvz_zombies_x100_dmg_10s",
+          "label": "☠️ Zombie One-Hit Kill Tanaman (10 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/zombiesx100demage 10"
+        },
+        "pvz_zombies_x0_dmg_15s": {
+          "id": "pvz_zombies_x0_dmg_15s",
+          "label": "🕊️ Zombie 0 Damage / Damai (15 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/zombiesx0demage 15"
+        },
+        "pvz_stop_zombie_spawn_15s": {
+          "id": "pvz_stop_zombie_spawn_15s",
+          "label": "⏸️ Hentikan Spawn Zombie Alami (15 Detik)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/stopzombiespawn 15"
+        },
+        "pvz_plant_everywhere": {
+          "id": "pvz_plant_everywhere",
+          "label": "🗺️ Toggle Bebas Tanam Di Mana Saja",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/planteverywhere"
+        },
+        "pvz_stop_gameover": {
+          "id": "pvz_stop_gameover",
+          "label": "🛑 Toggle Anti Game Over (Zombie Masuk Rumah Aman)",
+          "category": "Buff & Efek Spesial",
+          "driver": "rcon",
+          "command": "/stopgameover"
+        },
+        "pvz_spawn_meteor": {
+          "id": "pvz_spawn_meteor",
+          "label": "☄️ Jatuhkan Meteor Ultimate!",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnmeteor"
+        },
+        "pvz_spawn_trophy": {
+          "id": "pvz_spawn_trophy",
+          "label": "🏆 Drop Trophy (Auto Menang Level)",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawntrophy"
+        },
+        "pvz_spawn_mecha": {
+          "id": "pvz_spawn_mecha",
+          "label": "⚙️ Drop Mecha Fragment",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnmecha"
+        },
+        "pvz_spawn_supermecha": {
+          "id": "pvz_spawn_supermecha",
+          "label": "🤖🥜 Drop Super Mecha-Nut",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnsupermecha"
+        },
+        "pvz_spawn_fertilizer": {
+          "id": "pvz_spawn_fertilizer",
+          "label": "💩 Drop Pupuk (Fertilizer)",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnfertilizer"
+        },
+        "pvz_spawn_bucket": {
+          "id": "pvz_spawn_bucket",
+          "label": "🪣 Drop Item Ember Besi",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnbucket"
+        },
+        "pvz_spawn_helmet": {
+          "id": "pvz_spawn_helmet",
+          "label": "🪖 Drop Item Helm Rugby",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnhelmet"
+        },
+        "pvz_spawn_jack": {
+          "id": "pvz_spawn_jack",
+          "label": "🎁 Drop Item Jack-in-the-Box",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnjack"
+        },
+        "pvz_spawn_pickaxe": {
+          "id": "pvz_spawn_pickaxe",
+          "label": "⛏️ Drop Item Pickaxe (Beliung)",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnpickaxe"
+        },
+        "pvz_spawn_sprout": {
+          "id": "pvz_spawn_sprout",
+          "label": "🌱 Drop Bibit Zen Garden (Sprout)",
+          "category": "Item & Drop Spesial",
+          "driver": "rcon",
+          "command": "/spawnsprout"
+        }
+      }
+    },
+    "Insaniquarium": {
+      "id": "Insaniquarium",
+      "name": "Insaniquarium Deluxe (Keystroke)",
+      "icon": "🐠",
+      "category": "Keystroke / Macro",
+      "driver": "keystroke",
+      "inputMethod": "sendinput",
+      "targetProcess": "Insaniquarium.exe",
+      "description": "PopCap 2004 (C++ native, 32-bit, v1.1). Spawn ikan/pet/alien via tombol SANDBOX MODE (Konami code di Main Menu, butuh trophy) + cheat ketik (space/void/wavy/zombie/time/prego/...) di mode normal.",
+      "effects": {
+        "iq_guppy": {
+          "id": "iq_guppy",
+          "label": "🐟 Guppy",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 1"
+        },
+        "iq_carnivore": {
+          "id": "iq_carnivore",
+          "label": "🦈 Carnivore",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 2"
+        },
+        "iq_golden_guppy": {
+          "id": "iq_golden_guppy",
+          "label": "✨ Golden Guppy",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 3"
+        },
+        "iq_starcatcher": {
+          "id": "iq_starcatcher",
+          "label": "⭐ Starcatcher",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 4"
+        },
+        "iq_guppycruncher": {
+          "id": "iq_guppycruncher",
+          "label": "🦀 Guppycruncher",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 5"
+        },
+        "iq_beetlemuncher": {
+          "id": "iq_beetlemuncher",
+          "label": "🪲 Beetlemuncher",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 6"
+        },
+        "iq_breeder": {
+          "id": "iq_breeder",
+          "label": "🤰 Breeder",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 7"
+        },
+        "iq_ultravore": {
+          "id": "iq_ultravore",
+          "label": "🐋 Ultravore",
+          "category": "Ikan (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS 8"
+        },
+        "iq_pet_stinky": {
+          "id": "iq_pet_stinky",
+          "label": "🐌 Pet Stinky",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS Q"
+        },
+        "iq_pet_niko": {
+          "id": "iq_pet_niko",
+          "label": "🦪 Pet Niko",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS W"
+        },
+        "iq_pet_itchy": {
+          "id": "iq_pet_itchy",
+          "label": "🐡 Pet Itchy",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS E"
+        },
+        "iq_pet_prego": {
+          "id": "iq_pet_prego",
+          "label": "🐟 Pet Prego",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS R"
+        },
+        "iq_pet_zorf": {
+          "id": "iq_pet_zorf",
+          "label": "🐴 Pet Zorf",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS T"
+        },
+        "iq_pet_clyde": {
+          "id": "iq_pet_clyde",
+          "label": "🪼 Pet Clyde",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS Y"
+        },
+        "iq_pet_vert": {
+          "id": "iq_pet_vert",
+          "label": "💀 Pet Vert",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS U"
+        },
+        "iq_pet_rufus": {
+          "id": "iq_pet_rufus",
+          "label": "🐟 Pet Rufus",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS I"
+        },
+        "iq_pet_meryl": {
+          "id": "iq_pet_meryl",
+          "label": "🧜 Pet Meryl",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS O"
+        },
+        "iq_pet_wadsworth": {
+          "id": "iq_pet_wadsworth",
+          "label": "🐳 Pet Wadsworth",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS P"
+        },
+        "iq_pet_seymour": {
+          "id": "iq_pet_seymour",
+          "label": "🐢 Pet Seymour",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS A"
+        },
+        "iq_pet_shrapnel": {
+          "id": "iq_pet_shrapnel",
+          "label": "💣 Pet Shrapnel",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS S"
+        },
+        "iq_pet_gumbo": {
+          "id": "iq_pet_gumbo",
+          "label": "🐠 Pet Gumbo",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS D"
+        },
+        "iq_pet_blip": {
+          "id": "iq_pet_blip",
+          "label": "🐬 Pet Blip",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS F"
+        },
+        "iq_pet_rhubarb": {
+          "id": "iq_pet_rhubarb",
+          "label": "🦀 Pet Rhubarb",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS G"
+        },
+        "iq_pet_nimbus": {
+          "id": "iq_pet_nimbus",
+          "label": "🌥️ Pet Nimbus",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS H"
+        },
+        "iq_pet_amp": {
+          "id": "iq_pet_amp",
+          "label": "⚡ Pet Amp",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS J"
+        },
+        "iq_pet_gash": {
+          "id": "iq_pet_gash",
+          "label": "🦈 Pet Gash",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS K"
+        },
+        "iq_pet_angie": {
+          "id": "iq_pet_angie",
+          "label": "😇 Pet Angie",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS L"
+        },
+        "iq_pet_presto": {
+          "id": "iq_pet_presto",
+          "label": "🎩 Pet Presto",
+          "category": "Pet (Sandbox)",
+          "duration": 150,
+          "driver": "keystroke",
+          "macro": "PRESS SEMICOLON"
+        },
+        "iq_pet_brinkley": {
+          "id": "iq_pet_brinkley",
+          "label": "🏆 Bonus Pet Brinkley",
+          "category": "Pet Bonus (Sandbox)",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "SHIFT+A"
+        },
+        "iq_pet_nostradamus": {
+          "id": "iq_pet_nostradamus",
+          "label": "🏆 Bonus Pet Nostradamus",
+          "category": "Pet Bonus (Sandbox)",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "SHIFT+S"
+        },
+        "iq_pet_walter": {
+          "id": "iq_pet_walter",
+          "label": "🏆 Bonus Pet Walter",
+          "category": "Pet Bonus (Sandbox)",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "SHIFT+D"
+        },
+        "iq_pet_stanley": {
+          "id": "iq_pet_stanley",
+          "label": "🏆 Bonus Pet Stanley",
+          "category": "Pet Bonus (Sandbox)",
+          "duration": 200,
+          "driver": "keystroke",
+          "macro": "SHIFT+F"
+        },
+        "iq_alien_sylvester": {
+          "id": "iq_alien_sylvester",
+          "label": "👾 Alien Sylvester",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS Z"
+        },
+        "iq_alien_balrog": {
+          "id": "iq_alien_balrog",
+          "label": "👹 Alien Balrog",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS X"
+        },
+        "iq_alien_gus": {
+          "id": "iq_alien_gus",
+          "label": "😋 Alien Gus",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS C"
+        },
+        "iq_alien_destructor": {
+          "id": "iq_alien_destructor",
+          "label": "🚀 Alien Destructor",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS V"
+        },
+        "iq_alien_ulysses": {
+          "id": "iq_alien_ulysses",
+          "label": "🐙 Alien Ulysses",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS B"
+        },
+        "iq_alien_psychosquid": {
+          "id": "iq_alien_psychosquid",
+          "label": "🦑 Alien Psychosquid",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS N"
+        },
+        "iq_alien_bilaterus": {
+          "id": "iq_alien_bilaterus",
+          "label": "🐛 Alien Bilaterus",
+          "category": "Alien (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS M"
+        },
+        "iq_guppy_x5": {
+          "id": "iq_guppy_x5",
+          "label": "🌧️ Hujan Guppy x5",
+          "category": "Combo (Sandbox)",
+          "duration": 600,
+          "driver": "keystroke",
+          "macro": "PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1"
+        },
+        "iq_guppy_x10": {
+          "id": "iq_guppy_x10",
+          "label": "🌊 Banjir Guppy x10",
+          "category": "Combo (Sandbox)",
+          "duration": 1200,
+          "driver": "keystroke",
+          "macro": "PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1; PRESS 1"
+        },
+        "iq_carnivore_x3": {
+          "id": "iq_carnivore_x3",
+          "label": "🦈 Pasukan Carnivore x3",
+          "category": "Combo (Sandbox)",
+          "duration": 500,
+          "driver": "keystroke",
+          "macro": "PRESS 2; PRESS 2; PRESS 2"
+        },
+        "iq_breeder_x3": {
+          "id": "iq_breeder_x3",
+          "label": "🍼 Pabrik Bayi (Breeder x3)",
+          "category": "Combo (Sandbox)",
+          "duration": 500,
+          "driver": "keystroke",
+          "macro": "PRESS 7; PRESS 7; PRESS 7"
+        },
+        "iq_ultravore_x3": {
+          "id": "iq_ultravore_x3",
+          "label": "🐋 Raja Laut (Ultravore x3)",
+          "category": "Combo (Sandbox)",
+          "duration": 500,
+          "driver": "keystroke",
+          "macro": "PRESS 8; PRESS 8; PRESS 8"
+        },
+        "iq_fish_party": {
+          "id": "iq_fish_party",
+          "label": "🎉 Pesta Ikan (semua jenis 1x)",
+          "category": "Combo (Sandbox)",
+          "duration": 1000,
+          "driver": "keystroke",
+          "macro": "PRESS 1; PRESS 2; PRESS 3; PRESS 4; PRESS 5; PRESS 6; PRESS 7; PRESS 8"
+        },
+        "iq_pet_parade": {
+          "id": "iq_pet_parade",
+          "label": "🐾 Parade Pet Penolong (5 pet)",
+          "category": "Combo (Sandbox)",
+          "duration": 700,
+          "driver": "keystroke",
+          "macro": "PRESS Q; PRESS W; PRESS E; PRESS U; PRESS L"
+        },
+        "iq_all_pets": {
+          "id": "iq_all_pets",
+          "label": "🌈 SEMUA PET (24)",
+          "category": "Combo (Sandbox)",
+          "duration": 3000,
+          "driver": "keystroke",
+          "macro": "PRESS Q; PRESS W; PRESS E; PRESS R; PRESS T; PRESS Y; PRESS U; PRESS I; PRESS O; PRESS P; PRESS A; PRESS S; PRESS D; PRESS F; PRESS G; PRESS H; PRESS J; PRESS K; PRESS L; PRESS SEMICOLON; SHIFT+A; SHIFT+S; SHIFT+D; SHIFT+F"
+        },
+        "iq_bonus_pets": {
+          "id": "iq_bonus_pets",
+          "label": "🏆 4 Bonus Pet Sekaligus",
+          "category": "Combo (Sandbox)",
+          "duration": 600,
+          "driver": "keystroke",
+          "macro": "SHIFT+A; SHIFT+S; SHIFT+D; SHIFT+F"
+        },
+        "iq_alien_duo": {
+          "id": "iq_alien_duo",
+          "label": "👾👾 Double Sylvester",
+          "category": "Combo (Sandbox)",
+          "duration": 500,
+          "driver": "keystroke",
+          "macro": "PRESS Z; PRESS Z"
+        },
+        "iq_boss_rush": {
+          "id": "iq_boss_rush",
+          "label": "💀 Boss Rush (Ulysses + Psychosquid + Bilaterus)",
+          "category": "Combo (Sandbox)",
+          "duration": 1500,
+          "driver": "keystroke",
+          "macro": "PRESS B; DELAY 300; PRESS N; DELAY 300; PRESS M"
+        },
+        "iq_alien_invasion": {
+          "id": "iq_alien_invasion",
+          "label": "🛸 INVASI ALIEN (7 alien)",
+          "category": "Combo (Sandbox)",
+          "duration": 3000,
+          "driver": "keystroke",
+          "macro": "PRESS Z; DELAY 200; PRESS X; DELAY 200; PRESS C; DELAY 200; PRESS V; DELAY 200; PRESS B; DELAY 200; PRESS N; DELAY 200; PRESS M"
+        },
+        "iq_rescue_team": {
+          "id": "iq_rescue_team",
+          "label": "🛟 Tim Penyelamat (Guppy x3 + Angie + Itchy)",
+          "category": "Combo (Sandbox)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS 1; PRESS 1; PRESS 1; PRESS L; PRESS E"
+        },
+        "iq_backdrop_next": {
+          "id": "iq_backdrop_next",
+          "label": "🖼️ Ganti Background (Next)",
+          "category": "Background (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "SHIFT+EQUALS"
+        },
+        "iq_backdrop_prev": {
+          "id": "iq_backdrop_prev",
+          "label": "🖼️ Ganti Background (Prev)",
+          "category": "Background (Sandbox)",
+          "duration": 300,
+          "driver": "keystroke",
+          "macro": "PRESS MINUS"
+        },
+        "iq_backdrop_roulette": {
+          "id": "iq_backdrop_roulette",
+          "label": "🎰 Roulette Background (3x)",
+          "category": "Background (Sandbox)",
+          "duration": 900,
+          "driver": "keystroke",
+          "macro": "SHIFT+EQUALS; DELAY 250; SHIFT+EQUALS; DELAY 250; SHIFT+EQUALS"
+        },
+        "iq_cheat_space": {
+          "id": "iq_cheat_space",
+          "label": "🌌 Cheat: Tank Luar Angkasa (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS S; PRESS P; PRESS A; PRESS C; PRESS E"
+        },
+        "iq_cheat_void": {
+          "id": "iq_cheat_void",
+          "label": "⬜ Cheat: Background Putih Kosong (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS V; PRESS O; PRESS I; PRESS D"
+        },
+        "iq_cheat_wavy": {
+          "id": "iq_cheat_wavy",
+          "label": "🌊 Cheat: Layar Bergelombang (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS W; PRESS A; PRESS V; PRESS Y"
+        },
+        "iq_cheat_zombie": {
+          "id": "iq_cheat_zombie",
+          "label": "🧟 Cheat: Semua Ikan Kelihatan Mati (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS Z; PRESS O; PRESS M; PRESS B; PRESS I; PRESS E"
+        },
+        "iq_cheat_time": {
+          "id": "iq_cheat_time",
+          "label": "⏱️ Cheat: Tampilkan Timer Level (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS T; PRESS I; PRESS M; PRESS E"
+        },
+        "iq_cheat_prego": {
+          "id": "iq_cheat_prego",
+          "label": "🔊 Cheat: Suara Lahir Prego Original (toggle)",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 800,
+          "driver": "keystroke",
+          "macro": "PRESS P; PRESS R; PRESS E; PRESS G; PRESS O"
+        },
+        "iq_cheat_supermegaultra": {
+          "id": "iq_cheat_supermegaultra",
+          "label": "📢 Cheat: Suara Lahir SUPER BERISIK",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 1800,
+          "driver": "keystroke",
+          "macro": "PRESS S; PRESS U; PRESS P; PRESS E; PRESS R; PRESS M; PRESS E; PRESS G; PRESS A; PRESS U; PRESS L; PRESS T; PRESS R; PRESS A"
+        },
+        "iq_cheat_betatesters": {
+          "id": "iq_cheat_betatesters",
+          "label": "🎵 Cheat: Suara Lahir Breeder Aneh",
+          "category": "Cheat Ketik (Mode Normal)",
+          "duration": 2200,
+          "driver": "keystroke",
+          "macro": "PRESS W; PRESS E; PRESS L; PRESS O; PRESS V; PRESS E; PRESS B; PRESS E; PRESS T; PRESS A; PRESS T; PRESS E; PRESS S; PRESS T; PRESS E; PRESS R; PRESS S"
+        },
+        "iq_rapid_fire": {
+          "id": "iq_rapid_fire",
+          "label": "🖱️ Klik Brutal 3 Detik (di posisi kursor)",
+          "category": "Mouse (Semua Mode)",
+          "description": "Tahan klik kiri 3 detik di posisi kursor streamer: tembak alien / tabur makanan (makanan memakan uang!)",
+          "duration": 3200,
+          "driver": "keystroke",
+          "macro": "HOLD 3000 MOUSELEFT"
         }
       }
     }
@@ -124,81 +1575,49 @@
     {
       "id": "tier_1",
       "enabled": true,
-      "label": "Drop Item",
-      "giftId": 16247,
-      "effectId": "remove_junk"
+      "label": "Klakson",
+      "giftId": 5655,
+      "effectId": "gta_horn"
     },
     {
       "id": "tier_2",
       "enabled": true,
-      "label": "Teleport",
+      "label": "Banting Setir Kiri",
       "giftId": 5487,
-      "effectId": "random_teleport"
+      "effectId": "gta_steer_left"
     },
     {
       "id": "tier_3",
       "enabled": true,
-      "label": "Spawn Junk (Gift)",
-      "giftId": 5655,
-      "effectId": "spawn_junk_gift"
+      "label": "Rem Tangan",
+      "giftId": 5879,
+      "effectId": "gta_handbrake"
     },
     {
       "id": "tier_4",
       "enabled": true,
-      "label": "Refill Stamina",
-      "giftId": 5879,
-      "effectId": "refill_stamina"
+      "label": "Lompat dari Mobil!",
+      "giftId": 8913,
+      "effectId": "gta_exit_vehicle"
     },
     {
       "id": "tier_5",
       "enabled": true,
-      "label": "Add Drink",
-      "giftId": 10716,
-      "effectId": "add_stamina_drink"
-    },
-    {
-      "id": "tier_6",
-      "enabled": true,
-      "label": "Auto Jump",
-      "giftId": 8913,
-      "effectId": "auto_jump"
-    },
-    {
-      "id": "tier_7",
-      "enabled": true,
-      "label": "Gacha Spin",
+      "label": "Tembak Senjata",
       "giftId": 19447,
-      "effectId": "gacha"
-    },
-    {
-      "id": "tier_8",
-      "enabled": true,
-      "label": "Force Close",
-      "giftId": 5660,
-      "effectId": "force_close"
-    },
-    {
-      "id": "tier_9",
-      "enabled": true,
-      "label": "Gacha Absen",
-      "giftId": 7934,
-      "effectId": "gacha"
+      "effectId": "gta_fire_weapon"
     }
   ],
   "eventMappings": {
     "follow": {
-      "effectId": "screen_blur",
+      "effectId": "gta_horn",
       "enabled": true
-    },
-    "member": {
-      "effectId": "auto_drop",
-      "enabled": false
     },
     "like": {
       "thresholds": [
         {
           "count": 100,
-          "effectId": "spawn_junk_like",
+          "effectId": "gta_handbrake",
           "enabled": true
         }
       ]
@@ -212,18 +1631,542 @@
   "socialEvents": [
     {
       "eventType": "follow",
-      "effectId": "gacha",
-      "enabled": true
-    },
-    {
-      "eventType": "repost",
-      "effectId": "gacha",
+      "effectId": "gta_horn",
       "enabled": true
     },
     {
       "eventType": "share",
-      "effectId": "gacha",
+      "effectId": "gta_cinematic_cam",
       "enabled": true
+    }
+  ],
+  "activeGameId": "GTAVChaos",
+  "activePresetId": "default",
+  "coinTiers": [
+    {
+      "id": "coin_1",
+      "minCoins": 1,
+      "maxCoins": 9,
+      "effectId": "gta_horn",
+      "enabled": true
+    },
+    {
+      "id": "coin_2",
+      "minCoins": 10,
+      "maxCoins": 49,
+      "effectId": "gta_handbrake",
+      "enabled": true
+    },
+    {
+      "id": "coin_3",
+      "minCoins": 50,
+      "maxCoins": 999999,
+      "effectId": "gta_exit_vehicle",
+      "enabled": true
+    }
+  ],
+  "chatCommands": [
+    {
+      "command": "!klakson",
+      "effectId": "gta_horn",
+      "cooldown": 10,
+      "enabled": true
+    },
+    {
+      "command": "!kamera",
+      "effectId": "gta_cinematic_cam",
+      "cooldown": 15,
+      "enabled": true
+    }
+  ],
+  "donationTiers": [
+    {
+      "minAmount": 10000,
+      "effectId": "gta_exit_vehicle",
+      "label": "Donasi Rp 10rb+ (Lompat Mobil)",
+      "enabled": true
+    }
+  ],
+  "masterSwitches": {
+    "all": true,
+    "wsMod": true,
+    "keystroke": true,
+    "rcon": true,
+    "webhook": true,
+    "tts": true,
+    "obs": true
+  },
+  "presets": [
+    {
+      "id": "default",
+      "name": "Default Stream Interaktif (Unlimited Triggers)",
+      "gameId": "PvZFusion",
+      "description": "Preset interaktif PvZ Fusion lengkap (Tanpa batasan 7 interaksi StreamToEarn) — Gift, Koin, Follow, Like, Share, & Komentar",
+      "giftMappings": [
+        {
+          "id": "tier_1",
+          "label": "Rose -> Zombie Biasa",
+          "giftId": 5655,
+          "effectId": "pvz_zombie_normal",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_2",
+          "label": "TikTok -> Bantu Tanaman Random",
+          "giftId": 5269,
+          "effectId": "pvz_plant_random",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_3",
+          "label": "GG -> Football Zombie",
+          "giftId": 6064,
+          "effectId": "pvz_zombie_football",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_4",
+          "label": "Ice Cream -> Zomboni Mobil Es",
+          "giftId": 5827,
+          "effectId": "pvz_zombie_zomboni",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_5",
+          "label": "Finger Heart -> +500 Sun",
+          "giftId": 5487,
+          "effectId": "pvz_sun_add_500",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_6",
+          "label": "Rosa -> Gacha Tanaman Ultimate",
+          "giftId": 8913,
+          "effectId": "pvz_plant_ultimate_random",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_7",
+          "label": "Perfume -> Gargantuar",
+          "giftId": 5658,
+          "effectId": "pvz_zombie_gargantuar",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_8",
+          "label": "Doughnut -> Super Gargantuar",
+          "giftId": 5879,
+          "effectId": "pvz_zombie_super_gargantuar",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_9",
+          "label": "Cap -> Ultimate Abyss Gargantuar",
+          "giftId": 6093,
+          "effectId": "pvz_zombie_ultimate_gargantuar",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_10",
+          "label": "Hand Hearts -> Hujan 15 Kartu",
+          "giftId": 5660,
+          "effectId": "pvz_seed_rain_15",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_11",
+          "label": "Corgi -> Dr. Zomboss Robot",
+          "giftId": 6267,
+          "effectId": "pvz_zombie_zomboss",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "tier_12",
+          "label": "Money Gun -> Hancurkan Semua Tanaman!",
+          "giftId": 7168,
+          "effectId": "pvz_kill_all_plants",
+          "multiplyByRepeat": false,
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        }
+      ],
+      "coinTiers": [
+        {
+          "id": "coin_1",
+          "minCoins": 1,
+          "maxCoins": 4,
+          "effectId": "pvz_zombie_random",
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "coin_2",
+          "minCoins": 5,
+          "maxCoins": 19,
+          "effectId": "pvz_zombie_horde_5",
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "coin_3",
+          "minCoins": 20,
+          "maxCoins": 99,
+          "effectId": "pvz_zombie_gargantuar",
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "coin_4",
+          "minCoins": 100,
+          "maxCoins": 299,
+          "effectId": "pvz_zombie_boss_random",
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        },
+        {
+          "id": "coin_5",
+          "minCoins": 300,
+          "maxCoins": 999999,
+          "effectId": "pvz_zombie_zomboss",
+          "soundId": "",
+          "overlayScreen": 1,
+          "spinWheel": false,
+          "enabled": true
+        }
+      ],
+      "socialEvents": [
+        {
+          "eventType": "follow",
+          "effectId": "pvz_plant_random",
+          "enabled": true
+        },
+        {
+          "eventType": "share",
+          "effectId": "pvz_card_random",
+          "enabled": true
+        },
+        {
+          "eventType": "repost",
+          "effectId": "pvz_card_ultimate_random",
+          "enabled": true
+        }
+      ],
+      "eventMappings": {
+        "follow": {
+          "effectId": "pvz_plant_random",
+          "enabled": true
+        },
+        "like": {
+          "thresholds": [
+            {
+              "count": 100,
+              "effectId": "pvz_plant_ultimate_random",
+              "enabled": true
+            },
+            {
+              "count": 500,
+              "effectId": "pvz_seed_rain_5",
+              "enabled": true
+            },
+            {
+              "count": 1000,
+              "effectId": "pvz_zombie_gargantuar",
+              "enabled": true
+            }
+          ]
+        }
+      },
+      "chatCommands": [
+        {
+          "command": "!zombie",
+          "requiredRole": "everyone",
+          "specificUsers": [],
+          "cooldown": 10,
+          "userCooldown": 30,
+          "effectId": "pvz_zombie_normal",
+          "enabled": true
+        },
+        {
+          "command": "!plant",
+          "requiredRole": "everyone",
+          "specificUsers": [],
+          "cooldown": 15,
+          "userCooldown": 30,
+          "effectId": "pvz_plant_random",
+          "enabled": true
+        },
+        {
+          "command": "!sun",
+          "requiredRole": "everyone",
+          "specificUsers": [],
+          "cooldown": 20,
+          "userCooldown": 30,
+          "effectId": "pvz_sun_add_500",
+          "enabled": true
+        },
+        {
+          "command": "!meteor",
+          "requiredRole": "everyone",
+          "specificUsers": [],
+          "cooldown": 30,
+          "userCooldown": 30,
+          "effectId": "pvz_spawn_meteor",
+          "enabled": true
+        }
+      ],
+      "donationTiers": [
+        {
+          "label": "Donasi Rp 10rb+ (Trio Gargantuar Raid)",
+          "minAmount": 10000,
+          "effectId": "pvz_zombie_garg_raid",
+          "enabled": true
+        },
+        {
+          "label": "Donasi Rp 25rb+ (Spawn Dr. Zomboss)",
+          "minAmount": 25000,
+          "effectId": "pvz_zombie_zomboss",
+          "enabled": true
+        },
+        {
+          "label": "Donasi Rp 50rb+ (Ratakan Semua Tanaman!)",
+          "minAmount": 50000,
+          "effectId": "pvz_kill_all_plants",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "chaos-mode",
+      "name": "Odyssey Chaos & Boss Rush",
+      "gameId": "PvZFusion",
+      "description": "Mode rusuh penuh Boss Zombie, Ultimate Odyssey Plants, Meteor, dan Sabotase Sun!",
+      "giftMappings": [
+        {
+          "id": "chaos_1",
+          "enabled": true,
+          "label": "Rose -> Gacha Zombie Random",
+          "giftId": 5655,
+          "effectId": "pvz_zombie_random"
+        },
+        {
+          "id": "chaos_2",
+          "enabled": true,
+          "label": "TikTok -> Gacha Tanaman Ultimate",
+          "giftId": 5269,
+          "effectId": "pvz_plant_ultimate_random"
+        },
+        {
+          "id": "chaos_3",
+          "enabled": true,
+          "label": "GG -> Serbuan 5 Zombie Random",
+          "giftId": 6064,
+          "effectId": "pvz_zombie_horde_5"
+        },
+        {
+          "id": "chaos_4",
+          "enabled": true,
+          "label": "Finger Heart -> Unlimited Sun 15s",
+          "giftId": 5487,
+          "effectId": "pvz_sun_unlimited_15s"
+        },
+        {
+          "id": "chaos_5",
+          "enabled": true,
+          "label": "Rosa -> Gacha Boss / Ultimate Zombie",
+          "giftId": 8913,
+          "effectId": "pvz_zombie_boss_random"
+        },
+        {
+          "id": "chaos_6",
+          "enabled": true,
+          "label": "Doughnut -> Trio Gargantuar Raid!",
+          "giftId": 5879,
+          "effectId": "pvz_zombie_garg_raid"
+        },
+        {
+          "id": "chaos_7",
+          "enabled": true,
+          "label": "Cap -> Jatuhkan Meteor Ultimate!",
+          "giftId": 6093,
+          "effectId": "pvz_spawn_meteor"
+        },
+        {
+          "id": "chaos_8",
+          "enabled": true,
+          "label": "Hand Hearts -> Hipnotis Semua Zombie!",
+          "giftId": 5660,
+          "effectId": "pvz_charm_all_zombies"
+        },
+        {
+          "id": "chaos_9",
+          "enabled": true,
+          "label": "Corgi ->Zombie One-Hit Kill (10s)",
+          "giftId": 6267,
+          "effectId": "pvz_zombies_x100_dmg_10s"
+        },
+        {
+          "id": "chaos_10",
+          "enabled": true,
+          "label": "Money Gun -> Hancurkan Semua Tanaman!",
+          "giftId": 7168,
+          "effectId": "pvz_kill_all_plants"
+        }
+      ],
+      "coinTiers": [
+        {
+          "id": "c_coin_1",
+          "minCoins": 1,
+          "maxCoins": 9,
+          "effectId": "pvz_zombie_horde_5",
+          "enabled": true
+        },
+        {
+          "id": "c_coin_2",
+          "minCoins": 10,
+          "maxCoins": 49,
+          "effectId": "pvz_zombie_boss_random",
+          "enabled": true
+        },
+        {
+          "id": "c_coin_3",
+          "minCoins": 50,
+          "maxCoins": 199,
+          "effectId": "pvz_zombie_garg_raid",
+          "enabled": true
+        },
+        {
+          "id": "c_coin_4",
+          "minCoins": 200,
+          "maxCoins": 999999,
+          "effectId": "pvz_kill_all_plants",
+          "enabled": true
+        }
+      ],
+      "socialEvents": [
+        {
+          "eventType": "follow",
+          "effectId": "pvz_plant_ultimate_random",
+          "enabled": true
+        },
+        {
+          "eventType": "share",
+          "effectId": "pvz_card_ultimate_random",
+          "enabled": true
+        }
+      ],
+      "eventMappings": {
+        "follow": {
+          "effectId": "pvz_plant_ultimate_random",
+          "enabled": true
+        },
+        "like": {
+          "thresholds": [
+            {
+              "count": 100,
+              "effectId": "pvz_zombie_boss_random",
+              "enabled": true
+            },
+            {
+              "count": 300,
+              "effectId": "pvz_seed_rain_15",
+              "enabled": true
+            },
+            {
+              "count": 500,
+              "effectId": "pvz_spawn_meteor",
+              "enabled": true
+            }
+          ]
+        }
+      },
+      "chatCommands": [
+        {
+          "command": "!boss",
+          "effectId": "pvz_zombie_boss_random",
+          "cooldown": 20,
+          "enabled": true
+        },
+        {
+          "command": "!odyssey",
+          "effectId": "pvz_plant_ultimate_random",
+          "cooldown": 20,
+          "enabled": true
+        },
+        {
+          "command": "!reset",
+          "effectId": "pvz_sun_reset_0",
+          "cooldown": 45,
+          "enabled": true
+        }
+      ],
+      "donationTiers": [
+        {
+          "minAmount": 10000,
+          "effectId": "pvz_zombie_zomboss",
+          "label": "Donasi Rp 10rb+ (Spawn Dr. Zomboss)",
+          "enabled": true
+        },
+        {
+          "minAmount": 25000,
+          "effectId": "pvz_kill_all_plants",
+          "label": "Donasi Rp 25rb+ (Ratakan Semua Tanaman!)",
+          "enabled": true
+        }
+      ]
     }
   ]
 }

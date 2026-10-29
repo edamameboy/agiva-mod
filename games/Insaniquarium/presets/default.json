@@ -1,0 +1,68 @@
+{
+  "id": "default",
+  "name": "Sandbox Chaos",
+  "gameId": "Insaniquarium",
+  "description": "WAJIB masuk SANDBOX MODE dulu (Main Menu: ↑ ↑ ↓ ↓ ← → ← → B A, butuh trophy). Gift kecil = ikan/pet penolong, gift besar = alien.",
+  "giftMappings": [
+    { "id": "g_rose", "enabled": true, "label": "Rose → Guppy (x combo)", "giftId": 5655, "effectId": "iq_guppy", "multiplyByRepeat": true },
+    { "id": "g_tiktok", "enabled": true, "label": "TikTok → Guppy (x combo)", "giftId": 5269, "effectId": "iq_guppy", "multiplyByRepeat": true },
+    { "id": "g_gg", "enabled": true, "label": "GG → Golden Guppy", "giftId": 6064, "effectId": "iq_golden_guppy" },
+    { "id": "g_icecream", "enabled": true, "label": "Ice Cream → Starcatcher", "giftId": 5827, "effectId": "iq_starcatcher" },
+    { "id": "g_heartme", "enabled": true, "label": "Heart Me → Pet Angie (penghidup ikan mati)", "giftId": 7934, "effectId": "iq_pet_angie" },
+    { "id": "g_fingerheart", "enabled": true, "label": "Finger Heart → Carnivore", "giftId": 5487, "effectId": "iq_carnivore" },
+    { "id": "g_rosa", "enabled": true, "label": "Rosa → Pet Acak", "giftId": 8913, "effectId": "iq_pet_stinky", "randomPool": "iq_pet_stinky,iq_pet_niko,iq_pet_itchy,iq_pet_prego,iq_pet_zorf,iq_pet_clyde,iq_pet_vert,iq_pet_rufus,iq_pet_meryl,iq_pet_wadsworth,iq_pet_seymour,iq_pet_shrapnel,iq_pet_gumbo,iq_pet_blip,iq_pet_rhubarb,iq_pet_nimbus,iq_pet_amp,iq_pet_gash,iq_pet_angie,iq_pet_presto" },
+    { "id": "g_necklace", "enabled": true, "label": "Friendship Necklace → Breeder", "giftId": 9947, "effectId": "iq_breeder" },
+    { "id": "g_perfume", "enabled": true, "label": "Perfume → Hujan Guppy x5", "giftId": 5658, "effectId": "iq_guppy_x5" },
+    { "id": "g_doughnut", "enabled": true, "label": "Doughnut → Ultravore", "giftId": 5879, "effectId": "iq_ultravore" },
+    { "id": "g_crane", "enabled": true, "label": "Paper Crane → Alien Sylvester", "giftId": 5659, "effectId": "iq_alien_sylvester" },
+    { "id": "g_crown", "enabled": true, "label": "Little Crown → Bonus Pet Acak", "giftId": 6097, "effectId": "iq_pet_brinkley", "randomPool": "iq_pet_brinkley,iq_pet_nostradamus,iq_pet_walter,iq_pet_stanley" },
+    { "id": "g_cap", "enabled": true, "label": "Cap → Alien Balrog", "giftId": 6104, "effectId": "iq_alien_balrog" },
+    { "id": "g_hat", "enabled": true, "label": "Hat and Mustache → Alien Gus", "giftId": 6427, "effectId": "iq_alien_gus" },
+    { "id": "g_confetti", "enabled": true, "label": "Confetti → Pesta Ikan", "giftId": 5585, "effectId": "iq_fish_party" },
+    { "id": "g_sunglasses", "enabled": true, "label": "Sunglasses → Alien Destructor", "giftId": 5509, "effectId": "iq_alien_destructor" },
+    { "id": "g_hearts", "enabled": true, "label": "Hearts → Banjir Guppy x10", "giftId": 5586, "effectId": "iq_guppy_x10" },
+    { "id": "g_corgi", "enabled": true, "label": "Corgi → Alien Ulysses", "giftId": 6267, "effectId": "iq_alien_ulysses" },
+    { "id": "g_moneygun", "enabled": true, "label": "Money Gun → Alien Psychosquid", "giftId": 7168, "effectId": "iq_alien_psychosquid" },
+    { "id": "g_gemgun", "enabled": true, "label": "Gem Gun → Alien Bilaterus", "giftId": 7122, "effectId": "iq_alien_bilaterus" },
+    { "id": "g_swan", "enabled": true, "label": "Swan → Parade 5 Pet", "giftId": 5897, "effectId": "iq_pet_parade" },
+    { "id": "g_train", "enabled": true, "label": "Train → Boss Rush", "giftId": 5978, "effectId": "iq_boss_rush" },
+    { "id": "g_galaxy", "enabled": true, "label": "Galaxy → SEMUA PET", "giftId": 11046, "effectId": "iq_all_pets" },
+    { "id": "g_fireworks", "enabled": true, "label": "Fireworks → INVASI ALIEN", "giftId": 6090, "effectId": "iq_alien_invasion" },
+    { "id": "g_interstellar", "enabled": true, "label": "Interstellar → INVASI ALIEN", "giftId": 6149, "effectId": "iq_alien_invasion" }
+  ],
+  "coinTiers": [
+    { "id": "coin_1", "minCoins": 1, "maxCoins": 9, "effectId": "iq_guppy", "randomPool": "iq_guppy,iq_carnivore,iq_golden_guppy,iq_starcatcher,iq_guppycruncher,iq_beetlemuncher,iq_breeder", "enabled": true },
+    { "id": "coin_2", "minCoins": 10, "maxCoins": 98, "effectId": "iq_pet_stinky", "randomPool": "iq_pet_stinky,iq_pet_niko,iq_pet_itchy,iq_pet_zorf,iq_pet_clyde,iq_pet_vert,iq_pet_meryl,iq_pet_wadsworth,iq_pet_shrapnel,iq_pet_gumbo,iq_pet_amp,iq_pet_gash,iq_pet_angie", "enabled": true },
+    { "id": "coin_3", "minCoins": 99, "maxCoins": 499, "effectId": "iq_alien_sylvester", "randomPool": "iq_alien_sylvester,iq_alien_balrog,iq_alien_gus,iq_alien_destructor", "enabled": true },
+    { "id": "coin_4", "minCoins": 500, "maxCoins": 999, "effectId": "iq_alien_ulysses", "randomPool": "iq_alien_ulysses,iq_alien_psychosquid,iq_alien_bilaterus,iq_boss_rush", "enabled": true },
+    { "id": "coin_5", "minCoins": 1000, "maxCoins": 9999999, "effectId": "iq_alien_invasion", "enabled": true }
+  ],
+  "socialEvents": [
+    { "eventType": "follow", "effectId": "iq_guppy", "enabled": true },
+    { "eventType": "share", "effectId": "iq_pet_stinky", "randomPool": "iq_pet_stinky,iq_pet_niko,iq_pet_itchy,iq_pet_clyde,iq_pet_angie,iq_pet_meryl", "enabled": true },
+    { "eventType": "repost", "effectId": "iq_backdrop_next", "enabled": true },
+    { "eventType": "member", "effectId": "iq_guppy", "enabled": false }
+  ],
+  "eventMappings": {
+    "like": {
+      "thresholds": [
+        { "count": 100, "effectId": "iq_guppy", "enabled": true },
+        { "count": 500, "effectId": "iq_guppy_x5", "enabled": true },
+        { "count": 1000, "effectId": "iq_rescue_team", "enabled": true },
+        { "count": 3000, "effectId": "iq_alien_sylvester", "enabled": true }
+      ]
+    }
+  },
+  "chatCommands": [
+    { "command": "!guppy", "effectId": "iq_guppy", "cooldown": 3, "userCooldown": 30, "enabled": true },
+    { "command": "!pet", "effectId": "iq_pet_stinky", "randomPool": "iq_pet_stinky,iq_pet_niko,iq_pet_itchy,iq_pet_zorf,iq_pet_clyde,iq_pet_vert,iq_pet_meryl,iq_pet_wadsworth,iq_pet_angie", "cooldown": 15, "userCooldown": 120, "enabled": true },
+    { "command": "!bg", "effectId": "iq_backdrop_next", "cooldown": 20, "enabled": true },
+    { "command": "!alien", "effectId": "iq_alien_sylvester", "cooldown": 120, "allowedRole": "follower", "enabled": true },
+    { "command": "!tolong", "effectId": "iq_rescue_team", "cooldown": 60, "allowedRole": "moderator", "enabled": true }
+  ],
+  "donationTiers": [
+    { "minAmount": 5000, "effectId": "iq_fish_party", "label": "Donasi Rp 5rb+ → Pesta Ikan", "enabled": true },
+    { "minAmount": 20000, "effectId": "iq_boss_rush", "label": "Donasi Rp 20rb+ → Boss Rush", "enabled": true },
+    { "minAmount": 50000, "effectId": "iq_alien_invasion", "label": "Donasi Rp 50rb+ → INVASI ALIEN", "enabled": true }
+  ]
+}
