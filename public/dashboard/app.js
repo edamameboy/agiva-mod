@@ -129,6 +129,16 @@ function handleServerMsg(msg) {
     case 'error':
       toast(msg.message, 'error');
       break;
+    case 'games_updated':
+      if (msg.games) {
+        games = msg.games;
+        renderGameSelector(games);
+      }
+      if (msg.presetsFolder) {
+        const pInput = document.getElementById('info-presets-folder');
+        if (pInput) pInput.value = msg.presetsFolder;
+      }
+      break;
     case 'update_available':
       if (msg.update) handleUpdateAvailable(msg.update);
       break;
@@ -743,39 +753,67 @@ function openSimulatorModal() {
 document.getElementById('btn-open-simulator')?.addEventListener('click', openSimulatorModal);
 document.getElementById('btn-quick-sim')?.addEventListener('click', openSimulatorModal);
 
-document.getElementById('btn-sim-gift')?.addEventListener('click', async () => {
-  const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
-  const sel = document.getElementById('sim-gift-select');
-  const opt = sel.options[sel.selectedIndex];
-  const giftId = Number(sel.value) || 5655;
-  const giftName = opt?.dataset.name || 'Rose';
-  const coins = Number(opt?.dataset.coins) || 1;
-  await api('POST', '/api/simulate', { type: 'gift', user, giftId, giftName, coins });
-  toast(`Simulasi Gift: ${giftName} (${coins}💎) dari ${user}`, 'success');
+document.getElementById('btn-sim-gift')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
+    const sel = document.getElementById('sim-gift-select');
+    const opt = sel.options[sel.selectedIndex];
+    const giftId = Number(sel.value) || 5655;
+    const giftName = opt?.dataset.name || 'Rose';
+    const coins = Number(opt?.dataset.coins) || 1;
+    await api('POST', '/api/simulate', { type: 'gift', user, giftId, giftName, coins });
+    toast(`Simulasi Gift: ${giftName} (${coins}💎) dari ${user}`, 'success');
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 400);
+  }
 });
 
 document.querySelectorAll('[data-sim]').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
-    const type = btn.dataset.sim;
-    const count = Number(btn.dataset.count) || 50;
-    await api('POST', '/api/simulate', { type, user, count });
-    toast(`Simulasi ${type.toUpperCase()} dikirim!`, 'success');
+  btn.addEventListener('click', async (e) => {
+    const button = e.currentTarget;
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
+      const type = button.dataset.sim;
+      const count = Number(button.dataset.count) || 50;
+      await api('POST', '/api/simulate', { type, user, count });
+      toast(`Simulasi ${type.toUpperCase()} dikirim!`, 'success');
+    } finally {
+      setTimeout(() => { button.disabled = false; }, 400);
+    }
   });
 });
 
-document.getElementById('btn-sim-chat')?.addEventListener('click', async () => {
-  const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
-  const comment = document.getElementById('sim-chat-input').value.trim() || '!lompat';
-  await api('POST', '/api/simulate', { type: 'chat', user, comment });
-  toast(`Simulasi Chat "${comment}" dikirim!`, 'success');
+document.getElementById('btn-sim-chat')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
+    const comment = document.getElementById('sim-chat-input').value.trim() || '!lompat';
+    await api('POST', '/api/simulate', { type: 'chat', user, comment });
+    toast(`Simulasi Chat "${comment}" dikirim!`, 'success');
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 400);
+  }
 });
 
-document.getElementById('btn-sim-donation')?.addEventListener('click', async () => {
-  const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
-  const amount = Number(document.getElementById('sim-donation-amount').value) || 10000;
-  await api('POST', '/api/simulate', { type: 'donation', user, amount, platform: 'saweria' });
-  toast(`Simulasi Donasi Rp ${amount.toLocaleString('id-ID')} dikirim!`, 'success');
+document.getElementById('btn-sim-donation')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const user = document.getElementById('sim-user').value.trim() || 'Budi_Agiva';
+    const amount = Number(document.getElementById('sim-donation-amount').value) || 10000;
+    await api('POST', '/api/simulate', { type: 'donation', user, amount, platform: 'saweria' });
+    toast(`Simulasi Donasi Rp ${amount.toLocaleString('id-ID')} dikirim!`, 'success');
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 400);
+  }
 });
 
 // ─── Gifts Data Tab ───────────────────────────────────────
@@ -1114,7 +1152,11 @@ function renderLikeTable() {
 
 // Test current row's selected effect dynamically
 window.testRowEffect = (btnEl, source) => {
-  const tr = btnEl.closest('tr');
+  if (btnEl) {
+    btnEl.disabled = true;
+    setTimeout(() => { btnEl.disabled = false; }, 400);
+  }
+  const tr = btnEl?.closest('tr');
   const sel = tr?.querySelector('.tier-effect-select');
   const effectId = sel ? sel.value : getFirstEffectId();
   window.testEffect(effectId, source);
@@ -1280,12 +1322,21 @@ function collectLikeTable() {
   });
 }
 
+let isTestingEffect = false;
 window.testEffect = async (effectId, source = 'test') => {
-  const res = await api('POST', '/api/test-effect', { effectId, user: 'dashboard-test', source });
-  if (res.success) {
-    toast(`Testing: ${effectId} [${(res.driver || 'ws-mod').toUpperCase()}]`, 'success');
-  } else {
-    toast(res.error || 'Failed to test effect', 'error');
+  if (isTestingEffect) return;
+  isTestingEffect = true;
+  try {
+    const res = await api('POST', '/api/test-effect', { effectId, user: 'dashboard-test', source });
+    if (res.success) {
+      toast(`Testing: ${effectId} [${(res.driver || 'ws-mod').toUpperCase()}]`, 'success');
+    } else {
+      toast(res.error || 'Failed to test effect', 'error');
+    }
+  } catch (err) {
+    toast(err.message || 'Failed to test effect', 'error');
+  } finally {
+    setTimeout(() => { isTestingEffect = false; }, 350);
   }
 };
 
@@ -2092,7 +2143,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.2.1'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.3.0'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       const topbarBtn = document.getElementById('btn-topbar-update');
@@ -2186,7 +2237,8 @@ async function init() {
   const curVer = document.getElementById('info-current-ver');
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
-  const curVerStr = `v${status.appVersion || '1.2.1'}`;
+  const presetsFolderInput = document.getElementById('info-presets-folder');
+  const curVerStr = `v${status.appVersion || '1.3.0'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -2196,6 +2248,46 @@ async function init() {
     else appMode.textContent = 'Web Node.js Server';
   }
   if (storagePath) storagePath.textContent = status.storagePath || '-';
+  if (presetsFolderInput) presetsFolderInput.value = status.presetsFolder || '';
+
+  // Wire Presets Folder Selector
+  document.getElementById('btn-browse-presets-folder')?.addEventListener('click', async () => {
+    try {
+      const res = await api('POST', '/api/dialog/select-folder', { defaultPath: presetsFolderInput?.value });
+      if (res && !res.canceled && res.folderPath) {
+        if (presetsFolderInput) presetsFolderInput.value = res.folderPath;
+      } else if (res && !res.folderPath && res.mode !== 'electron') {
+        const manual = prompt('Masukkan direktori folder presets game:', presetsFolderInput?.value || '');
+        if (manual && presetsFolderInput) {
+          presetsFolderInput.value = manual.trim();
+        }
+      }
+    } catch (err) {
+      toast('Gagal membuka dialog folder: ' + err.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-save-presets-folder')?.addEventListener('click', async () => {
+    const folderPath = presetsFolderInput?.value?.trim();
+    if (!folderPath) {
+      toast('Path folder tidak boleh kosong!', 'error');
+      return;
+    }
+    try {
+      const res = await api('POST', '/api/settings/presets-folder', { folderPath });
+      if (res && res.success) {
+        toast(`Folder preset berhasil diubah! Memuat ${res.games?.length || 0} game.`, 'success');
+        if (res.games) {
+          games = res.games;
+          renderGameSelector(games);
+        }
+      } else {
+        toast(res?.error || 'Gagal mengubah folder preset', 'error');
+      }
+    } catch (err) {
+      toast('Gagal menyimpan folder: ' + err.message, 'error');
+    }
+  });
 
   // Wire App Update Buttons
   document.getElementById('btn-check-updates')?.addEventListener('click', () => checkAppUpdates(true));

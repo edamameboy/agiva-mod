@@ -54,7 +54,25 @@ try {
 const ENV_PATH = path.join(WRITABLE_ROOT, '.env');
 const DATA_DIR = path.join(WRITABLE_ROOT, 'data');
 const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
-const GAMES_DIR = path.join(WRITABLE_ROOT, 'games');
+
+let customGamesDir = process.env.GAMES_DIR || process.env.PRESETS_DIR || null;
+let currentGamesDir = customGamesDir ? path.resolve(customGamesDir) : path.join(WRITABLE_ROOT, 'games');
+
+function getGamesDir() {
+  return currentGamesDir;
+}
+
+function setGamesDir(newDir) {
+  if (newDir && typeof newDir === 'string') {
+    currentGamesDir = path.resolve(newDir);
+    if (!fs.existsSync(currentGamesDir)) {
+      fs.mkdirSync(currentGamesDir, { recursive: true });
+    }
+    copyDirIfMissing(BUNDLED_GAMES_DIR, currentGamesDir);
+  }
+  return currentGamesDir;
+}
+
 const SOUNDS_DIR = (WRITABLE_ROOT === BUNDLED_ROOT)
   ? path.join(BUNDLED_ROOT, 'public/sounds')
   : path.join(WRITABLE_ROOT, 'sounds');
@@ -150,7 +168,10 @@ module.exports = {
   ENV_PATH,
   DATA_DIR,
   SESSIONS_DIR,
-  GAMES_DIR,
+  get GAMES_DIR() { return currentGamesDir; },
+  getGamesDir,
+  setGamesDir,
+  copyDirIfMissing,
   SOUNDS_DIR,
   BUNDLED_SOUNDS_DIR,
   BUNDLED_GAMES_DIR,

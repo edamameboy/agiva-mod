@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v3.0</span>
+          <span class="brand-sub">Universal Bridge v1.3.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -549,20 +549,31 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.2.1</span>
+              <span class="badge info" id="app-version-badge">v1.3.0</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.2.1</span>
+                  <span class="info-val" id="info-current-ver">v1.3.0</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
                   <span class="info-val" id="info-app-mode">Memuat...</span>
                 </div>
                 <div class="info-item" style="grid-column: 1 / -1;">
-                  <span class="info-label">Lokasi Data &amp; Preset:</span>
+                  <span class="info-label">📁 Folder Preset Game (Katalog JSON):</span>
+                  <div class="input-row" style="margin-top: 6px; display: flex; gap: 8px;">
+                    <input type="text" id="info-presets-folder" class="form-input code-path" placeholder="C:\path\to\games" style="flex: 1; font-family: monospace; font-size: 12px; padding: 6px 10px;">
+                    <button type="button" class="btn-sm" id="btn-browse-presets-folder" title="Pilih folder secara visual">📁 Browse...</button>
+                    <button type="button" class="btn-sm success" id="btn-save-presets-folder" title="Terapkan dan muat ulang katalog game">💾 Simpan</button>
+                  </div>
+                  <p class="form-hint" style="margin-top: 4px; font-size: 11px; color: var(--text-muted, #94a3b8);">
+                    Anda dapat memindahkan folder preset ke lokasi eksternal (misal flashdisk atau folder cloud backup).
+                  </p>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  <span class="info-label">Lokasi Data &amp; Konfigurasi:</span>
                   <span class="info-val code-path" id="info-storage-path">Memuat...</span>
                 </div>
               </div>

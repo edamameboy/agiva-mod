@@ -5,8 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
 
-const GAMES_DIR = paths.GAMES_DIR;
-
 // Legacy BepInEx DLL mapping
 const KNOWN_DLL_MAP = {
   'TikTokLiveMod': 'CarJunkyard'
@@ -21,9 +19,22 @@ class GameDetect {
     this._ensureGamesDir();
   }
 
+  getGamesDir() {
+    return paths.getGamesDir ? paths.getGamesDir() : paths.GAMES_DIR;
+  }
+
+  setGamesDir(newDir) {
+    if (paths.setGamesDir) {
+      paths.setGamesDir(newDir);
+    }
+    this._ensureGamesDir();
+    return this.scan();
+  }
+
   _ensureGamesDir() {
-    if (!fs.existsSync(GAMES_DIR)) {
-      fs.mkdirSync(GAMES_DIR, { recursive: true });
+    const dir = this.getGamesDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
   }
 
@@ -32,14 +43,15 @@ class GameDetect {
    */
   scan() {
     this._ensureGamesDir();
+    const gamesDir = this.getGamesDir();
     const gamesMap = new Map();
 
     // 1. Load all modular manifests from `games/<gameId>/manifest.json`
     try {
-      const entries = fs.readdirSync(GAMES_DIR, { withFileTypes: true });
+      const entries = fs.readdirSync(gamesDir, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        const manifestPath = path.join(GAMES_DIR, entry.name, 'manifest.json');
+        const manifestPath = path.join(gamesDir, entry.name, 'manifest.json');
         if (fs.existsSync(manifestPath)) {
           try {
             const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -49,7 +61,7 @@ class GameDetect {
               id: gameId,
               name: manifest.name || gameId,
               icon: manifest.icon || '🎮',
-              category: manifest.category || 'Custom Game',
+              category: manifest.category || 'General',
               driver: manifest.driver || 'ws-mod',
               inputMethod: manifest.inputMethod || 'sendinput',
               targetProcess: manifest.targetProcess || '',
@@ -58,16 +70,16 @@ class GameDetect {
               modFolder: manifest.modFolder || '',
               bepinexFolder: manifest.bepinexFolder || '',
               effects: manifest.effects || {},
-              presets: presets.map(p => ({ id: p.id, name: p.name, description: p.description || '' })),
+              presets,
               status: 'ready'
             });
           } catch (e) {
-            console.error(`[GameDetect] Invalid manifest in ${entry.name}:`, e.message);
+            console.error(`[GameDetect] Error parsing manifest for ${entry.name}:`, e.message);
           }
         }
       }
     } catch (e) {
-      console.error('[GameDetect] Error scanning games directory:', e.message);
+      console.error('[GameDetect] Failed to scan games directory:', e.message);
     }
 
     // 2. Scan BepInEx/plugins folder for installed DLLs if present
@@ -108,7 +120,7 @@ class GameDetect {
   }
 
   getGameManifest(gameId) {
-    const manifestPath = path.join(GAMES_DIR, gameId, 'manifest.json');
+    const manifestPath = path.join(this.getGamesDir(), gameId, 'manifest.json');
     if (!fs.existsSync(manifestPath)) return null;
     try {
       return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -120,7 +132,7 @@ class GameDetect {
   saveGameManifest(gameId, manifestData) {
     const safeId = String(gameId).replace(/[^a-zA-Z0-9_-]/g, '');
     if (!safeId) throw new Error('Invalid game ID');
-    const dir = path.join(GAMES_DIR, safeId);
+    const dir = path.join(this.getGamesDir(), safeId);
     const presetsDir = path.join(dir, 'presets');
     fs.mkdirSync(presetsDir, { recursive: true });
 
@@ -168,7 +180,7 @@ class GameDetect {
     if (!safeId || safeId === 'CarJunkyard') {
       throw new Error('Cannot delete primary built-in game');
     }
-    const dir = path.join(GAMES_DIR, safeId);
+    const dir = path.join(this.getGamesDir(), safeId);
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -178,7 +190,7 @@ class GameDetect {
 
   getPresets(gameId) {
     const safeId = String(gameId).replace(/[^a-zA-Z0-9_-]/g, '');
-    const presetsDir = path.join(GAMES_DIR, safeId, 'presets');
+    const presetsDir = path.join(this.getGamesDir(), safeId, 'presets');
     if (!fs.existsSync(presetsDir)) return [];
 
     const presets = [];
@@ -205,7 +217,7 @@ class GameDetect {
   savePreset(gameId, presetId, presetData) {
     const safeGameId = String(gameId).replace(/[^a-zA-Z0-9_-]/g, '');
     const safePresetId = String(presetId || 'default').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() || 'custom';
-    const presetsDir = path.join(GAMES_DIR, safeGameId, 'presets');
+    const presetsDir = path.join(this.getGamesDir(), safeGameId, 'presets');
     fs.mkdirSync(presetsDir, { recursive: true });
 
     const payload = {
@@ -222,7 +234,7 @@ class GameDetect {
     const safeGameId = String(gameId).replace(/[^a-zA-Z0-9_-]/g, '');
     const safePresetId = String(presetId).replace(/[^a-zA-Z0-9_-]/g, '');
     if (safePresetId === 'default') throw new Error('Preset default tidak dapat dihapus');
-    const filePath = path.join(GAMES_DIR, safeGameId, 'presets', `${safePresetId}.json`);
+    const filePath = path.join(this.getGamesDir(), safeGameId, 'presets', `${safePresetId}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       return true;

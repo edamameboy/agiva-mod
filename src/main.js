@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, session, shell } = require('electron');
+const { app, BrowserWindow, globalShortcut, session, shell, dialog } = require('electron');
 const path = require('path');
 const paths = require('./paths');
 
@@ -34,6 +34,19 @@ global.agivaElectronBridge = {
       return true;
     }
     return false;
+  },
+
+  async selectFolder(defaultPath) {
+    try {
+      const res = await dialog.showOpenDialog(mainWindow || undefined, {
+        title: 'Pilih Folder Preset & Game',
+        defaultPath: defaultPath || undefined,
+        properties: ['openDirectory', 'createDirectory']
+      });
+      return { canceled: res.canceled, folderPath: res.filePaths?.[0] || null };
+    } catch (e) {
+      return { canceled: true, error: e.message };
+    }
   },
 
   getStatus() {

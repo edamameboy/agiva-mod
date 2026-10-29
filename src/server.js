@@ -207,7 +207,7 @@ queue.setProcessor(async (item) => {
   console.log(`[Queue] Processing: ${item.effectId} [Driver: ${driver}] (from ${item.user})`);
 
   // 1. WebSocket Mod Driver (Unity BepInEx / Lua / Unreal)
-  if (switches.wsMod) {
+  if ((driver === 'ws-mod' || !driver) && switches.wsMod) {
     sendToMod({
       type: 'effect',
       effectId: item.effectId,
@@ -275,11 +275,6 @@ queue.setProcessor(async (item) => {
     gameId: resolved?.gameId
   });
   sessionStore.recordEffectTriggered();
-
-  // Wait for the effect duration
-  if (item.duration > 0) {
-    await new Promise(r => setTimeout(r, item.duration));
-  }
 });
 
 // ─── Stream & Platform Event Handlers ─────────────────────────────────────────
@@ -880,6 +875,7 @@ app.get('/api/status', (req, res) => {
     desktopStatus: global.agivaElectronBridge ? global.agivaElectronBridge.getStatus() : { isElectron: false, hudOpen: false, hudLocked: false },
     appVersion: updater.getCurrentVersion(),
     storagePath: paths.WRITABLE_ROOT,
+    presetsFolder: gameDetect.getGamesDir(),
     isPackaged: paths.isPackaged,
     isPortable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
     repoUrl: updater.getRepoUrl()
@@ -1695,6 +1691,33 @@ app.get('/api/update/check', async (req, res) => {
   }
 });
 
+// Set custom presets / games directory
+app.post('/api/settings/presets-folder', (req, res) => {
+  const { folderPath } = req.body || {};
+  if (!folderPath || typeof folderPath !== 'string') {
+    return res.status(400).json({ error: 'folderPath string required' });
+  }
+  try {
+    const cleanPath = path.resolve(folderPath.trim());
+    gameDetect.setGamesDir(cleanPath);
+    saveEnvVar('GAMES_DIR', cleanPath);
+    const scannedGames = gameDetect.scan();
+    broadcastDash({ type: 'games_updated', games: scannedGames, presetsFolder: cleanPath });
+    res.json({ success: true, folderPath: cleanPath, games: scannedGames });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Dialog to select folder (Electron)
+app.post('/api/dialog/select-folder', async (req, res) => {
+  if (global.agivaElectronBridge && typeof global.agivaElectronBridge.selectFolder === 'function') {
+    const result = await global.agivaElectronBridge.selectFolder(req.body?.defaultPath);
+    return res.json({ success: true, ...result, mode: 'electron' });
+  }
+  res.json({ success: false, mode: 'web', error: 'Dialog folder hanya aktif saat aplikasi dijalankan via Desktop/Portable.' });
+});
+
 app.post('/api/open-external', (req, res) => {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url is required' });
@@ -1712,7 +1735,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v3.0        ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.3.0      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);

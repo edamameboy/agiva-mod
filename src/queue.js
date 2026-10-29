@@ -37,14 +37,17 @@ class EventQueue {
   async _processNext() {
     if (this.processing || this.queue.length === 0) return;
 
+    this.processing = true;
     const now = Date.now();
-    const wait = this.minDelay - (now - this.lastProcessedAt);
+    const wait = Math.max(0, this.minDelay - (now - this.lastProcessedAt));
     if (wait > 0) {
-      setTimeout(() => this._processNext(), wait);
+      setTimeout(() => {
+        this.processing = false;
+        this._processNext();
+      }, wait);
       return;
     }
 
-    this.processing = true;
     const item = this.queue.shift();
     this.lastProcessedAt = Date.now();
 
