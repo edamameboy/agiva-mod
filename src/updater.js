@@ -2,7 +2,12 @@
 'use strict';
 
 const https = require('https');
+const http = require('http');
+const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { spawn } = require('child_process');
+const paths = require('./paths');
 const pkg = require('../package.json');
 
 const REPO_OWNER = 'edamameboy';
@@ -14,6 +19,7 @@ const RAW_PACKAGE_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_
 let updateCache = null;
 let lastCheckTime = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let isDownloading = false;
 
 /**
  * Compare two semver strings: '1.2.1' vs '1.2.2'
@@ -176,8 +182,201 @@ async function checkForUpdates({ force = false } = {}) {
   }
 }
 
+/**
+ * Download a binary file with HTTP/HTTPS redirect support and progress streaming
+ */
+function downloadFile(url, destPath, onProgress) {
+  return new Promise((resolve, reject) => {
+    function get(currentUrl, redirectCount = 0) {
+      if (redirectCount > 8) {
+        return reject(new Error('Terlalu banyak pengalihan (redirect limit exceeded)'));
+      }
+      try {
+        const parsed = new URL(currentUrl);
+        const client = parsed.protocol === 'http:' ? http : https;
+
+        const req = client.get(currentUrl, {
+          headers: {
+            'User-Agent': `agiva-mod/${pkg.version}`,
+            'Accept': 'application/octet-stream, */*'
+          }
+        }, (res) => {
+          if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
+            const redirectUrl = res.headers.location;
+            if (!redirectUrl) return reject(new Error('Redirect URL kosong'));
+            return get(redirectUrl, redirectCount + 1);
+          }
+
+          if (res.statusCode !== 200) {
+            return reject(new Error(`Unduhan gagal dengan status HTTP ${res.statusCode}`));
+          }
+
+          const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+          let receivedBytes = 0;
+          let lastReportTime = 0;
+          const fileStream = fs.createWriteStream(destPath);
+
+          res.on('data', (chunk) => {
+            receivedBytes += chunk.length;
+            fileStream.write(chunk);
+
+            const now = Date.now();
+            if (onProgress && totalBytes > 0 && (now - lastReportTime > 150 || receivedBytes >= totalBytes)) {
+              lastReportTime = now;
+              const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
+              onProgress({
+                percent,
+                receivedBytes,
+                totalBytes,
+                receivedMB: (receivedBytes / (1024 * 1024)).toFixed(1),
+                totalMB: (totalBytes / (1024 * 1024)).toFixed(1)
+              });
+            }
+          });
+
+          res.on('end', () => {
+            fileStream.end(() => {
+              resolve({ destPath, totalBytes: receivedBytes });
+            });
+          });
+
+          res.on('error', (err) => {
+            fileStream.destroy();
+            fs.unlink(destPath, () => {});
+            reject(err);
+          });
+
+          fileStream.on('error', (err) => {
+            fileStream.destroy();
+            fs.unlink(destPath, () => {});
+            reject(err);
+          });
+        });
+
+        req.on('error', (err) => {
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+      } catch (err) {
+        reject(err);
+      }
+    }
+
+    get(url);
+  });
+}
+
+/**
+ * Execute Windows handoff batch script to replace current running executable and restart
+ */
+function performSelfRestart(newExePath) {
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+  const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || (paths.isPackaged ? process.execPath : null);
+
+  // If running in development (pure Node.js / non-packaged)
+  if (!targetExe) {
+    return {
+      success: true,
+      mode: 'dev',
+      message: `File update berhasil diunduh ke: ${newExePath}. Silakan jalankan file tersebut secara manual.`,
+      newExePath
+    };
+  }
+
+  const pid = process.pid;
+  const batPath = path.join(os.tmpdir(), `agiva_updater_${Date.now()}.bat`);
+
+  // Write handoff batch script
+  const batContent = `@echo off
+chcp 65001 > nul
+set OLD_PID=${pid}
+set NEW_EXE=${newExePath}
+set TARGET_EXE=${targetExe}
+
+:: Beri jeda agar aplikasi lama selesai menutup
+timeout /t 2 /nobreak > nul
+
+:wait_loop
+tasklist /fi "pid eq %OLD_PID%" 2>nul | find "%OLD_PID%" > nul
+if %ERRORLEVEL% equ 0 (
+    timeout /t 1 /nobreak > nul
+    goto wait_loop
+)
+
+:: Timpa executable lama dengan file versi baru
+copy /y "%NEW_EXE%" "%TARGET_EXE%" > nul
+if errorlevel 1 (
+    move /y "%NEW_EXE%" "%TARGET_EXE%" > nul
+)
+
+:: Hapus file download sementara jika file sudah disalin
+if exist "%NEW_EXE%" del /f /q "%NEW_EXE%" > nul
+
+:: Jalankan aplikasi versi terbaru
+start "" "%TARGET_EXE%"
+
+:: Hapus batch script ini
+del "%~f0"
+`;
+
+  fs.writeFileSync(batPath, batContent, 'utf8');
+
+  // Spawn detached process
+  const child = spawn('cmd.exe', ['/c', batPath], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true
+  });
+  child.unref();
+
+  // Gracefully quit application after short buffer
+  setTimeout(() => {
+    if (global.agivaElectronBridge && typeof global.agivaElectronBridge.quit === 'function') {
+      global.agivaElectronBridge.quit();
+    } else {
+      process.exit(0);
+    }
+  }, 1000);
+
+  return {
+    success: true,
+    mode: isPortable ? 'portable' : 'packaged',
+    targetExe,
+    batPath
+  };
+}
+
+/**
+ * High-level download and apply update
+ */
+async function downloadAndApplyUpdate(targetUrl, onProgress) {
+  if (isDownloading) {
+    throw new Error('Proses pengunduhan pembaruan sedang berlangsung!');
+  }
+
+  if (!targetUrl) {
+    throw new Error('URL unduhan pembaruan tidak ditemukan');
+  }
+
+  isDownloading = true;
+  const tempDest = path.join(os.tmpdir(), `agiva_update_${Date.now()}.exe`);
+
+  try {
+    await downloadFile(targetUrl, tempDest, onProgress);
+    isDownloading = false;
+    const restartResult = performSelfRestart(tempDest);
+    return restartResult;
+  } catch (err) {
+    isDownloading = false;
+    try { fs.unlinkSync(tempDest); } catch {}
+    throw err;
+  }
+}
+
 module.exports = {
   checkForUpdates,
+  downloadAndApplyUpdate,
+  performSelfRestart,
   getCurrentVersion: () => pkg.version,
   getRepoUrl: () => GITHUB_REPO_URL
 };

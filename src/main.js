@@ -49,6 +49,11 @@ global.agivaElectronBridge = {
     }
   },
 
+  quit() {
+    try { globalShortcut.unregisterAll(); } catch {}
+    app.quit();
+  },
+
   getStatus() {
     return {
       isElectron: true,

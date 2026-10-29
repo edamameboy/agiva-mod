@@ -1691,6 +1691,46 @@ app.get('/api/update/check', async (req, res) => {
   }
 });
 
+// Trigger In-App Download and Auto-Update
+app.post('/api/update/apply', async (req, res) => {
+  const { downloadUrl } = req.body || {};
+  if (!downloadUrl) {
+    return res.status(400).json({ error: 'downloadUrl is required' });
+  }
+
+  res.json({ success: true, message: 'Proses unduhan dimulai...' });
+
+  try {
+    broadcastDash({
+      type: 'update_progress',
+      percent: 0,
+      receivedMB: '0.0',
+      totalMB: '...',
+      status: 'Memulai unduhan...'
+    });
+
+    const result = await updater.downloadAndApplyUpdate(downloadUrl, (progress) => {
+      broadcastDash({
+        type: 'update_progress',
+        ...progress,
+        status: `Mengunduh (${progress.percent}%)...`
+      });
+    });
+
+    broadcastDash({
+      type: 'update_ready',
+      message: 'Unduhan selesai! Menyiapkan aplikasi dan me-restart...',
+      ...result
+    });
+  } catch (err) {
+    console.error('[Updater] Auto-update failed:', err.message);
+    broadcastDash({
+      type: 'update_error',
+      message: 'Gagal mengunduh atau memasang pembaruan: ' + err.message
+    });
+  }
+});
+
 // Set custom presets / games directory
 app.post('/api/settings/presets-folder', (req, res) => {
   const { folderPath } = req.body || {};
@@ -1735,7 +1775,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.3.0      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.3.1      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);

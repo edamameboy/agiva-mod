@@ -142,6 +142,33 @@ function handleServerMsg(msg) {
     case 'update_available':
       if (msg.update) handleUpdateAvailable(msg.update);
       break;
+    case 'update_progress': {
+      const pBox = document.getElementById('update-progress-box');
+      const pBar = document.getElementById('update-progress-bar');
+      const pPercent = document.getElementById('update-progress-percent');
+      const pStatus = document.getElementById('update-progress-status');
+      const pBytes = document.getElementById('update-progress-bytes');
+      if (pBox) pBox.style.display = 'block';
+      if (pBar) pBar.style.width = `${msg.percent || 0}%`;
+      if (pPercent) pPercent.textContent = `${msg.percent || 0}%`;
+      if (pStatus) pStatus.textContent = msg.status || 'Mengunduh pembaruan...';
+      if (pBytes && msg.receivedMB) pBytes.textContent = `${msg.receivedMB} MB / ${msg.totalMB || '?'} MB`;
+      break;
+    }
+    case 'update_ready': {
+      const pStatusReady = document.getElementById('update-progress-status');
+      if (pStatusReady) pStatusReady.textContent = '✅ Unduhan Selesai! Me-restart aplikasi...';
+      toast(msg.message || 'Pembaruan siap! Aplikasi akan segera me-restart.', 'success');
+      break;
+    }
+    case 'update_error': {
+      toast(msg.message || 'Pembaruan gagal diunduh.', 'error');
+      const btnA = document.getElementById('btn-auto-update');
+      if (btnA) btnA.disabled = false;
+      const pStatusErr = document.getElementById('update-progress-status');
+      if (pStatusErr) pStatusErr.textContent = '❌ Gagal mengunduh pembaruan';
+      break;
+    }
   }
 }
 
@@ -2143,7 +2170,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.3.0'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.3.1'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       const topbarBtn = document.getElementById('btn-topbar-update');
@@ -2192,6 +2219,36 @@ function handleUpdateAvailable(update) {
   if (releaseTitleEl) releaseTitleEl.textContent = update.releaseName || `Agiva Mod v${update.latestVersion}`;
   if (notesEl) notesEl.textContent = update.releaseNotes || 'Pembaruan stabilitas dan fitur baru.';
 
+  const btnAuto = document.getElementById('btn-auto-update');
+  const targetDownloadUrl = update.portableDownloadUrl || update.setupDownloadUrl || (update.assets && update.assets[0]?.downloadUrl);
+  if (btnAuto) {
+    if (targetDownloadUrl) {
+      btnAuto.style.display = 'inline-block';
+      btnAuto.disabled = false;
+      btnAuto.onclick = async () => {
+        const confirmMsg = `Unduh dan pasang Agiva Mod v${update.latestVersion} secara otomatis sekarang?\n\nAplikasi akan me-restart setelah proses unduhan selesai.`;
+        if (!confirm(confirmMsg)) return;
+
+        btnAuto.disabled = true;
+        const progressBox = document.getElementById('update-progress-box');
+        if (progressBox) progressBox.style.display = 'block';
+
+        try {
+          const res = await api('POST', '/api/update/apply', { downloadUrl: targetDownloadUrl });
+          if (!res || !res.success) {
+            toast(res?.error || 'Gagal memulai proses unduh pembaruan', 'error');
+            btnAuto.disabled = false;
+          }
+        } catch (err) {
+          toast('Error update: ' + err.message, 'error');
+          btnAuto.disabled = false;
+        }
+      };
+    } else {
+      btnAuto.style.display = 'none';
+    }
+  }
+
   const btnPortable = document.getElementById('btn-download-portable');
   if (btnPortable) {
     if (update.portableDownloadUrl) {
@@ -2238,7 +2295,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.3.0'}`;
+  const curVerStr = `v${status.appVersion || '1.3.1'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;

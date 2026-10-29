@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v1.3.0</span>
+          <span class="brand-sub">Universal Bridge v1.3.1</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -549,13 +549,13 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.3.0</span>
+              <span class="badge info" id="app-version-badge">v1.3.1</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.3.0</span>
+                  <span class="info-val" id="info-current-ver">v1.3.1</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
@@ -595,9 +595,25 @@
                   </div>
                   <div class="update-notes-box" id="update-release-notes"></div>
                   <div class="update-actions" id="update-download-actions">
-                    <button type="button" class="btn-primary" id="btn-download-portable" style="display: none;">⬇️ Download Portable (.exe)</button>
+                    <button type="button" class="btn-primary" id="btn-auto-update" style="font-weight: 800; background: var(--accent-green); color: #000;">⚡ Download &amp; Pasang Otomatis</button>
+                    <button type="button" class="btn-secondary" id="btn-download-portable" style="display: none;">⬇️ Download Portable (.exe)</button>
                     <button type="button" class="btn-secondary" id="btn-download-setup" style="display: none;">⬇️ Download Installer (.exe)</button>
-                    <button type="button" class="btn-sm" id="btn-open-release-page">🌐 Buka Halaman Rilis GitHub</button>
+                    <button type="button" class="btn-sm" id="btn-open-release-page">🌐 Buka Rilis GitHub</button>
+                  </div>
+
+                  <!-- In-App Download & Update Progress Box -->
+                  <div class="update-progress-box" id="update-progress-box" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-body); border: 2px solid var(--line); border-radius: var(--radius); box-shadow: 2px 2px 0px var(--line);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px;">
+                      <span id="update-progress-status">Mengunduh pembaruan...</span>
+                      <span id="update-progress-percent">0%</span>
+                    </div>
+                    <div style="height: 14px; background: var(--bg-surface); border: 2px solid var(--line); border-radius: var(--radius); overflow: hidden; position: relative;">
+                      <div id="update-progress-bar" style="width: 0%; height: 100%; background: var(--accent-green); transition: width 0.15s ease-out;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                      <span id="update-progress-bytes">0.0 MB / 0.0 MB</span>
+                      <span id="update-progress-hint">Jangan tutup aplikasi saat proses berlangsung</span>
+                    </div>
                   </div>
                 </div>
               </div>
