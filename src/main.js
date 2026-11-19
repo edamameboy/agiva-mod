@@ -28,7 +28,7 @@ let floatingHudWindow = null;
 let floatingHudLocked = false;
 let ttLoginWindow = null;
 
-const PORT = parseInt(process.env.DASHBOARD_PORT) || 3000;
+const PORT = parseInt(process.env.DASHBOARD_PORT) || 7030;
 
 /**
  * Expose native Electron capabilities to src/server.js

@@ -73,7 +73,14 @@ class VoicemodDriver {
 
     this.lanRemote = {
       enabled: true,
-      pin: '2486'
+      pin: '2486',
+      publicDomain: 'https://widget.cornermoji.site',
+      publicGuardEnabled: true,
+      usePublicDomainForCopy: true,
+      relayEnabled: true,
+      creatorSlug: '',
+      fallbackCreatorSlug: `creator-${Math.floor(1000 + Math.random() * 9000)}`,
+      relaySecret: ''
     };
 
     this.loadConfig();
@@ -282,7 +289,7 @@ class VoicemodDriver {
           method: preset.method || 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'agiva-mod/1.7.0'
+            'User-Agent': 'agiva-mod/1.7.5'
           },
           timeout: 5000
         }, (res) => {
@@ -299,7 +306,19 @@ class VoicemodDriver {
     });
   }
 
-  // ─── Mobile Companion / LAN Remote Management ─────────────
+  // ─── Mobile Companion / LAN Remote & Public Tunnel Management ─────────────
+  normalizePublicDomain(raw) {
+    const str = String(raw ?? '').trim().replace(/\/+$/, '');
+    if (!str) return '';
+    const withProto = /^https?:\/\//i.test(str) ? str : `https://${str}`;
+    try {
+      const parsed = new URL(withProto);
+      return parsed.origin;
+    } catch {
+      return '';
+    }
+  }
+
   updateLanRemote(patch = {}) {
     if (patch.enabled !== undefined) this.lanRemote.enabled = Boolean(patch.enabled);
     if (patch.pin !== undefined && String(patch.pin).trim()) {
@@ -307,6 +326,31 @@ class VoicemodDriver {
     }
     if (patch.regenerate) {
       this.lanRemote.pin = String(Math.floor(1000 + Math.random() * 9000));
+    }
+    if (patch.publicDomain !== undefined) {
+      this.lanRemote.publicDomain = this.normalizePublicDomain(patch.publicDomain);
+    }
+    if (patch.publicGuardEnabled !== undefined) {
+      this.lanRemote.publicGuardEnabled = Boolean(patch.publicGuardEnabled);
+    }
+    if (patch.usePublicDomainForCopy !== undefined) {
+      this.lanRemote.usePublicDomainForCopy = Boolean(patch.usePublicDomainForCopy);
+    }
+    if (patch.relayEnabled !== undefined) {
+      this.lanRemote.relayEnabled = Boolean(patch.relayEnabled);
+    }
+    if (patch.creatorSlug !== undefined) {
+      this.lanRemote.creatorSlug = String(patch.creatorSlug || '')
+        .trim()
+        .toLowerCase()
+        .replace(/^@+/, '')
+        .replace(/[^a-z0-9_.-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 48);
+    }
+    if (patch.relaySecret !== undefined) {
+      this.lanRemote.relaySecret = String(patch.relaySecret || '').trim();
     }
     this.saveConfig();
     this._broadcastState();
@@ -318,7 +362,7 @@ class VoicemodDriver {
     return String(inputPin || '').trim() === String(this.lanRemote.pin || '').trim();
   }
 
-  getLanUrls(port = 3000) {
+  getLanUrls(port = 7030) {
     const urls = [];
     try {
       const nets = os.networkInterfaces();
@@ -338,9 +382,16 @@ class VoicemodDriver {
   }
 
   _broadcastState() {
+    const safeState = this.getState();
     this.broadcast({
       type: 'integrations_update',
-      state: this.getState()
+      state: {
+        ...safeState,
+        lanRemote: {
+          ...safeState.lanRemote,
+          pin: undefined
+        }
+      }
     });
   }
 }

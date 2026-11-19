@@ -1,0 +1,68 @@
+name: agiva-relay-hub
+services:
+  agiva-relay-hub:
+    image: node:20-alpine
+    container_name: agiva-relay-hub
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - PORT=7030
+      - RELAY_SECRET=
+      - TZ=Asia/Jakarta
+    ports:
+      - target: 7030
+        published: "7030"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/agiva-relay-hub
+        target: /app
+    command: >
+      sh -c "
+      if [ ! -f /app/package.json ]; then
+        echo '{\"name\":\"agiva-relay-hub\",\"version\":\"1.7.5\",\"dependencies\":{\"ws\":\"^8.16.0\"}}' > /app/package.json;
+      fi &&
+      if [ ! -d /app/node_modules/ws ]; then
+        npm install --omit=dev --no-audit --no-fund;
+      fi &&
+      wget -q -O /app/server.js.tmp https://raw.githubusercontent.com/edamameboy/agiva-mod/main/relay-hub/server.js &&
+      mv /app/server.js.tmp /app/server.js || true &&
+      node /app/server.js
+      "
+    x-casaos:
+      envs:
+        - container: PORT
+          description:
+            en_us: "Relay Hub HTTP & WebSocket Port (Default: 7030)"
+        - container: RELAY_SECRET
+          description:
+            en_us: "Optional shared secret token (leave empty for public creator auto-connect)"
+      ports:
+        - container: "7030"
+          description:
+            en_us: "Agiva Multi-Creator Relay Hub Web UI & Tunnel Target (:7030)"
+      volumes:
+        - container: /app
+          description:
+            en_us: "Relay Hub persistent app directory on ZimaOS"
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: agiva-relay-hub
+  author: Agiva Mod
+  category: Streamer Tools
+  description:
+    en_us: "Multi-Creator Relay Hub for Agiva Mod. Connects all creators' desktop apps to widget.cornermoji.site (/c/<username>/overlay & /c/<username>/api/webhook/donation/saweria)."
+  developer: edamameboy
+  hostname: ""
+  icon: "https://cdn-icons-png.flaticon.com/512/3046/3046121.png"
+  index: /
+  port_map: "7030"
+  scheme: http
+  store_app_id: agiva-relay-hub
+  tagline:
+    en_us: "Multi-Creator Webhook & Overlay Relay Hub (:7030)"
+  title:
+    en_us: "Agiva Relay Hub"

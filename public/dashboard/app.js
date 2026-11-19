@@ -214,8 +214,26 @@ function handleServerMsg(msg) {
       break;
     case 'integrations_update':
       if (msg.state) {
-        integrationsState = { ...integrationsState, ...msg.state };
+        const prevPin = integrationsState?.lanRemote?.pin;
+        const prevRelay = integrationsState?.relayStatus;
+        integrationsState = {
+          ...integrationsState,
+          ...msg.state,
+          relayStatus: msg.state.relayStatus || prevRelay,
+          lanRemote: {
+            ...(integrationsState?.lanRemote || {}),
+            ...(msg.state.lanRemote || {}),
+            pin: msg.state.lanRemote?.pin || prevPin || '2486'
+          }
+        };
         renderStreamerBotAndVoicemodSection(false);
+        renderLanRemoteSection(false);
+      }
+      break;
+    case 'relay_status':
+      if (msg.relayStatus) {
+        if (!integrationsState) integrationsState = {};
+        integrationsState.relayStatus = msg.relayStatus;
         renderLanRemoteSection(false);
       }
       break;
@@ -1719,7 +1737,7 @@ function renderSettings() {
 
   const incomingUrlEl = document.getElementById('incoming-webhook-url');
   if (incomingUrlEl) {
-    incomingUrlEl.value = `${location.origin}/api/webhook/donation/saweria`;
+    incomingUrlEl.value = `${getOverlayBaseOrigin()}/api/webhook/donation/saweria`;
   }
 
   const countLabel = document.getElementById('games-count-label');
@@ -2199,10 +2217,35 @@ document.getElementById('soundboard-upload-input')?.addEventListener('change', a
 });
 
 // ─── Batch B: Stream Widgets & Multi-Screen Overlay ───────
+function getActiveCreatorRelaySlug() {
+  const lan = integrationsState?.lanRemote || {};
+  const rel = integrationsState?.relayStatus || {};
+  const raw = lan.creatorSlug || rel.creatorSlug || appState?.currentUsername || lan.fallbackCreatorSlug || 'creator';
+  return String(raw || 'creator')
+    .trim()
+    .toLowerCase()
+    .replace(/^@+/, '')
+    .replace(/[^a-z0-9_.-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'creator';
+}
+
+function getOverlayBaseOrigin() {
+  const lan = integrationsState?.lanRemote;
+  const pub = String(lan?.publicDomain || '').trim().replace(/\/+$/, '');
+  if (lan?.usePublicDomainForCopy !== false && pub) {
+    if (lan?.relayEnabled !== false) {
+      return `${pub}/c/${encodeURIComponent(getActiveCreatorRelaySlug())}`;
+    }
+    return pub;
+  }
+  return location.origin;
+}
+
 document.querySelectorAll('[data-copy-overlay]').forEach(btn => {
   btn.addEventListener('click', () => {
     const pathPart = btn.dataset.copyOverlay;
-    const fullUrl = `${location.origin}${pathPart}`;
+    const fullUrl = `${getOverlayBaseOrigin()}${pathPart}`;
     navigator.clipboard?.writeText(fullUrl);
     toast(`Disalin: ${fullUrl}`, 'success');
   });
@@ -2470,7 +2513,7 @@ document.getElementById('goal-type-select')?.addEventListener('change', () => {
 
 document.getElementById('btn-copy-selected-goal')?.addEventListener('click', () => {
   const type = document.getElementById('goal-type-select')?.value || 'coins';
-  const fullUrl = `${location.origin}/overlay?widget=goal&type=${encodeURIComponent(type)}`;
+  const fullUrl = `${getOverlayBaseOrigin()}/overlay?widget=goal&type=${encodeURIComponent(type)}`;
   navigator.clipboard?.writeText(fullUrl);
   toast(`Disalin URL Goal "${type}": ${fullUrl}`, 'success');
 });
@@ -2953,7 +2996,7 @@ function renderUpdateModal(update, state = 'idle') {
   const btnCheck = document.getElementById('btn-modal-check-update');
   const btnApply = document.getElementById('btn-modal-apply-update');
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.7.0';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.7.5';
   if (curVerEl) curVerEl.textContent = `v${curVer}`;
   if (modeEl) modeEl.textContent = formatUpdateModeLabel(update);
 
@@ -3032,7 +3075,7 @@ async function startAutoUpdateDownload(update) {
     return;
   }
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.7.0';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.7.5';
   const nextVer = update?.latestVersion || 'terbaru';
   const confirmMsg = `Unduh dan pasang Agiva Mod v${nextVer} (dari v${curVer}) secara otomatis sekarang?\n\nDi mode Portable, file .exe akan otomatis ditimpa dan aplikasi langsung me-restart tanpa perlu install ulang.`;
   if (!confirm(confirmMsg)) return;
@@ -3107,7 +3150,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.7.0'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.7.5'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       setTopbarUpdateBadge(res, 'idle');
@@ -3227,7 +3270,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.7.0'}`;
+  const curVerStr = `v${status.appVersion || '1.7.5'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -3894,7 +3937,7 @@ document.getElementById('media-upload-input')?.addEventListener('change', (e) =>
 // ─── Phase 3: Mini-Games, Points Economy, Chatbot & Interval Timers ─
 document.getElementById('btn-copy-lastx')?.addEventListener('click', () => {
   const type = document.getElementById('lastx-type-select')?.value || 'follower';
-  const fullUrl = `${location.origin}/overlay?widget=last&type=${encodeURIComponent(type)}`;
+  const fullUrl = `${getOverlayBaseOrigin()}/overlay?widget=last&type=${encodeURIComponent(type)}`;
   navigator.clipboard?.writeText(fullUrl);
   toast(`Disalin URL Last "${type}": ${fullUrl}`, 'success');
 });
@@ -4459,7 +4502,7 @@ document.getElementById('btn-sp-oauth')?.addEventListener('click', async () => {
 });
 
 document.getElementById('btn-sp-copy-overlay')?.addEventListener('click', () => {
-  const url = `${location.origin}/overlay?widget=song-request`;
+  const url = `${getOverlayBaseOrigin()}/overlay?widget=song-request`;
   navigator.clipboard?.writeText(url);
   toast(`URL Overlay Song Request disalin: ${url}`, 'success');
 });
@@ -4798,14 +4841,32 @@ function generateQrSvg(text) {
   return `<svg viewBox="-1 -1 ${size + 2} ${size + 2}" width="152" height="152" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${size + 2}" height="${size + 2}" fill="#fff"/><g fill="#000">${rects}</g></svg>`;
 }
 
+window.copyTunnelUrl = (url) => {
+  navigator.clipboard?.writeText(url);
+  toast(`URL disalin: ${url}`, 'success');
+};
+
 function renderLanRemoteSection(populateInputs = true) {
-  const lan = integrationsState?.lanRemote || { enabled: true, pin: '2486' };
+  const lan = integrationsState?.lanRemote || {
+    enabled: true,
+    pin: '2486',
+    publicDomain: 'https://widget.cornermoji.site',
+    publicGuardEnabled: true,
+    usePublicDomainForCopy: true,
+    relayEnabled: true,
+    creatorSlug: ''
+  };
+  const rel = integrationsState?.relayStatus || {};
+  const activeSlug = getActiveCreatorRelaySlug();
   const urls = integrationsState?.lanUrls || [`${location.origin}/remote`];
 
   const badge = document.getElementById('lan-remote-badge');
   if (badge) {
-    badge.textContent = lan.enabled ? 'ACTIVE' : 'OFF';
-    badge.style.background = lan.enabled ? '#55efc4' : '#dfe6e9';
+    const relayStateTxt = lan.relayEnabled !== false
+      ? (rel.isConnected ? `RELAY ONLINE (@${activeSlug})` : 'RELAY CONNECTING')
+      : 'DIRECT TUNNEL';
+    badge.textContent = `${relayStateTxt} · ${lan.publicGuardEnabled !== false ? 'GUARD ON' : 'OPEN'}`;
+    badge.style.background = (rel.isConnected || lan.enabled) ? '#55efc4' : '#dfe6e9';
   }
 
   if (populateInputs) {
@@ -4813,14 +4874,74 @@ function renderLanRemoteSection(populateInputs = true) {
     if (enEl) enEl.value = lan.enabled ? 'true' : 'false';
     const pinEl = document.getElementById('lan-remote-pin');
     if (pinEl) pinEl.value = lan.pin || '2486';
+    const domEl = document.getElementById('public-tunnel-domain');
+    if (domEl) domEl.value = lan.publicDomain ?? 'https://widget.cornermoji.site';
+    const slugEl = document.getElementById('public-creator-slug');
+    if (slugEl) slugEl.value = lan.creatorSlug || '';
+    const relEnEl = document.getElementById('public-relay-enabled');
+    if (relEnEl) relEnEl.checked = lan.relayEnabled !== false;
+    const guardEl = document.getElementById('public-tunnel-guard');
+    if (guardEl) guardEl.checked = lan.publicGuardEnabled !== false;
+    const copyEl = document.getElementById('public-tunnel-use-copy');
+    if (copyEl) copyEl.checked = lan.usePublicDomainForCopy !== false;
   }
 
-  const primaryUrl = urls[0] || `${location.origin}/remote`;
+  const rawDomain = String(lan.publicDomain || '').trim().replace(/\/+$/, '') || location.origin;
+  const baseForWebhooks = (lan.relayEnabled !== false && lan.publicDomain)
+    ? `${rawDomain}/c/${encodeURIComponent(activeSlug)}`
+    : rawDomain;
+
+  const whBox = document.getElementById('public-tunnel-webhooks');
+  if (whBox) {
+    const platforms = [
+      { id: 'saweria', label: 'Saweria' },
+      { id: 'sociabuzz', label: 'SociaBuzz' },
+      { id: 'trakteer', label: 'Trakteer' },
+      { id: 'bagibagi', label: 'BagiBagi' }
+    ];
+    const relayConnHtml = lan.relayEnabled !== false
+      ? (rel.isConnected
+          ? `<span style="color:#10b981;font-weight:800;">🟢 Terhubung ke ZimaOS Relay Hub</span> (Slug Creator Aktif: <code>@${esc(activeSlug)}</code> · ${Number(rel.remoteViewers) || 0} overlay aktif)`
+          : `<span style="color:#f59e0b;font-weight:700;">⏳ Menghubungkan ke ZimaOS Relay Hub (<code>${esc(rawDomain)}/relay-agent</code>)...</span> (Slug Creator: <code>@${esc(activeSlug)}</code>)`)
+      : `<span style="color:var(--text-muted);">Mode Direct Single-PC Tunnel Aktif (Port <code>:7030</code>)</span>`;
+
+    whBox.innerHTML = `
+      <div style="margin-bottom:8px;font-size:12px;">${relayConnHtml}</div>
+      <div style="margin-bottom:6px;font-weight:700;font-size:12px;">🔗 URL Publik Khusus Creator <code>@${esc(activeSlug)}</code>:</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span>📺 <strong>Overlay Utama:</strong> <code>${esc(baseForWebhooks)}/overlay</code></span>
+          <button type="button" class="btn-sm" onclick="copyTunnelUrl('${esc(baseForWebhooks)}/overlay')">📋 Copy</button>
+        </div>
+        ${platforms.map(p => {
+          const fullWh = `${baseForWebhooks}/api/webhook/donation/${p.id}`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <span>💸 <strong>Webhook ${esc(p.label)}:</strong> <code>${esc(fullWh)}</code></span>
+            <button type="button" class="btn-sm" onclick="copyTunnelUrl('${esc(fullWh)}')">📋 Copy</button>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="form-hint" style="margin-top:8px;">
+        💡 <strong>ZimaOS Custom App:</strong> Import file <code>relay-hub/docker-compose.yml</code> di ZimaOS App Store (Port <code>:7030</code>), lalu arahkan Cloudflare Tunnel <code>${esc(rawDomain.replace(/^https?:\/\//, ''))}</code> ke IP ZimaOS <code>:7030</code>.
+      </div>
+    `;
+  }
+
+  const primaryUrl = (lan.publicDomain && lan.usePublicDomainForCopy !== false)
+    ? `${baseForWebhooks}/remote`
+    : (urls[0] || `${location.origin}/remote`);
   const qrUrlWithPin = `${primaryUrl}?pin=${encodeURIComponent(lan.pin || '2486')}`;
 
   const urlsBox = document.getElementById('lan-remote-urls');
   if (urlsBox) {
-    urlsBox.innerHTML = urls.map(u => `<div>🔗 <a href="${esc(u)}?pin=${encodeURIComponent(lan.pin || '')}" target="_blank" style="color:var(--accent-blue);font-weight:700;">${esc(u)}</a> (PIN: <code>${esc(lan.pin || '2486')}</code>)</div>`).join('');
+    const allRemoteUrls = [];
+    if (lan.publicDomain) {
+      allRemoteUrls.push(`${baseForWebhooks}/remote`);
+    }
+    for (const u of urls) {
+      if (!allRemoteUrls.includes(u)) allRemoteUrls.push(u);
+    }
+    urlsBox.innerHTML = allRemoteUrls.map(u => `<div>🔗 <a href="${esc(u)}?pin=${encodeURIComponent(lan.pin || '')}" target="_blank" style="color:var(--accent-blue);font-weight:700;">${esc(u)}</a> (PIN: <code>${esc(lan.pin || '2486')}</code>)</div>`).join('');
   }
 
   const qrBox = document.getElementById('lan-qr-box');
@@ -4836,13 +4957,28 @@ function renderLanRemoteSection(populateInputs = true) {
 document.getElementById('btn-lan-save')?.addEventListener('click', async () => {
   const enabled = document.getElementById('lan-remote-enabled')?.value === 'true';
   const pin = document.getElementById('lan-remote-pin')?.value.trim() || '2486';
-  const res = await api('PUT', '/api/remote/config', { enabled, pin });
+  const publicDomain = document.getElementById('public-tunnel-domain')?.value.trim() ?? '';
+  const creatorSlug = document.getElementById('public-creator-slug')?.value.trim() ?? '';
+  const relayEnabled = document.getElementById('public-relay-enabled')?.checked ?? true;
+  const publicGuardEnabled = document.getElementById('public-tunnel-guard')?.checked ?? true;
+  const usePublicDomainForCopy = document.getElementById('public-tunnel-use-copy')?.checked ?? true;
+  const res = await api('PUT', '/api/remote/config', {
+    enabled,
+    pin,
+    publicDomain,
+    creatorSlug,
+    relayEnabled,
+    publicGuardEnabled,
+    usePublicDomainForCopy
+  });
   if (res.success) {
     if (!integrationsState) integrationsState = {};
     integrationsState.lanRemote = res.lanRemote;
     integrationsState.lanUrls = res.urls;
+    if (res.relayStatus) integrationsState.relayStatus = res.relayStatus;
     renderLanRemoteSection(true);
-    toast('Pengaturan Mobile LAN Remote & QR Code diperbarui!', 'success');
+    renderSettings();
+    toast('Pengaturan Multi-Creator Relay Hub, Security Guard & Mobile PIN disimpan!', 'success');
   }
 });
 

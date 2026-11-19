@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v1.7.0</span>
+          <span class="brand-sub">Universal Bridge v1.7.5</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -651,13 +651,13 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.7.0</span>
+              <span class="badge info" id="app-version-badge">v1.7.5</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.7.0</span>
+                  <span class="info-val" id="info-current-ver">v1.7.5</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
@@ -692,7 +692,7 @@
                 <!-- Box when update is available -->
                 <div class="update-banner" id="update-banner" style="display: none;">
                   <div class="update-banner-title">
-                    <span class="badge success" id="update-new-ver-badge">v1.7.0</span>
+                    <span class="badge success" id="update-new-ver-badge">v1.7.5</span>
                     <strong id="update-release-title">Agiva Mod Rilis Baru!</strong>
                   </div>
                   <div class="update-notes-box" id="update-release-notes"></div>
@@ -1897,16 +1897,37 @@
             </div>
           </div>
 
-          <!-- Card 7: Mobile Companion / LAN Remote (QR Code & PIN) -->
+          <!-- Card 7: Public Cloudflare Tunnel & Mobile Companion / LAN Remote (QR Code & PIN) -->
           <div class="card settings-card" style="grid-column: 1 / -1;">
             <div class="card-header">
-              <span>📱 Mobile Companion / LAN Remote (Kontrol Soundboard, Efek &amp; TTS dari HP Wi-Fi Lokal)</span>
+              <span>🌐 Multi-Creator Relay Hub (ZimaOS <code>widget.cornermoji.site</code>) &amp; 📱 Mobile LAN Remote</span>
               <span class="badge-pill" id="lan-remote-badge">ACTIVE</span>
             </div>
             <div class="settings-form">
               <div class="form-row-2" style="align-items: start;">
                 <div>
-                  <p class="form-hint">Scan QR Code di samping menggunakan kamera HP yang terhubung ke <strong>Wi-Fi yang sama</strong> untuk membuka Touch Stream Deck tanpa install aplikasi tambahan.</p>
+                  <label class="form-label" for="public-tunnel-domain">1. ZimaOS Multi-Creator Relay Hub &amp; Public Cloudflare Tunnel</label>
+                  <div class="form-row-2">
+                    <div>
+                      <label class="form-label" for="public-tunnel-domain">Domain Relay Hub Publik</label>
+                      <input type="text" id="public-tunnel-domain" class="form-input" value="https://widget.cornermoji.site" placeholder="https://widget.cornermoji.site">
+                    </div>
+                    <div>
+                      <label class="form-label" for="public-creator-slug">Creator ID / Slug (Opsional)</label>
+                      <input type="text" id="public-creator-slug" class="form-input" value="" placeholder="Kosongkan = Otomatis @username TikTok">
+                    </div>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                    <label class="checkbox-label"><input type="checkbox" id="public-relay-enabled" checked> 🌐 <strong>Multi-Creator Relay Mode (ZimaOS):</strong> Otomatis sambungkan PC creator ini ke <code>widget.cornermoji.site/c/&lt;username&gt;</code> tanpa perlu install Cloudflare Tunnel di PC creator</label>
+                    <label class="checkbox-label"><input type="checkbox" id="public-tunnel-guard" checked> 🔒 <strong>Public Tunnel Security Guard:</strong> Blokir akses <code>/dashboard</code> &amp; Admin API dari internet publik (Hanya izinkan <code>/overlay</code>, Webhook Donasi &amp; Mobile Remote PIN)</label>
+                    <label class="checkbox-label"><input type="checkbox" id="public-tunnel-use-copy" checked> 📋 Gunakan Link Publik Creator (<code>widget.cornermoji.site/c/&lt;username&gt;</code>) saat klik tombol <strong>Copy URL Overlay</strong> &amp; Webhook</label>
+                  </div>
+                  <div class="obs-resources-box" id="public-tunnel-webhooks" style="margin-bottom:12px;">Memuat daftar URL Webhook Donasi Publik...</div>
+
+                  <hr style="border:none; border-top:1px dashed var(--line); margin:10px 0;">
+
+                  <label class="form-label">2. Mobile Companion / Touch Stream Deck (Wi-Fi Lokal &amp; PIN)</label>
+                  <p class="form-hint">Scan QR Code di samping menggunakan kamera HP untuk membuka Touch Stream Deck tanpa install aplikasi tambahan.</p>
                   <div class="form-row-2">
                     <div>
                       <label class="form-label" for="lan-remote-enabled">Status LAN Remote</label>
@@ -1921,7 +1942,7 @@
                     </div>
                   </div>
                   <div class="input-row" style="flex-wrap:wrap;">
-                    <button type="button" class="btn-primary" id="btn-lan-save">💾 Simpan PIN</button>
+                    <button type="button" class="btn-primary" id="btn-lan-save">💾 Simpan Pengaturan Tunnel &amp; PIN</button>
                     <button type="button" class="btn-sm" id="btn-lan-regen">🎲 Acak PIN Baru</button>
                     <a href="/remote" target="_blank" class="btn-sm success" style="text-decoration:none;">📱 Buka Mobile Deck di Browser</a>
                   </div>
@@ -2196,7 +2217,7 @@
         <div class="app-info-grid">
           <div class="info-item">
             <span class="info-label">Versi Terpasang</span>
-            <span class="info-val" id="modal-update-current-ver">v1.7.0</span>
+            <span class="info-val" id="modal-update-current-ver">v1.7.5</span>
           </div>
           <div class="info-item">
             <span class="info-label">Rilis GitHub Terbaru</span>

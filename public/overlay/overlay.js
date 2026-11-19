@@ -4,6 +4,17 @@ const root = document.getElementById('overlay-root');
 const screenStage = document.getElementById('screen-alert-stage');
 const widgetStage = document.getElementById('widget-stage');
 
+const relayPathMatch = window.location.pathname.match(/^(\/c\/[^/]+)(?:\/|$)/);
+const BASE_PREFIX = relayPathMatch ? relayPathMatch[1] : '';
+function resolveOverlayUrl(u) {
+  if (!u || !BASE_PREFIX) return u;
+  const s = String(u);
+  if (s.startsWith('/') && !s.startsWith('//') && !s.startsWith(BASE_PREFIX + '/')) {
+    return `${BASE_PREFIX}${s}`;
+  }
+  return s;
+}
+
 const urlParams = new URLSearchParams(window.location.search);
 const rawWidgetParam = (urlParams.get('widget') || '').toLowerCase(); // '' | 'timer' | 'wheel' | 'goal' | 'counter' | 'winlose' | 'leaderboard' | 'poll' | 'giveaway' | 'all' | 'hud'
 const activeWidget = rawWidgetParam === 'winlose' ? 'counter' : rawWidgetParam;
@@ -102,7 +113,7 @@ function processTtsQueue() {
       finish();
       return;
     }
-    const url = urls[chunkIdx];
+    const url = resolveOverlayUrl(urls[chunkIdx]);
     const audio = new Audio(url);
     audio.volume = Math.max(0, Math.min(1, Number(item.volume ?? 0.9)));
     audio.playbackRate = Math.max(0.5, Math.min(2.0, Number(item.rate ?? 1.0)));
@@ -148,7 +159,7 @@ function playSoundPayload(msg) {
     }
   }
 
-  const audio = new Audio(msg.file);
+  const audio = new Audio(resolveOverlayUrl(msg.file));
   audio.dataset.isSoundboard = '1';
   audio.volume = Math.max(0, Math.min(1, Number(msg.volume ?? 0.85)));
   activeAudioElements.add(audio);
@@ -249,15 +260,16 @@ function processScreenAlertQueue() {
   }
   let mediaHtml = '';
   if (msg.mediaUrl) {
+    const resolvedMediaUrl = resolveOverlayUrl(msg.mediaUrl);
     const cleanMedia = msg.mediaUrl.split('?')[0].split('#')[0].toLowerCase();
     if (cleanMedia.endsWith('.mp4') || cleanMedia.endsWith('.webm')) {
-      mediaHtml = `<video src="${esc(msg.mediaUrl)}" autoplay ${muteAudioParam ? 'muted ' : ''}playsinline></video>`;
+      mediaHtml = `<video src="${esc(resolvedMediaUrl)}" autoplay ${muteAudioParam ? 'muted ' : ''}playsinline></video>`;
     } else if (cleanMedia.endsWith('.mp3') || cleanMedia.endsWith('.wav') || cleanMedia.endsWith('.ogg') || cleanMedia.endsWith('.m4a')) {
       if (!muteAudioParam) {
-        playSoundPayload({ file: msg.mediaUrl, volume: 0.85, overlap: true, screen: activeScreen });
+        playSoundPayload({ file: resolvedMediaUrl, volume: 0.85, overlap: true, screen: activeScreen });
       }
     } else {
-      mediaHtml = `<img src="${esc(msg.mediaUrl)}" alt="">`;
+      mediaHtml = `<img src="${esc(resolvedMediaUrl)}" alt="">`;
     }
   }
   card.innerHTML = `
@@ -741,7 +753,7 @@ function renderActiveWidget() {
           aud.volume = 0.8;
           activeSongAudio = aud;
           aud.onended = () => {
-            fetch('/api/spotify/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'AutoNext' }) }).catch(() => {});
+            fetch(resolveOverlayUrl('/api/spotify/skip'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'AutoNext' }) }).catch(() => {});
           };
           aud.play().catch(() => {});
         } catch {}
@@ -1216,22 +1228,22 @@ window.toggleHudLock = async function () {
 // ─── Initial Fetch & WebSocket ────────────────────────────
 async function loadInitialWidgets() {
   try {
-    const res = await fetch('/api/widgets');
+    const res = await fetch(resolveOverlayUrl('/api/widgets'));
     widgetsState = await res.json();
     applyOverlayTheme(widgetsState?.theme);
 
     if (activeWidget === 'slider') {
-      const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+      const cfg = await fetch(resolveOverlayUrl('/api/config')).then(r => r.json()).catch(() => ({}));
       sliderMappings = cfg.giftMappings || [];
     }
     if (['dock', 'viewers', 'followers'].includes(activeWidget)) {
-      const st = await fetch('/api/status').then(r => r.json()).catch(() => ({}));
+      const st = await fetch(resolveOverlayUrl('/api/status')).then(r => r.json()).catch(() => ({}));
       currentViewers = st.roomStats?.viewers || currentViewers;
       currentFollowers = st.roomStats?.followers || currentFollowers;
       masterPausedState = st.masterSwitches?.all === false;
     }
     if (activeWidget === 'song-request' || activeWidget === 'spotify') {
-      spotifyState = await fetch('/api/spotify').then(r => r.json()).catch(() => ({ queue: [], currentTrack: null }));
+      spotifyState = await fetch(resolveOverlayUrl('/api/spotify')).then(r => r.json()).catch(() => ({ queue: [], currentTrack: null }));
     }
 
     renderActiveWidget();
@@ -1252,7 +1264,7 @@ async function loadInitialWidgets() {
 
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/ws`);
+  const ws = new WebSocket(`${proto}://${location.host}${BASE_PREFIX}/ws`);
 
   ws.onmessage = (e) => {
     try {

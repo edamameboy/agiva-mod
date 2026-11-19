@@ -273,6 +273,8 @@
   <div class="toast-msg" id="toast-msg"></div>
 
   <script>
+    const relayPathMatch = location.pathname.match(/^(\/c\/[^/]+)(?:\/|$)/);
+    const BASE_PREFIX = relayPathMatch ? relayPathMatch[1] : '';
     const urlParams = new URLSearchParams(location.search);
     let savedPin = urlParams.get('pin') || sessionStorage.getItem('agiva_remote_pin') || '';
 
@@ -285,7 +287,7 @@
     }
 
     async function callRemote(path, method = 'GET', body = null) {
-      const res = await fetch(path, {
+      const res = await fetch(`${BASE_PREFIX}${path}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -396,7 +398,7 @@
 
     function connectWs() {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+      const ws = new WebSocket(`${proto}://${location.host}${BASE_PREFIX}/ws`);
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);

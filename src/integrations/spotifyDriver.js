@@ -20,7 +20,7 @@ class SpotifyDriver {
       mode: 'standalone', // 'standalone' (iTunes/Metadata + Overlay Player) | 'spotify' (Spotify Web API OAuth)
       clientId: '',
       clientSecret: '',
-      redirectUri: 'http://127.0.0.1:3000/api/spotify/callback',
+      redirectUri: 'http://127.0.0.1:7030/api/spotify/callback',
       accessToken: '',
       refreshToken: '',
       tokenExpiresAt: 0,
@@ -49,7 +49,12 @@ class SpotifyDriver {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       if (fs.existsSync(SPOTIFY_CONFIG_PATH)) {
         const saved = JSON.parse(fs.readFileSync(SPOTIFY_CONFIG_PATH, 'utf8'));
-        if (saved.config) this.config = { ...this.config, ...saved.config };
+        if (saved.config) {
+          if (saved.config.redirectUri === 'http://127.0.0.1:3000/api/spotify/callback') {
+            saved.config.redirectUri = 'http://127.0.0.1:7030/api/spotify/callback';
+          }
+          this.config = { ...this.config, ...saved.config };
+        }
         if (Array.isArray(saved.queue)) this.queue = saved.queue;
         if (saved.currentTrack) this.currentTrack = saved.currentTrack;
       }
@@ -145,7 +150,7 @@ class SpotifyDriver {
       response_type: 'code',
       client_id: this.config.clientId,
       scope: scopes,
-      redirect_uri: this.config.redirectUri || 'http://127.0.0.1:3000/api/spotify/callback'
+      redirect_uri: this.config.redirectUri || 'http://127.0.0.1:7030/api/spotify/callback'
     });
     return `https://accounts.spotify.com/authorize?${params.toString()}`;
   }
@@ -157,7 +162,7 @@ class SpotifyDriver {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.config.redirectUri || 'http://127.0.0.1:3000/api/spotify/callback'
+      redirect_uri: this.config.redirectUri || 'http://127.0.0.1:7030/api/spotify/callback'
     }).toString();
 
     const auth = Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64');
@@ -220,7 +225,7 @@ class SpotifyDriver {
           path: parsed.pathname + parsed.search,
           method,
           headers: {
-            'User-Agent': 'agiva-mod/1.7.0',
+            'User-Agent': 'agiva-mod/1.7.5',
             'Accept': 'application/json',
             ...headers
           },

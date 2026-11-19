@@ -154,12 +154,25 @@ if (WRITABLE_ROOT !== BUNDLED_ROOT) {
       if (fs.existsSync(sampleEnv)) {
         fs.copyFileSync(sampleEnv, ENV_PATH);
       } else {
-        fs.writeFileSync(ENV_PATH, '# Agiva Mod Environment\nDASHBOARD_PORT=3000\nMOD_WS_PORT=7827\n', 'utf8');
+        fs.writeFileSync(ENV_PATH, '# Agiva Mod Environment\nDASHBOARD_PORT=7030\nMOD_WS_PORT=7827\n', 'utf8');
       }
     }
   } catch (e) {
     console.error('[Paths] Initialization error:', e.message);
   }
+}
+
+// Auto-migrate legacy default DASHBOARD_PORT=3000 -> 7030 in existing .env
+if (fs.existsSync(ENV_PATH)) {
+  try {
+    const rawEnv = fs.readFileSync(ENV_PATH, 'utf8');
+    if (/^DASHBOARD_PORT=3000\r?$/m.test(rawEnv)) {
+      const migratedEnv = rawEnv
+        .replace(/^# Port untuk web dashboard & API \(default: 3000\)\r?$/m, '# Port untuk web dashboard & API (default: 7030)')
+        .replace(/^DASHBOARD_PORT=3000\r?$/m, 'DASHBOARD_PORT=7030');
+      fs.writeFileSync(ENV_PATH, migratedEnv, 'utf8');
+    }
+  } catch {}
 }
 
 // Load environment variables from writable ENV_PATH, fallback to bundled .env

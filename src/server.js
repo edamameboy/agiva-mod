@@ -30,9 +30,11 @@ const IntervalScheduler = require('./core/intervalScheduler');
 const SpotifyDriver = require('./integrations/spotifyDriver');
 const StreamerBotDriver = require('./integrations/streamerBotDriver');
 const VoicemodDriver = require('./integrations/voicemodDriver');
+const RelayClientDriver = require('./integrations/relayClientDriver');
+const { createRelayHub } = require('../relay-hub/server');
 
 // ─── Configuration ────────────────────────────────────────────────────────────
-const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT) || 3000;
+const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT) || 7030;
 const MOD_WS_PORT = parseInt(process.env.MOD_WS_PORT) || 7827;
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -100,11 +102,34 @@ function sendToMod(command) {
   }
 }
 
-// ─── Dashboard WebSocket (Live Updates) ───────────────────────────────────────
+// ─── Dashboard WebSocket (Live Updates) & Embedded Multi-Creator Relay Hub ────
 const app = express();
 const httpServer = http.createServer(app);
-const dashWss = new WebSocket.Server({ server: httpServer, path: '/ws' });
+const dashWss = new WebSocket.Server({ noServer: true });
+const embeddedRelayHub = createRelayHub();
 const dashClients = new Set();
+let relayClientDriver = null;
+
+httpServer.on('upgrade', (req, socket, head) => {
+  let pathname = '/';
+  try {
+    const u = new URL(req.url || '/', 'http://localhost');
+    pathname = u.pathname;
+  } catch {}
+
+  if (pathname === '/ws') {
+    dashWss.handleUpgrade(req, socket, head, (ws) => {
+      dashWss.emit('connection', ws, req);
+    });
+    return;
+  }
+
+  if (embeddedRelayHub.handleUpgrade(req, socket, head)) {
+    return;
+  }
+
+  socket.destroy();
+});
 
 dashWss.on('connection', (ws) => {
   dashClients.add(ws);
@@ -129,6 +154,9 @@ function broadcastDash(data) {
   const msg = JSON.stringify(data);
   for (const client of dashClients) {
     if (client.readyState === WebSocket.OPEN) client.send(msg);
+  }
+  if (relayClientDriver && data?.type !== 'relay_status') {
+    relayClientDriver.forwardBroadcast(data);
   }
 }
 
@@ -206,6 +234,35 @@ const streamerBotDriver = new StreamerBotDriver({
   }
 });
 const voicemodDriver = new VoicemodDriver({ broadcastFn: broadcastDash });
+
+relayClientDriver = new RelayClientDriver({
+  getConfigFn: () => voicemodDriver.lanRemote,
+  getLocalPortFn: () => DASHBOARD_PORT,
+  getAutoUsernameFn: () => currentUsername || process.env.TIKTOK_USERNAME || '',
+  getAppVersionFn: () => updater.getCurrentVersion(),
+  getInitialStateFn: () => {
+    const cfg = effectMap.getConfig();
+    return {
+      type: 'state',
+      isConnected,
+      connectionMode,
+      activeConnectionProvider,
+      currentUsername,
+      roomStats,
+      modClients: modClients.size,
+      queueStatus: queue.status,
+      activeGameId: cfg.activeGameId,
+      activePresetId: cfg.activePresetId,
+      masterSwitches: effectMap.masterSwitches
+    };
+  },
+  onStateChangeFn: () => {
+    broadcastDash({
+      type: 'relay_status',
+      relayStatus: relayClientDriver.getStatus()
+    });
+  }
+});
 
 const donationSocketProvider = new DonationSocketProvider((donData) => {
   handleDonation(donData);
@@ -1161,9 +1218,113 @@ function saveEnvVar(key, value) {
   }
 }
 
-// ─── Express Middleware ───────────────────────────────────────────────────────
+// ─── Express Middleware & Public Tunnel Security Guard ────────────────────────
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
+
+function isPublicTunnelRequest(req) {
+  if (req.headers['cf-connecting-ip'] || req.headers['cf-ray'] || req.headers['cf-visitor']) {
+    return true;
+  }
+  const rawHost = String(req.headers['x-forwarded-host'] || req.headers.host || req.hostname || '')
+    .split(',')[0]
+    .trim()
+    .replace(/:\d+$/, '')
+    .toLowerCase();
+  if (!rawHost || rawHost === 'localhost' || rawHost === '127.0.0.1' || rawHost === '::1' || rawHost === '[::1]') {
+    return false;
+  }
+  if (rawHost.endsWith('.local')) return false;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(rawHost)) return false;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rawHost)) return false;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(rawHost)) return false;
+  return true;
+}
+
+app.use((req, res, next) => {
+  const isTunnel = isPublicTunnelRequest(req);
+  req.isPublicTunnel = isTunnel;
+  const guardActive = voicemodDriver?.lanRemote?.publicGuardEnabled !== false;
+  if (!isTunnel || !guardActive) return next();
+
+  const pin = req.headers['x-agiva-pin'] || req.query?.pin || '';
+  const hasValidPin = Boolean(pin && voicemodDriver.verifyPin(pin));
+  req.hasValidTunnelPin = hasValidPin;
+  if (hasValidPin) return next();
+
+  const p = req.path || '/';
+  const m = (req.method || 'GET').toUpperCase();
+
+  if (m === 'OPTIONS') return next();
+  if (p === '/') return res.redirect('/overlay');
+  if (p.startsWith('/c/') || p === '/api/relay/status' || p === '/health') return next();
+
+  if (m === 'GET' || m === 'HEAD') {
+    if (
+      p === '/overlay' || p.startsWith('/overlay/') ||
+      p === '/remote' || p.startsWith('/remote/') ||
+      p.startsWith('/sounds/') ||
+      p.startsWith('/media/') ||
+      p.startsWith('/api/tts/audio/') ||
+      p === '/api/widgets' ||
+      p === '/api/spotify' ||
+      p === '/api/config' ||
+      p === '/api/status' ||
+      p === '/api/remote/deck' ||
+      p === '/favicon.ico'
+    ) {
+      return next();
+    }
+  }
+
+  if (m === 'POST') {
+    if (
+      p.startsWith('/api/webhook/donation/') ||
+      p === '/api/remote/auth' ||
+      p === '/api/remote/action' ||
+      p === '/api/spotify/skip'
+    ) {
+      return next();
+    }
+  }
+
+  if (p.startsWith('/api/')) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Forbidden: Akses Admin API diblokir pada Public Tunnel Domain demi keamanan.'
+    });
+  }
+
+  return res.status(403).send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🔒 Agiva Mod — Public Tunnel Protected</title>
+  <style>
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0f19;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:20px}
+    .card{max-width:460px;background:#151c2c;border:2px solid #2d3748;border-radius:16px;padding:28px;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,.45)}
+    h1{margin:0 0 10px;font-size:20px}
+    p{margin:0 0 18px;color:#94a3b8;font-size:14px;line-height:1.5}
+    .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+    a{text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px}
+    .pri{background:#6366f1;color:#fff}
+    .sec{background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔒 Public Tunnel Security Guard Aktif</h1>
+    <p>Halaman <strong>/dashboard</strong> dikunci khusus untuk akses lokal di PC Streamer (<code>http://localhost:${DASHBOARD_PORT}/dashboard</code>). Domain publik ini hanya melayani <strong>Overlay</strong>, <strong>Webhook Donasi</strong>, dan <strong>Mobile Remote (PIN)</strong>.</p>
+    <div class="btns">
+      <a class="pri" href="/overlay">📺 Buka Stream Overlay</a>
+      <a class="sec" href="/remote">📱 Buka Mobile Remote (PIN)</a>
+    </div>
+  </div>
+</body>
+</html>`);
+});
+
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
 app.use('/overlay', express.static(path.join(__dirname, '../public/overlay')));
 app.use('/remote', express.static(path.join(__dirname, '../public/remote')));
@@ -1180,6 +1341,24 @@ if (paths.BUNDLED_MEDIA_DIR !== paths.MEDIA_DIR) {
 // Status
 app.get('/api/status', (req, res) => {
   const cfg = effectMap.getConfig();
+  if (req.isPublicTunnel && !req.hasValidTunnelPin) {
+    return res.json({
+      isConnected,
+      connectionMode,
+      activeConnectionProvider,
+      currentUsername,
+      roomStats,
+      modClients: modClients.size,
+      queueStatus: queue.status,
+      activeGameId: cfg.activeGameId,
+      activePresetId: cfg.activePresetId,
+      masterSwitches: effectMap.masterSwitches,
+      widgetState: widgetManager.getState(),
+      spotifyState: spotifyDriver.getState(),
+      appVersion: updater.getCurrentVersion(),
+      publicTunnelRestricted: true
+    });
+  }
   res.json({
     isConnected,
     connectionMode,
@@ -1209,7 +1388,8 @@ app.get('/api/status', (req, res) => {
     streamerBotStatus: streamerBotDriver.getStatus(),
     integrationsState: {
       ...voicemodDriver.getState(),
-      lanUrls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+      lanUrls: voicemodDriver.getLanUrls(DASHBOARD_PORT),
+      relayStatus: relayClientDriver.getStatus()
     },
     desktopStatus: global.agivaElectronBridge ? global.agivaElectronBridge.getStatus() : { isElectron: false, hudOpen: false, hudLocked: false },
     appVersion: updater.getCurrentVersion(),
@@ -1233,6 +1413,7 @@ app.post('/api/connect', async (req, res) => {
     }
     const state = await connectTikTok(cleanUser, connectionMode);
     saveEnvVar('TIKTOK_USERNAME', cleanUser);
+    relayClientDriver.refreshRegistration();
     res.json({ success: true, roomId: state.roomId, provider: state.provider });
   } catch (e) {
     res.status(500).json({ error: e.message || String(e) });
@@ -1365,9 +1546,18 @@ app.post('/api/gifts/update', async (req, res) => {
   }
 });
 
-// Get full config
+// Get full config (sanitized when accessed via public tunnel)
 app.get('/api/config', (req, res) => {
-  res.json(effectMap.getConfig());
+  const cfg = effectMap.getConfig();
+  if (req.isPublicTunnel && !req.hasValidTunnelPin) {
+    return res.json({
+      activeGameId: cfg.activeGameId,
+      activePresetId: cfg.activePresetId,
+      giftMappings: cfg.giftMappings || [],
+      coinTiers: cfg.coinTiers || []
+    });
+  }
+  res.json(cfg);
 });
 
 // Save full config (and persist into active game preset)
@@ -2735,21 +2925,39 @@ app.post('/api/streamdeck/trigger', (req, res) => {
   res.json(result);
 });
 
-// ─── Phase 4: Mobile Companion / LAN Remote Endpoints ────────────────────────
+// ─── Phase 4: Mobile Companion / LAN Remote & Multi-Creator Relay Endpoints ──
+app.get('/api/relay/status', (req, res) => {
+  res.json({
+    ...embeddedRelayHub.getHubSummary(),
+    clientStatus: relayClientDriver.getStatus()
+  });
+});
+
+app.all(/^\/c\/([^/]+)(\/.*)?$/, (req, res) => {
+  const creatorId = decodeURIComponent(req.params[0] || '');
+  const subPath = req.params[1] || '/';
+  const qIndex = req.originalUrl.indexOf('?');
+  const search = qIndex >= 0 ? req.originalUrl.slice(qIndex) : '';
+  embeddedRelayHub.handleCreatorHttpRequest(req, res, creatorId, subPath, search);
+});
+
 app.get('/api/remote/info', (req, res) => {
   res.json({
     ok: true,
     lanRemote: voicemodDriver.lanRemote,
-    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT),
+    relayStatus: relayClientDriver.getStatus()
   });
 });
 
 app.put('/api/remote/config', (req, res) => {
   const lanRemote = voicemodDriver.updateLanRemote(req.body || {});
+  relayClientDriver.refreshRegistration();
   res.json({
     success: true,
     lanRemote,
-    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT),
+    relayStatus: relayClientDriver.getStatus()
   });
 });
 
@@ -2919,7 +3127,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.7.0      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.7.5      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);
@@ -2937,6 +3145,11 @@ httpServer.listen(DASHBOARD_PORT, () => {
     connectTikTok(currentUsername, connectionMode).catch(e => console.error('Auto-connect failed:', e.message));
   }
 
+  // Start outbound Multi-Creator Relay Client to ZimaOS Hub (widget.cornermoji.site)
+  setTimeout(() => {
+    try { relayClientDriver.start(); } catch {}
+  }, 500);
+
   // Background check for updates after launch
   setTimeout(async () => {
     try {
@@ -2950,6 +3163,7 @@ httpServer.listen(DASHBOARD_PORT, () => {
 });
 
 function flushPendingStores() {
+  try { relayClientDriver?.stop(); } catch {}
   try { intervalScheduler?.destroy(); } catch {}
   try { widgetManager.flushSaveSync(); } catch {}
   try { sessionStore.flushSaveSync(); } catch {}

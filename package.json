@@ -1,6 +1,6 @@
 {
   "name": "tiktok-live-bridge",
-  "version": "1.7.0",
+  "version": "1.7.5",
   "description": "TikTok Live bridge server for game mods",
   "main": "src/main.js",
   "repository": {
@@ -24,6 +24,7 @@
     },
     "files": [
       "src/**/*",
+      "relay-hub/**/*",
       "public/**/*",
       "!public/media/**/*",
       "games/**/*",
