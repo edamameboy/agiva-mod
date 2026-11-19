@@ -2364,9 +2364,26 @@ app.get('/api/update/check', async (req, res) => {
 
 // Trigger In-App Download and Auto-Update
 app.post('/api/update/apply', async (req, res) => {
-  const { downloadUrl } = req.body || {};
+  let { downloadUrl } = req.body || {};
   if (!downloadUrl) {
-    return res.status(400).json({ error: 'downloadUrl is required' });
+    try {
+      const info = await updater.checkForUpdates({ force: true });
+      downloadUrl = info.portableDownloadUrl || info.setupDownloadUrl || info.assets?.[0]?.downloadUrl || '';
+    } catch {}
+  }
+
+  if (!downloadUrl) {
+    return res.status(400).json({
+      success: false,
+      error: 'File pembaruan (.exe) tidak ditemukan pada rilis GitHub terbaru.'
+    });
+  }
+
+  if (!updater.isAllowedDownloadUrl(downloadUrl)) {
+    return res.status(400).json({
+      success: false,
+      error: 'URL unduhan tidak valid atau tidak berasal dari GitHub resmi Agiva Mod.'
+    });
   }
 
   res.json({ success: true, message: 'Proses unduhan dimulai...' });
@@ -2446,7 +2463,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.0      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.1      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);

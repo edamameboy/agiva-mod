@@ -204,30 +204,43 @@ function handleServerMsg(msg) {
       if (msg.update) handleUpdateAvailable(msg.update);
       break;
     case 'update_progress': {
-      const pBox = document.getElementById('update-progress-box');
-      const pBar = document.getElementById('update-progress-bar');
-      const pPercent = document.getElementById('update-progress-percent');
-      const pStatus = document.getElementById('update-progress-status');
-      const pBytes = document.getElementById('update-progress-bytes');
-      if (pBox) pBox.style.display = 'block';
-      if (pBar) pBar.style.width = `${msg.percent || 0}%`;
-      if (pPercent) pPercent.textContent = `${msg.percent || 0}%`;
-      if (pStatus) pStatus.textContent = msg.status || 'Mengunduh pembaruan...';
-      if (pBytes && msg.receivedMB) pBytes.textContent = `${msg.receivedMB} MB / ${msg.totalMB || '?'} MB`;
+      isUpdateDownloading = true;
+      setUpdateProgressUI({
+        show: true,
+        percent: msg.percent || 0,
+        status: msg.status || 'Mengunduh pembaruan...',
+        bytes: msg.receivedMB ? `${msg.receivedMB} MB / ${msg.totalMB || '?'} MB` : null
+      });
       break;
     }
     case 'update_ready': {
-      const pStatusReady = document.getElementById('update-progress-status');
-      if (pStatusReady) pStatusReady.textContent = '✅ Unduhan Selesai! Me-restart aplikasi...';
+      isUpdateDownloading = false;
+      setUpdateProgressUI({
+        show: true,
+        percent: 100,
+        status: '✅ Unduhan Selesai! Me-restart aplikasi...',
+        bytes: null
+      });
+      const mIcon = document.getElementById('modal-update-status-icon');
+      const mTitle = document.getElementById('modal-update-status-title');
+      if (mIcon) mIcon.textContent = '✅';
+      if (mTitle) mTitle.textContent = 'Unduhan Selesai! Menyiapkan Restart...';
       toast(msg.message || 'Pembaruan siap! Aplikasi akan segera me-restart.', 'success');
       break;
     }
     case 'update_error': {
+      isUpdateDownloading = false;
       toast(msg.message || 'Pembaruan gagal diunduh.', 'error');
       const btnA = document.getElementById('btn-auto-update');
       if (btnA) btnA.disabled = false;
-      const pStatusErr = document.getElementById('update-progress-status');
-      if (pStatusErr) pStatusErr.textContent = '❌ Gagal mengunduh pembaruan';
+      const btnM = document.getElementById('btn-modal-apply-update');
+      if (btnM) btnM.disabled = false;
+      setUpdateProgressUI({
+        show: true,
+        percent: null,
+        status: `❌ ${msg.message || 'Gagal mengunduh pembaruan'}`,
+        bytes: null
+      });
       break;
     }
   }
@@ -2848,6 +2861,7 @@ function timeAgo(ts) {
 
 // ─── App Updates & GitHub Integration ────────────────────
 let currentUpdateInfo = null;
+let isUpdateDownloading = false;
 
 async function openExternalUrl(url) {
   if (!url) return;
@@ -2858,6 +2872,185 @@ async function openExternalUrl(url) {
     }
   } catch {
     window.open(url, '_blank');
+  }
+}
+
+function getTargetDownloadUrl(update) {
+  return update?.portableDownloadUrl || update?.setupDownloadUrl || (update?.assets && update.assets[0]?.downloadUrl) || '';
+}
+
+function formatUpdateModeLabel(update) {
+  const isPortable = update?.isPortable ?? appState?.isPortable;
+  const isPackaged = update?.isPackaged ?? update?.canAutoInstall ?? appState?.desktopStatus?.isElectron;
+  if (isPortable) return 'Portable (.exe) — Timpa Otomatis Tanpa Install Ulang';
+  if (isPackaged) return 'Desktop App (Auto-Replace & Restart)';
+  return 'Web / Dev Mode (Unduh ke Temp)';
+}
+
+function setUpdateProgressUI({ show, percent, status, bytes }) {
+  const prefixes = ['', 'modal-'];
+  for (const pre of prefixes) {
+    const box = document.getElementById(`${pre}update-progress-box`);
+    const bar = document.getElementById(`${pre}update-progress-bar`);
+    const pct = document.getElementById(`${pre}update-progress-percent`);
+    const st = document.getElementById(`${pre}update-progress-status`);
+    const bt = document.getElementById(`${pre}update-progress-bytes`);
+
+    if (box && typeof show === 'boolean') box.style.display = show ? 'block' : 'none';
+    if (bar && typeof percent === 'number') bar.style.width = `${percent}%`;
+    if (pct && typeof percent === 'number') pct.textContent = `${percent}%`;
+    if (st && typeof status === 'string') st.textContent = status;
+    if (bt && typeof bytes === 'string') bt.textContent = bytes;
+  }
+}
+
+function setTopbarUpdateBadge(update, state) {
+  const topbarBtn = document.getElementById('btn-topbar-update');
+  const topbarDot = document.getElementById('topbar-update-dot');
+  const topbarText = document.getElementById('topbar-update-text');
+  if (!topbarBtn || !topbarText) return;
+
+  topbarBtn.style.display = 'inline-flex';
+  if (state === 'available' && update?.latestVersion) {
+    topbarBtn.classList.remove('is-idle');
+    if (topbarDot) topbarDot.style.display = 'inline-block';
+    topbarText.textContent = `✨ Update v${update.latestVersion}`;
+  } else {
+    topbarBtn.classList.add('is-idle');
+    if (topbarDot) topbarDot.style.display = 'none';
+    topbarText.textContent = '🔄 Auto Update';
+  }
+}
+
+function renderUpdateModal(update, state = 'idle') {
+  const curVerEl = document.getElementById('modal-update-current-ver');
+  const latestVerEl = document.getElementById('modal-update-latest-ver');
+  const modeEl = document.getElementById('modal-update-mode-label');
+  const iconEl = document.getElementById('modal-update-status-icon');
+  const titleEl = document.getElementById('modal-update-status-title');
+  const descEl = document.getElementById('modal-update-status-desc');
+  const notesEl = document.getElementById('modal-update-notes');
+  const btnCheck = document.getElementById('btn-modal-check-update');
+  const btnApply = document.getElementById('btn-modal-apply-update');
+
+  const curVer = update?.currentVersion || appState?.appVersion || '1.5.1';
+  if (curVerEl) curVerEl.textContent = `v${curVer}`;
+  if (modeEl) modeEl.textContent = formatUpdateModeLabel(update);
+
+  if (state === 'checking') {
+    if (latestVerEl) latestVerEl.textContent = 'Memeriksa...';
+    if (iconEl) iconEl.textContent = '⏳';
+    if (titleEl) titleEl.textContent = 'Memeriksa Pembaruan...';
+    if (descEl) descEl.textContent = 'Menghubungi GitHub Releases untuk mengecek rilis terbaru.';
+    if (notesEl) notesEl.style.display = 'none';
+    if (btnCheck) btnCheck.disabled = true;
+    if (btnApply) btnApply.disabled = true;
+    return;
+  }
+
+  if (btnCheck) btnCheck.disabled = false;
+
+  if (state === 'available' && update) {
+    const targetUrl = getTargetDownloadUrl(update);
+    if (latestVerEl) latestVerEl.textContent = `v${update.latestVersion}`;
+    if (iconEl) iconEl.textContent = '🚀';
+    if (titleEl) titleEl.textContent = `Versi Baru Tersedia: v${update.latestVersion}`;
+    if (descEl) {
+      const dateStr = update.publishedAt ? new Date(update.publishedAt).toLocaleDateString() : 'Terbaru';
+      descEl.textContent = targetUrl
+        ? `Rilis ${dateStr} siap diunduh dan dipasang otomatis.`
+        : `Rilis v${update.latestVersion} ditemukan, namun file .exe belum dilampirkan di GitHub Releases.`;
+    }
+    if (notesEl) {
+      if (update.releaseNotes) {
+        notesEl.textContent = update.releaseNotes;
+        notesEl.style.display = 'block';
+      } else {
+        notesEl.style.display = 'none';
+      }
+    }
+    if (btnApply) {
+      if (targetUrl) {
+        btnApply.style.display = 'inline-block';
+        btnApply.disabled = isUpdateDownloading;
+        btnApply.onclick = () => startAutoUpdateDownload(update);
+      } else {
+        btnApply.style.display = 'none';
+      }
+    }
+    return;
+  }
+
+  if (state === 'error') {
+    if (latestVerEl) latestVerEl.textContent = 'Gagal cek';
+    if (iconEl) iconEl.textContent = '⚠️';
+    if (titleEl) titleEl.textContent = 'Pengecekan Pembaruan Gagal';
+    if (descEl) descEl.textContent = update?.error || 'Tidak dapat terhubung ke GitHub Releases.';
+    if (notesEl) notesEl.style.display = 'none';
+    if (btnApply) btnApply.style.display = 'none';
+    return;
+  }
+
+  // Up-to-date
+  const latestVer = update?.latestVersion || curVer;
+  if (latestVerEl) latestVerEl.textContent = `v${latestVer}`;
+  if (iconEl) iconEl.textContent = '✅';
+  if (titleEl) titleEl.textContent = 'Aplikasi Sudah Versi Terbaru';
+  if (descEl) descEl.textContent = update?.releaseNotes || `Anda sudah menjalankan Agiva Mod v${curVer}.`;
+  if (notesEl) notesEl.style.display = 'none';
+  if (btnApply) btnApply.style.display = 'none';
+}
+
+async function startAutoUpdateDownload(update) {
+  if (isUpdateDownloading) {
+    toast('Proses unduhan pembaruan sedang berjalan.', 'info');
+    return;
+  }
+  const targetDownloadUrl = getTargetDownloadUrl(update);
+  if (!targetDownloadUrl) {
+    toast('File .exe pembaruan tidak ditemukan pada rilis GitHub terbaru.', 'error');
+    return;
+  }
+
+  const curVer = update?.currentVersion || appState?.appVersion || '1.5.1';
+  const nextVer = update?.latestVersion || 'terbaru';
+  const confirmMsg = `Unduh dan pasang Agiva Mod v${nextVer} (dari v${curVer}) secara otomatis sekarang?\n\nDi mode Portable, file .exe akan otomatis ditimpa dan aplikasi langsung me-restart tanpa perlu install ulang.`;
+  if (!confirm(confirmMsg)) return;
+
+  const btnAuto = document.getElementById('btn-auto-update');
+  const btnModalApply = document.getElementById('btn-modal-apply-update');
+  if (btnAuto) btnAuto.disabled = true;
+  if (btnModalApply) btnModalApply.disabled = true;
+
+  isUpdateDownloading = true;
+  setUpdateProgressUI({
+    show: true,
+    percent: 0,
+    status: 'Memulai unduhan...',
+    bytes: '0.0 MB / ... MB'
+  });
+
+  try {
+    const res = await api('POST', '/api/update/apply', { downloadUrl: targetDownloadUrl });
+    if (!res || !res.success) {
+      isUpdateDownloading = false;
+      toast(res?.error || 'Gagal memulai proses unduh pembaruan', 'error');
+      if (btnAuto) btnAuto.disabled = false;
+      if (btnModalApply) btnModalApply.disabled = false;
+      setUpdateProgressUI({
+        show: true,
+        status: `❌ ${res?.error || 'Gagal memulai proses unduh'}`
+      });
+    }
+  } catch (err) {
+    isUpdateDownloading = false;
+    toast('Error update: ' + err.message, 'error');
+    if (btnAuto) btnAuto.disabled = false;
+    if (btnModalApply) btnModalApply.disabled = false;
+    setUpdateProgressUI({
+      show: true,
+      status: `❌ ${err.message || 'Gagal memulai proses unduh'}`
+    });
   }
 }
 
@@ -2872,10 +3065,21 @@ async function checkAppUpdates(force = false) {
   if (descEl) descEl.textContent = 'Menghubungi server GitHub...';
   if (btnCheck) btnCheck.disabled = true;
 
+  renderUpdateModal(currentUpdateInfo || { currentVersion: appState?.appVersion }, 'checking');
+
   try {
     const res = await api('GET', `/api/update/check${force ? '?force=1' : ''}`);
     currentUpdateInfo = res;
     if (btnCheck) btnCheck.disabled = false;
+
+    if (res && res.ok === false && res.error) {
+      if (iconEl) iconEl.textContent = '⚠️';
+      if (titleEl) titleEl.textContent = 'Pengecekan Gagal';
+      if (descEl) descEl.textContent = res.error;
+      setTopbarUpdateBadge(res, 'idle');
+      renderUpdateModal(res, 'error');
+      return;
+    }
 
     if (res && res.hasUpdate) {
       handleUpdateAvailable(res);
@@ -2883,37 +3087,26 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.0'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.1'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
-      const topbarBtn = document.getElementById('btn-topbar-update');
-      if (topbarBtn) topbarBtn.style.display = 'none';
+      setTopbarUpdateBadge(res, 'idle');
+      renderUpdateModal(res, 'up-to-date');
     }
   } catch (err) {
     if (btnCheck) btnCheck.disabled = false;
     if (iconEl) iconEl.textContent = '⚠️';
     if (titleEl) titleEl.textContent = 'Pengecekan Gagal';
     if (descEl) descEl.textContent = err.message || 'Tidak dapat terhubung ke GitHub.';
+    setTopbarUpdateBadge(currentUpdateInfo, 'idle');
+    renderUpdateModal({ currentVersion: appState?.appVersion, error: err.message }, 'error');
   }
 }
 
 function handleUpdateAvailable(update) {
   currentUpdateInfo = update;
-  const topbarBtn = document.getElementById('btn-topbar-update');
-  const topbarText = document.getElementById('topbar-update-text');
-  if (topbarBtn && topbarText) {
-    topbarText.textContent = `✨ Update v${update.latestVersion}`;
-    topbarBtn.style.display = 'inline-flex';
-    topbarBtn.onclick = () => {
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      const settingsNav = document.querySelector('.nav-item[data-tab="settings"]');
-      if (settingsNav) settingsNav.classList.add('active');
-      const settingsTab = document.getElementById('tab-settings');
-      if (settingsTab) settingsTab.classList.add('active');
-      document.getElementById('card-app-updates')?.scrollIntoView({ behavior: 'smooth' });
-    };
-  }
+  setTopbarUpdateBadge(update, 'available');
+  renderUpdateModal(update, 'available');
 
   const iconEl = document.getElementById('update-status-icon');
   const titleEl = document.getElementById('update-status-title');
@@ -2933,30 +3126,12 @@ function handleUpdateAvailable(update) {
   if (notesEl) notesEl.textContent = update.releaseNotes || 'Pembaruan stabilitas dan fitur baru.';
 
   const btnAuto = document.getElementById('btn-auto-update');
-  const targetDownloadUrl = update.portableDownloadUrl || update.setupDownloadUrl || (update.assets && update.assets[0]?.downloadUrl);
+  const targetDownloadUrl = getTargetDownloadUrl(update);
   if (btnAuto) {
     if (targetDownloadUrl) {
       btnAuto.style.display = 'inline-block';
-      btnAuto.disabled = false;
-      btnAuto.onclick = async () => {
-        const confirmMsg = `Unduh dan pasang Agiva Mod v${update.latestVersion} secara otomatis sekarang?\n\nAplikasi akan me-restart setelah proses unduhan selesai.`;
-        if (!confirm(confirmMsg)) return;
-
-        btnAuto.disabled = true;
-        const progressBox = document.getElementById('update-progress-box');
-        if (progressBox) progressBox.style.display = 'block';
-
-        try {
-          const res = await api('POST', '/api/update/apply', { downloadUrl: targetDownloadUrl });
-          if (!res || !res.success) {
-            toast(res?.error || 'Gagal memulai proses unduh pembaruan', 'error');
-            btnAuto.disabled = false;
-          }
-        } catch (err) {
-          toast('Error update: ' + err.message, 'error');
-          btnAuto.disabled = false;
-        }
-      };
+      btnAuto.disabled = isUpdateDownloading;
+      btnAuto.onclick = () => startAutoUpdateDownload(update);
     } else {
       btnAuto.style.display = 'none';
     }
@@ -3026,7 +3201,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.5.0'}`;
+  const curVerStr = `v${status.appVersion || '1.5.1'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -3077,7 +3252,19 @@ async function init() {
     }
   });
 
-  // Wire App Update Buttons
+  // Wire App Update Buttons (Settings Card + Always-Visible Topbar Auto-Update Modal)
+  document.getElementById('btn-topbar-update')?.addEventListener('click', () => {
+    openModal('modal-auto-update');
+    if (isUpdateDownloading) {
+      renderUpdateModal(currentUpdateInfo || { currentVersion: appState?.appVersion }, currentUpdateInfo?.hasUpdate ? 'available' : 'up-to-date');
+    } else {
+      checkAppUpdates(true);
+    }
+  });
+  document.getElementById('btn-modal-check-update')?.addEventListener('click', () => checkAppUpdates(true));
+  document.getElementById('btn-modal-open-release')?.addEventListener('click', () => {
+    openExternalUrl(currentUpdateInfo?.releaseUrl || `${status.repoUrl || 'https://github.com/edamameboy/agiva-mod'}/releases`);
+  });
   document.getElementById('btn-check-updates')?.addEventListener('click', () => checkAppUpdates(true));
   document.getElementById('btn-visit-github')?.addEventListener('click', () => {
     openExternalUrl(status.repoUrl || 'https://github.com/edamameboy/agiva-mod');

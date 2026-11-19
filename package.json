@@ -1,6 +1,6 @@
 {
   "name": "tiktok-live-bridge",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "TikTok Live bridge server for game mods",
   "main": "src/main.js",
   "repository": {
@@ -17,8 +17,8 @@
     "build:all": "electron-builder --windows"
   },
   "build": {
-    "appId": "com.junkyardmod.app",
-    "productName": "junkyard-mod-agiva",
+    "appId": "com.agivamod.app",
+    "productName": "Agiva-Mod",
     "directories": {
       "output": "dist"
     },

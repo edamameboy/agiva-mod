@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v1.5.0</span>
+          <span class="brand-sub">Universal Bridge v1.5.1</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -78,8 +78,9 @@
         <div class="topbar-left">
           <h1 id="page-title">Dashboard</h1>
           <button type="button" class="theme-toggle" id="btn-theme" aria-label="Toggle Dark or Light Mode">🌓 Theme</button>
-          <button type="button" class="update-badge-btn" id="btn-topbar-update" style="display:none;" title="Lihat update versi baru">
-            <span class="pulse-dot"></span> <span id="topbar-update-text">✨ Update Tersedia</span>
+          <button type="button" class="update-badge-btn is-idle" id="btn-topbar-update" title="Cek &amp; pasang pembaruan otomatis dari GitHub Releases">
+            <span class="pulse-dot" id="topbar-update-dot" style="display:none;"></span>
+            <span id="topbar-update-text">🔄 Auto Update</span>
           </button>
         </div>
 
@@ -649,13 +650,13 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.5.0</span>
+              <span class="badge info" id="app-version-badge">v1.5.1</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.5.0</span>
+                  <span class="info-val" id="info-current-ver">v1.5.1</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
@@ -690,7 +691,7 @@
                 <!-- Box when update is available -->
                 <div class="update-banner" id="update-banner" style="display: none;">
                   <div class="update-banner-title">
-                    <span class="badge success" id="update-new-ver-badge">v1.2.2</span>
+                    <span class="badge success" id="update-new-ver-badge">v1.5.1</span>
                     <strong id="update-release-title">Agiva Mod Rilis Baru!</strong>
                   </div>
                   <div class="update-notes-box" id="update-release-notes"></div>
@@ -1932,6 +1933,63 @@
         <div class="media-grid" id="media-library-grid">
           <div class="form-hint">Memuat Media Library...</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: Auto Update (1-Click In-Place Updater) -->
+  <div class="modal-backdrop" id="modal-auto-update" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-auto-update-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="modal-auto-update-title">🚀 Auto Update Agiva Mod</span>
+        <button type="button" class="btn-close-modal" data-close="modal-auto-update" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="app-info-grid">
+          <div class="info-item">
+            <span class="info-label">Versi Terpasang</span>
+            <span class="info-val" id="modal-update-current-ver">v1.5.1</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Rilis GitHub Terbaru</span>
+            <span class="info-val" id="modal-update-latest-ver">Memeriksa...</span>
+          </div>
+          <div class="info-item" style="grid-column: 1 / -1;">
+            <span class="info-label">Mode Install</span>
+            <span class="info-val" id="modal-update-mode-label">Memuat...</span>
+          </div>
+        </div>
+
+        <div class="update-status-panel">
+          <div class="update-status-header">
+            <span id="modal-update-status-icon" style="font-size: 24px;">🔄</span>
+            <div class="update-status-text">
+              <strong id="modal-update-status-title">Memeriksa Pembaruan...</strong>
+              <p id="modal-update-status-desc">Menghubungi GitHub Releases untuk mengecek versi terbaru.</p>
+            </div>
+          </div>
+
+          <div class="update-notes-box" id="modal-update-notes" style="display: none; margin-top: 12px;"></div>
+
+          <div class="update-progress-box" id="modal-update-progress-box" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-body); border: 2px solid var(--line); border-radius: var(--radius); box-shadow: 2px 2px 0px var(--line);">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px;">
+              <span id="modal-update-progress-status">Mengunduh pembaruan...</span>
+              <span id="modal-update-progress-percent">0%</span>
+            </div>
+            <div style="height: 14px; background: var(--bg-surface); border: 2px solid var(--line); border-radius: var(--radius); overflow: hidden; position: relative;">
+              <div id="modal-update-progress-bar" style="width: 0%; height: 100%; background: var(--accent-green); transition: width 0.15s ease-out;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+              <span id="modal-update-progress-bytes">0.0 MB / 0.0 MB</span>
+              <span>Jangan tutup aplikasi saat proses berlangsung</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="flex-wrap: wrap;">
+        <button type="button" class="btn-secondary" id="btn-modal-check-update">🔍 Cek Rilis Terbaru</button>
+        <button type="button" class="btn-primary" id="btn-modal-apply-update" style="display: none; font-weight: 800; background: var(--accent-green); color: #000;">⚡ Download &amp; Pasang Otomatis</button>
+        <button type="button" class="btn-sm" id="btn-modal-open-release">🌐 Buka GitHub Releases</button>
       </div>
     </div>
   </div>

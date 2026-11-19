@@ -900,6 +900,15 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
   filter: brightness(1.1);
   transform: translateY(-1px);
 }
+.update-badge-btn.is-idle {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  animation: none;
+}
+.update-badge-btn.is-idle:hover {
+  filter: none;
+  background: var(--bg-base);
+}
 .update-badge-btn:active {
   transform: translate(2px, 2px);
   box-shadow: none;

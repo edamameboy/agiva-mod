@@ -83,7 +83,151 @@ function fetchJson(url, headers = {}) {
 }
 
 /**
- * Check for updates against GitHub Releases & main package.json
+ * Perform HTTPS GET request without following redirects, returning status, headers, and text body
+ */
+function fetchHttpText(url, { timeout = 10000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': `agiva-mod/${pkg.version}`,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        resolve({ statusCode: res.statusCode, headers: res.headers, body });
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Connection timed out'));
+    });
+
+    req.on('error', err => reject(err));
+    req.end();
+  });
+}
+
+/**
+ * Parse unique release asset download links from GitHub expanded_assets HTML fragment
+ */
+function parseAssetsFromExpandedHtml(html) {
+  if (!html || typeof html !== 'string') return [];
+  const prefix = `/${REPO_OWNER}/${REPO_NAME}/releases/download/`;
+  const regex = new RegExp(`href="(${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]+)"`, 'gi');
+  const seen = new Set();
+  const assets = [];
+  let match;
+
+  while ((match = regex.exec(html)) !== null) {
+    const relPath = match[1].split('?')[0];
+    if (seen.has(relPath)) continue;
+    seen.add(relPath);
+
+    const rawName = relPath.split('/').pop() || '';
+    let name = rawName;
+    try { name = decodeURIComponent(rawName); } catch {}
+    if (!name) continue;
+
+    assets.push({
+      name,
+      size: null,
+      downloadUrl: `https://github.com${relPath}`,
+      downloadCount: 0
+    });
+  }
+  return assets;
+}
+
+/**
+ * Select preferred portable & setup .exe download URLs from normalized assets list
+ */
+function pickReleaseAssets(assets = []) {
+  const exeAssets = assets.filter(a => a && typeof a.name === 'string' && a.name.toLowerCase().endsWith('.exe'));
+  const portable =
+    exeAssets.find(a => a.name.toLowerCase().includes('portable')) ||
+    exeAssets.find(a => !a.name.toLowerCase().includes('setup')) ||
+    null;
+  const setup = exeAssets.find(a => a.name.toLowerCase().includes('setup')) || null;
+
+  return {
+    portableDownloadUrl: portable ? portable.downloadUrl : null,
+    setupDownloadUrl: setup ? setup.downloadUrl : null
+  };
+}
+
+/**
+ * Fetch release assets from GitHub web expanded_assets endpoint (rate-limit-free)
+ */
+async function fetchAssetsForTag(tag) {
+  if (!tag) return [];
+  try {
+    const url = `${GITHUB_REPO_URL}/releases/expanded_assets/${encodeURIComponent(tag)}`;
+    const res = await fetchHttpText(url, { timeout: 10000 });
+    if (res.statusCode === 200 && res.body) {
+      return parseAssetsFromExpandedHtml(res.body);
+    }
+  } catch {}
+  return [];
+}
+
+/**
+ * Resolve latest GitHub release metadata & binaries via web redirect (bypasses REST API rate limits)
+ */
+async function fetchLatestReleaseFromWeb() {
+  try {
+    const latestRes = await fetchHttpText(`${GITHUB_REPO_URL}/releases/latest`, { timeout: 10000 });
+    const location = latestRes.headers?.location || '';
+    const tagMatch = location.match(/\/releases\/tag\/([^/?#]+)/i);
+    if (!tagMatch || !tagMatch[1]) return null;
+
+    let remoteTag = tagMatch[1];
+    try { remoteTag = decodeURIComponent(remoteTag); } catch {}
+    const remoteVersion = remoteTag.replace(/^[^\d]*/, '').trim();
+    if (!remoteVersion) return null;
+
+    const releaseUrl = `${GITHUB_REPO_URL}/releases/tag/${encodeURIComponent(remoteTag)}`;
+    const assets = await fetchAssetsForTag(remoteTag);
+    return { remoteTag, remoteVersion, releaseUrl, assets };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate that a download URL belongs to official Agiva Mod GitHub releases
+ */
+function isAllowedDownloadUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url.trim());
+    if (process.env.AGIVA_UPDATER_ALLOW_LOCAL === '1' && parsed.protocol === 'http:') {
+      return parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost';
+    }
+    if (parsed.protocol !== 'https:') return false;
+    if (parsed.hostname === 'github.com' && parsed.pathname.startsWith(`/${REPO_OWNER}/${REPO_NAME}/`)) {
+      return true;
+    }
+    if (parsed.hostname === 'objects.githubusercontent.com') {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check for updates against GitHub Releases, GitHub Web fallback, & main package.json
  */
 async function checkForUpdates({ force = false } = {}) {
   const now = Date.now();
@@ -92,6 +236,10 @@ async function checkForUpdates({ force = false } = {}) {
   }
 
   const currentVersion = pkg.version;
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+  const isPackaged = Boolean(paths.isPackaged);
+  const canAutoInstall = Boolean(process.env.PORTABLE_EXECUTABLE_FILE || isPackaged);
+
   let result = {
     ok: true,
     currentVersion,
@@ -104,47 +252,71 @@ async function checkForUpdates({ force = false } = {}) {
     assets: [],
     portableDownloadUrl: null,
     setupDownloadUrl: null,
+    isPortable,
+    isPackaged,
+    canAutoInstall,
     source: 'github-api',
     checkedAt: new Date().toISOString()
   };
 
   try {
-    // 1. Try GitHub Releases API first (best for full changelog & binary assets)
-    const apiRes = await fetchJson(GITHUB_API_URL);
+    // 1. Try GitHub Releases API first (best for full changelog & metadata)
+    try {
+      const apiRes = await fetchJson(GITHUB_API_URL);
 
-    if (apiRes.statusCode === 200 && apiRes.data && apiRes.data.tag_name) {
-      const release = apiRes.data;
-      const remoteTag = release.tag_name;
-      const remoteVersion = remoteTag.replace(/^[^\d]*/, '').trim();
+      if (apiRes.statusCode === 200 && apiRes.data && apiRes.data.tag_name) {
+        const release = apiRes.data;
+        const remoteTag = release.tag_name;
+        const remoteVersion = remoteTag.replace(/^[^\d]*/, '').trim();
 
-      result.latestVersion = remoteVersion;
-      result.releaseName = release.name || `Version ${remoteVersion}`;
-      result.releaseNotes = release.body || '';
-      result.releaseUrl = release.html_url || `${GITHUB_REPO_URL}/releases/tag/${remoteTag}`;
-      result.publishedAt = release.published_at || '';
-      result.hasUpdate = compareVersions(remoteVersion, currentVersion) > 0;
+        result.latestVersion = remoteVersion;
+        result.releaseName = release.name || `Version ${remoteVersion}`;
+        result.releaseNotes = release.body || '';
+        result.releaseUrl = release.html_url || `${GITHUB_REPO_URL}/releases/tag/${remoteTag}`;
+        result.publishedAt = release.published_at || '';
+        result.hasUpdate = compareVersions(remoteVersion, currentVersion) > 0;
 
-      if (Array.isArray(release.assets)) {
-        result.assets = release.assets.map(a => ({
-          name: a.name,
-          size: a.size,
-          downloadUrl: a.browser_download_url,
-          downloadCount: a.download_count
-        }));
+        if (Array.isArray(release.assets)) {
+          result.assets = release.assets.map(a => ({
+            name: a.name,
+            size: a.size,
+            downloadUrl: a.browser_download_url,
+            downloadCount: a.download_count
+          }));
+          const picked = pickReleaseAssets(result.assets);
+          result.portableDownloadUrl = picked.portableDownloadUrl;
+          result.setupDownloadUrl = picked.setupDownloadUrl;
+        }
 
-        const portable = result.assets.find(a => a.name.toLowerCase().includes('portable'));
-        if (portable) result.portableDownloadUrl = portable.downloadUrl;
-
-        const setup = result.assets.find(a => !a.name.toLowerCase().includes('portable') && (a.name.toLowerCase().includes('setup') || a.name.toLowerCase().endsWith('.exe')));
-        if (setup) result.setupDownloadUrl = setup.downloadUrl;
+        updateCache = result;
+        lastCheckTime = now;
+        return result;
       }
+    } catch {}
+
+    // 2. Fallback to rate-limit-free GitHub Web Releases (/releases/latest + /releases/expanded_assets)
+    const webRelease = await fetchLatestReleaseFromWeb();
+    if (webRelease && webRelease.remoteVersion) {
+      result.source = 'github-web';
+      result.latestVersion = webRelease.remoteVersion;
+      result.hasUpdate = compareVersions(webRelease.remoteVersion, currentVersion) > 0;
+      result.releaseName = `Agiva Mod ${webRelease.remoteTag}`;
+      result.releaseUrl = webRelease.releaseUrl;
+      result.assets = webRelease.assets || [];
+
+      const picked = pickReleaseAssets(result.assets);
+      result.portableDownloadUrl = picked.portableDownloadUrl;
+      result.setupDownloadUrl = picked.setupDownloadUrl;
+      result.releaseNotes = result.hasUpdate
+        ? `Rilis terbaru ${webRelease.remoteTag} tersedia di GitHub Releases dan siap dipasang otomatis.`
+        : `Aplikasi sudah menggunakan versi terbaru (v${currentVersion}).`;
 
       updateCache = result;
       lastCheckTime = now;
       return result;
     }
 
-    // 2. Fallback to raw package.json if releases are 404 (none published yet) or 403 (rate limited)
+    // 3. Fallback to raw package.json if releases endpoint returned nothing
     const rawRes = await fetchJson(RAW_PACKAGE_URL);
     if (rawRes.statusCode === 200 && rawRes.data && rawRes.data.version) {
       const remoteVersion = rawRes.data.version;
@@ -152,6 +324,16 @@ async function checkForUpdates({ force = false } = {}) {
       result.latestVersion = remoteVersion;
       result.hasUpdate = compareVersions(remoteVersion, currentVersion) > 0;
       result.releaseName = `Agiva Mod v${remoteVersion}`;
+
+      const tagAssets = await fetchAssetsForTag(`v${remoteVersion}`);
+      if (tagAssets.length > 0) {
+        result.assets = tagAssets;
+        const picked = pickReleaseAssets(tagAssets);
+        result.portableDownloadUrl = picked.portableDownloadUrl;
+        result.setupDownloadUrl = picked.setupDownloadUrl;
+        result.releaseUrl = `${GITHUB_REPO_URL}/releases/tag/v${remoteVersion}`;
+      }
+
       result.releaseNotes = result.hasUpdate
         ? `Versi baru v${remoteVersion} telah dirilis di GitHub repository.`
         : 'Aplikasi sudah versi terbaru.';
@@ -161,7 +343,7 @@ async function checkForUpdates({ force = false } = {}) {
       return result;
     }
 
-    // If both return 404 or nothing found yet
+    // If none found yet
     result.hasUpdate = false;
     result.releaseNotes = 'Belum ada rilis baru di repositori GitHub.';
     updateCache = result;
@@ -169,12 +351,15 @@ async function checkForUpdates({ force = false } = {}) {
     return result;
 
   } catch (err) {
-    // If rate limit or offline, still return current version cleanly without crash
+    // If offline or connection error, still return current version cleanly without crash
     return {
       ok: false,
       currentVersion,
       latestVersion: currentVersion,
       hasUpdate: false,
+      isPortable,
+      isPackaged,
+      canAutoInstall,
       releaseUrl: `${GITHUB_REPO_URL}/releases`,
       error: err.message || 'Gagal terhubung ke GitHub',
       checkedAt: new Date().toISOString()
@@ -183,13 +368,21 @@ async function checkForUpdates({ force = false } = {}) {
 }
 
 /**
- * Download a binary file with HTTP/HTTPS redirect support and progress streaming
+ * Download a binary file with HTTP/HTTPS redirect support, inactivity timeout, and truncation guard
  */
 function downloadFile(url, destPath, onProgress) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finishReject = (err) => {
+      if (settled) return;
+      settled = true;
+      fs.unlink(destPath, () => {});
+      reject(err);
+    };
+
     function get(currentUrl, redirectCount = 0) {
       if (redirectCount > 8) {
-        return reject(new Error('Terlalu banyak pengalihan (redirect limit exceeded)'));
+        return finishReject(new Error('Terlalu banyak pengalihan (redirect limit exceeded)'));
       }
       try {
         const parsed = new URL(currentUrl);
@@ -203,12 +396,15 @@ function downloadFile(url, destPath, onProgress) {
         }, (res) => {
           if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
             const redirectUrl = res.headers.location;
-            if (!redirectUrl) return reject(new Error('Redirect URL kosong'));
-            return get(redirectUrl, redirectCount + 1);
+            res.resume();
+            if (!redirectUrl) return finishReject(new Error('Redirect URL kosong'));
+            const nextUrl = new URL(redirectUrl, currentUrl).href;
+            return get(nextUrl, redirectCount + 1);
           }
 
           if (res.statusCode !== 200) {
-            return reject(new Error(`Unduhan gagal dengan status HTTP ${res.statusCode}`));
+            res.resume();
+            return finishReject(new Error(`Unduhan gagal dengan status HTTP ${res.statusCode}`));
           }
 
           const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
@@ -236,29 +432,35 @@ function downloadFile(url, destPath, onProgress) {
 
           res.on('end', () => {
             fileStream.end(() => {
+              if (settled) return;
+              if (totalBytes > 0 && receivedBytes < totalBytes) {
+                return finishReject(new Error(`Unduhan terputus (${receivedBytes}/${totalBytes} bytes)`));
+              }
+              settled = true;
               resolve({ destPath, totalBytes: receivedBytes });
             });
           });
 
           res.on('error', (err) => {
             fileStream.destroy();
-            fs.unlink(destPath, () => {});
-            reject(err);
+            finishReject(err);
           });
 
           fileStream.on('error', (err) => {
             fileStream.destroy();
-            fs.unlink(destPath, () => {});
-            reject(err);
+            finishReject(err);
           });
         });
 
+        req.setTimeout(30000, () => {
+          req.destroy(new Error('Unduhan timeout karena tidak ada data masuk selama 30 detik'));
+        });
+
         req.on('error', (err) => {
-          fs.unlink(destPath, () => {});
-          reject(err);
+          finishReject(err);
         });
       } catch (err) {
-        reject(err);
+        finishReject(err);
       }
     }
 
@@ -354,6 +556,29 @@ del "%~f0"
 }
 
 /**
+ * Verify downloaded Windows PE executable file has valid MZ magic header and non-trivial size
+ */
+function assertValidWindowsExe(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error('File pembaruan tidak ditemukan setelah unduhan.');
+  }
+  const stat = fs.statSync(filePath);
+  if (!stat || stat.size < 64) {
+    throw new Error('File pembaruan rusak atau ukurannya terlalu kecil.');
+  }
+  const header = Buffer.alloc(2);
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    fs.readSync(fd, header, 0, 2, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (header[0] !== 0x4D || header[1] !== 0x5A) {
+    throw new Error('File yang diunduh bukan executable Windows (.exe) yang valid.');
+  }
+}
+
+/**
  * High-level download and apply update
  */
 async function downloadAndApplyUpdate(targetUrl, onProgress) {
@@ -365,11 +590,16 @@ async function downloadAndApplyUpdate(targetUrl, onProgress) {
     throw new Error('URL unduhan pembaruan tidak ditemukan');
   }
 
+  if (!isAllowedDownloadUrl(targetUrl)) {
+    throw new Error('URL unduhan tidak diizinkan (harus dari rilis resmi GitHub Agiva Mod).');
+  }
+
   isDownloading = true;
   const tempDest = path.join(os.tmpdir(), `agiva_update_${Date.now()}.exe`);
 
   try {
     await downloadFile(targetUrl, tempDest, onProgress);
+    assertValidWindowsExe(tempDest);
     isDownloading = false;
     const restartResult = performSelfRestart(tempDest);
     return restartResult;
@@ -384,6 +614,7 @@ module.exports = {
   checkForUpdates,
   downloadAndApplyUpdate,
   performSelfRestart,
+  isAllowedDownloadUrl,
   getCurrentVersion: () => pkg.version,
   getRepoUrl: () => GITHUB_REPO_URL
 };
