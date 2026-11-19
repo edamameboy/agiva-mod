@@ -2933,7 +2933,7 @@ function renderUpdateModal(update, state = 'idle') {
   const btnCheck = document.getElementById('btn-modal-check-update');
   const btnApply = document.getElementById('btn-modal-apply-update');
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.5.1';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.5.2';
   if (curVerEl) curVerEl.textContent = `v${curVer}`;
   if (modeEl) modeEl.textContent = formatUpdateModeLabel(update);
 
@@ -3012,7 +3012,7 @@ async function startAutoUpdateDownload(update) {
     return;
   }
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.5.1';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.5.2';
   const nextVer = update?.latestVersion || 'terbaru';
   const confirmMsg = `Unduh dan pasang Agiva Mod v${nextVer} (dari v${curVer}) secara otomatis sekarang?\n\nDi mode Portable, file .exe akan otomatis ditimpa dan aplikasi langsung me-restart tanpa perlu install ulang.`;
   if (!confirm(confirmMsg)) return;
@@ -3087,7 +3087,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.1'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.2'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       setTopbarUpdateBadge(res, 'idle');
@@ -3201,7 +3201,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.5.1'}`;
+  const curVerStr = `v${status.appVersion || '1.5.2'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;

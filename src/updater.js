@@ -469,11 +469,24 @@ function downloadFile(url, destPath, onProgress) {
 }
 
 /**
- * Execute Windows handoff batch script to replace current running executable and restart
+ * Escape single quotes inside PowerShell single-quoted string literals
  */
-function performSelfRestart(newExePath) {
+function escapePsSingleQuoted(str) {
+  return String(str).replace(/'/g, "''");
+}
+
+/**
+ * Execute hidden Windows PowerShell handoff script to replace running executable and restart cleanly
+ */
+function performSelfRestart(newExePath, options = {}) {
+  const {
+    skipExit = false,
+    targetExeOverride = null,
+    pidOverride = null
+  } = options || {};
+
   const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
-  const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || (paths.isPackaged ? process.execPath : null);
+  const targetExe = targetExeOverride || process.env.PORTABLE_EXECUTABLE_FILE || (paths.isPackaged ? process.execPath : null);
 
   // If running in development (pure Node.js / non-packaged)
   if (!targetExe) {
@@ -485,73 +498,155 @@ function performSelfRestart(newExePath) {
     };
   }
 
-  const pid = process.pid;
-  const batPath = path.join(os.tmpdir(), `agiva_updater_${Date.now()}.bat`);
+  const pid = Number(pidOverride) || process.pid;
+  const ps1Path = path.join(os.tmpdir(), `agiva_updater_${Date.now()}.ps1`);
+  const logPath = path.join(os.tmpdir(), 'agiva_updater_last.log');
 
-  // Write handoff batch script with spaces-safe quoting & file-lock retry loop
-  const batContent = `@echo off
-chcp 65001 > nul
-set "OLD_PID=${pid}"
-set "NEW_EXE=${newExePath}"
-set "TARGET_EXE=${targetExe}"
+  const psLines = [
+    `$ErrorActionPreference = 'SilentlyContinue'`,
+    `$oldPid = ${pid}`,
+    `$newExe = '${escapePsSingleQuoted(newExePath)}'`,
+    `$targetExe = '${escapePsSingleQuoted(targetExe)}'`,
+    `$selfScript = '${escapePsSingleQuoted(ps1Path)}'`,
+    `$logPath = '${escapePsSingleQuoted(logPath)}'`,
+    ``,
+    `function Write-UpdaterLog([string]$msg) {`,
+    `  try {`,
+    `    $line = ("{0:o} {1}" -f (Get-Date), $msg)`,
+    `    [System.IO.File]::AppendAllText($logPath, $line + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))`,
+    `  } catch {}`,
+    `}`,
+    ``,
+    `try { [System.IO.File]::WriteAllText($logPath, '', [System.Text.UTF8Encoding]::new($false)) } catch {}`,
+    `Write-UpdaterLog "START pid=$oldPid target=$targetExe"`,
+    ``,
+    `$deadline = (Get-Date).AddSeconds(30)`,
+    `while ((Get-Date) -lt $deadline) {`,
+    `  $proc = Get-Process -Id $oldPid -ErrorAction SilentlyContinue`,
+    `  if (-not $proc) { break }`,
+    `  Start-Sleep -Milliseconds 300`,
+    `}`,
+    `Write-UpdaterLog "WAIT_DONE pid=$oldPid"`,
+    ``,
+    `# Wait briefly for NSIS portable wrapper cleanup / lock release`,
+    `Start-Sleep -Milliseconds 1000`,
+    ``,
+    `$expectedLen = (Get-Item -LiteralPath $newExe -ErrorAction SilentlyContinue).Length`,
+    `$replaced = $false`,
+    `for ($i = 1; $i -le 40; $i++) {`,
+    `  try {`,
+    `    Copy-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop`,
+    `    $actualLen = (Get-Item -LiteralPath $targetExe -ErrorAction Stop).Length`,
+    `    if ($expectedLen -gt 0 -and $actualLen -eq $expectedLen) {`,
+    `      $replaced = $true`,
+    `      Write-UpdaterLog "COPY_OK attempt=$i bytes=$actualLen"`,
+    `      break`,
+    `    }`,
+    `  } catch {`,
+    `    if ($i -eq 40) { Write-UpdaterLog "COPY_ERR $($_.Exception.Message)" }`,
+    `  }`,
+    `  Start-Sleep -Milliseconds 500`,
+    `}`,
+    ``,
+    `if (-not $replaced) {`,
+    `  try {`,
+    `    Move-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop`,
+    `    $actualLen = (Get-Item -LiteralPath $targetExe -ErrorAction Stop).Length`,
+    `    if ($expectedLen -gt 0 -and $actualLen -eq $expectedLen) {`,
+    `      $replaced = $true`,
+    `      Write-UpdaterLog "MOVE_OK bytes=$actualLen"`,
+    `    }`,
+    `  } catch {`,
+    `    Write-UpdaterLog "MOVE_ERR $($_.Exception.Message)"`,
+    `  }`,
+    `}`,
+    ``,
+    `if ($replaced -and (Test-Path -LiteralPath $newExe)) {`,
+    `  Remove-Item -LiteralPath $newExe -Force -ErrorAction SilentlyContinue`,
+    `}`,
+    ``,
+    `if ($replaced) {`,
+    `  Start-Sleep -Milliseconds 500`,
+    `  $workDir = [System.IO.Path]::GetDirectoryName($targetExe)`,
+    `  for ($j = 1; $j -le 5; $j++) {`,
+    `    try {`,
+    `      $psi = New-Object System.Diagnostics.ProcessStartInfo`,
+    `      $psi.FileName = $targetExe`,
+    `      $psi.WorkingDirectory = $workDir`,
+    `      $psi.UseShellExecute = $true`,
+    `      [System.Diagnostics.Process]::Start($psi) | Out-Null`,
+    `      Write-UpdaterLog "LAUNCH_OK attempt=$j"`,
+    `      break`,
+    `    } catch {`,
+    `      Write-UpdaterLog "LAUNCH_RETRY=$j err=$($_.Exception.Message)"`,
+    `      Start-Sleep -Milliseconds 800`,
+    `    }`,
+    `  }`,
+    `} else {`,
+    `  Write-UpdaterLog "ABORT_RELAUNCH replaced=false"`,
+    `}`,
+    ``,
+    `if ($selfScript -and (Test-Path -LiteralPath $selfScript)) {`,
+    `  Remove-Item -LiteralPath $selfScript -Force -ErrorAction SilentlyContinue`,
+    `}`,
+    ``
+  ];
 
-:: Beri jeda agar aplikasi lama selesai menutup
-timeout /t 2 /nobreak > nul
+  // Windows PowerShell 5.1 parses UTF-8 with BOM + CRLF most reliably
+  fs.writeFileSync(ps1Path, '\uFEFF' + psLines.join('\r\n'), 'utf8');
 
-:wait_loop
-tasklist /fi "pid eq %OLD_PID%" 2>nul | find "%OLD_PID%" > nul
-if %ERRORLEVEL% equ 0 (
-    timeout /t 1 /nobreak > nul
-    goto wait_loop
-)
+  const psExeCandidate = path.join(
+    process.env.SystemRoot || 'C:\\Windows',
+    'System32',
+    'WindowsPowerShell',
+    'v1.0',
+    'powershell.exe'
+  );
+  const psExe = fs.existsSync(psExeCandidate) ? psExeCandidate : 'powershell.exe';
+  const argStr = `-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "${ps1Path}"`;
+  const launchScript = `Start-Process -WindowStyle Hidden -FilePath '${escapePsSingleQuoted(psExe)}' -ArgumentList '${escapePsSingleQuoted(argStr)}'`;
+  const encodedCmd = Buffer.from(launchScript, 'utf16le').toString('base64');
 
-:: Timpa executable lama dengan file versi baru (retry hingga 15x jika masih terkunci wrapper portable)
-set RETRY=0
-:copy_retry
-copy /y "%NEW_EXE%" "%TARGET_EXE%" > nul 2>&1
-if errorlevel 1 (
-    set /a RETRY+=1
-    if %RETRY% lss 15 (
-        timeout /t 1 /nobreak > nul
-        goto copy_retry
-    )
-    move /y "%NEW_EXE%" "%TARGET_EXE%" > nul 2>&1
-)
-
-:: Hapus file download sementara jika file sudah disalin
-if exist "%NEW_EXE%" del /f /q "%NEW_EXE%" > nul 2>&1
-
-:: Jalankan aplikasi versi terbaru
-start "" "%TARGET_EXE%"
-
-:: Hapus batch script ini
-del "%~f0"
-`;
-
-  fs.writeFileSync(batPath, batContent, 'utf8');
-
-  // Spawn detached process
-  const child = spawn('cmd.exe', ['/c', batPath], {
-    detached: true,
+  // Spawning powershell.exe directly with detached:true exits silently before executing -File
+  // when stdio is ignored. Using a quick non-detached launcher with Start-Process -WindowStyle Hidden
+  // detaches an independent hidden updater process with zero console window popup.
+  const child = spawn(psExe, [
+    '-NoProfile',
+    '-NonInteractive',
+    '-WindowStyle', 'Hidden',
+    '-EncodedCommand', encodedCmd
+  ], {
+    detached: false,
     stdio: 'ignore',
     windowsHide: true
   });
   child.unref();
 
-  // Gracefully quit application after short buffer
-  setTimeout(() => {
-    if (global.agivaElectronBridge && typeof global.agivaElectronBridge.quit === 'function') {
-      global.agivaElectronBridge.quit();
-    } else {
+  if (!skipExit) {
+    let quitStarted = false;
+    const triggerQuit = () => {
+      if (quitStarted) return;
+      quitStarted = true;
+      if (global.agivaElectronBridge && typeof global.agivaElectronBridge.quit === 'function') {
+        global.agivaElectronBridge.quit();
+      } else {
+        process.exit(0);
+      }
+    };
+
+    // Quit right after launcher spawns the independent updater (with 1.5s fallback + 3s hard-exit failsafe)
+    child.on('exit', () => setTimeout(triggerQuit, 200));
+    setTimeout(triggerQuit, 1500);
+    setTimeout(() => {
       process.exit(0);
-    }
-  }, 1000);
+    }, 3000);
+  }
 
   return {
     success: true,
     mode: isPortable ? 'portable' : 'packaged',
     targetExe,
-    batPath
+    scriptPath: ps1Path
   };
 }
 

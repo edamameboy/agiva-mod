@@ -2463,7 +2463,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.1      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.2      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);
