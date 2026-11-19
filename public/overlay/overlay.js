@@ -30,6 +30,12 @@ let masterPausedState = false;
 let spotifyState = null;
 let activeSongAudio = null;
 let activeSongTrackId = '';
+let streamBuddiesMap = new Map();
+let streamBuddiesLoopRunning = false;
+let socialsIdx = 0;
+let socialsIntervalTimer = null;
+let seasonalLoopRunning = false;
+const seasonalParticles = [];
 const coinJarCoins = [];
 let coinJarLoopRunning = false;
 const fxCanvasParticles = [];
@@ -745,7 +751,200 @@ function renderActiveWidget() {
       try { activeSongAudio.pause(); } catch {}
       activeSongAudio = null;
     }
+  } else if (activeWidget === 'streambuddies' || activeWidget === 'buddies') {
+    if (!document.getElementById('w-buddies-stage')) {
+      widgetStage.style.padding = '0';
+      widgetStage.innerHTML = `<div id="w-buddies-stage" style="position:fixed;left:0;right:0;bottom:0;height:180px;overflow:hidden;pointer-events:none;"></div>`;
+      // Seed buddies from leaderboard topGifters if empty
+      const gifters = widgetsState?.leaderboard?.topGifters || [];
+      gifters.slice(0, widgetsState?.streamBuddies?.maxBuddies || 8).forEach((g) => {
+        upsertStreamBuddy(g.user, '', '');
+      });
+      if (streamBuddiesMap.size === 0) {
+        upsertStreamBuddy('Streamer_Agiva', '', '👋 Halo semuanya!');
+      }
+      startStreamBuddiesLoop();
+    }
+  } else if (activeWidget === 'penalty' || activeWidget === 'penaltybattle') {
+    const pb = widgetsState?.penaltyBattle || { title: '⚽ PENALTY BATTLE', goals: 0, saves: 0, keeperDir: 'center', lastShot: null, minCoinsToShoot: 5 };
+    const shot = pb.lastShot;
+    const posMap = { left: '18%', center: '50%', right: '82%' };
+    const keeperX = posMap[shot ? shot.keeperDir : (pb.keeperDir || 'center')] || '50%';
+    const ballX = shot ? (posMap[shot.shotDir] || '50%') : '50%';
+    const ballY = shot ? '28px' : '115px';
+
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width: 410px; text-align:center;">
+        <div class="w-title">${esc(pb.title || '⚽ PENALTY BATTLE')}</div>
+        <div style="display:flex;justify-content:space-around;font-weight:900;font-size:15px;margin-bottom:8px;">
+          <span style="color:#4ade80;">⚽ GOL: ${pb.goals || 0}</span>
+          <span style="font-size:11px;color:#94a3b8;align-self:center;">Gift min ${pb.minCoinsToShoot || 5}💎 / Chat !kiri !tengah !kanan</span>
+          <span style="color:#f43f5e;">🧤 SAVE: ${pb.saves || 0}</span>
+        </div>
+        <div style="position:relative;height:150px;background:linear-gradient(180deg,#064e3b,#047857);border:3px solid #fff;border-radius:12px;overflow:hidden;">
+          <div style="position:absolute;top:8px;left:10%;right:10%;height:70px;border:3px solid rgba(255,255,255,0.85);border-bottom:none;border-radius:6px 6px 0 0;"></div>
+          <div id="w-penalty-keeper" style="position:absolute;top:36px;left:${keeperX};transform:translateX(-50%);font-size:34px;transition:left 0.35s ease;">🧤</div>
+          <div id="w-penalty-ball" style="position:absolute;top:${ballY};left:${ballX};transform:translateX(-50%);font-size:26px;transition:all 0.35s cubic-bezier(0.2,0.9,0.3,1);">⚽</div>
+        </div>
+        <div id="w-penalty-banner" style="margin-top:8px;font-weight:900;font-size:13px;color:${shot ? (shot.isGoal ? '#4ade80' : '#facc15') : '#cbd5e1'};">
+          ${shot
+            ? (shot.isGoal
+              ? `🎉 GOOOLL! @${esc(shot.user)} mengecoh kiper (${shot.shotDir.toUpperCase()})!`
+              : `🧤 DITANGKAP KIPER! Tendangan @${esc(shot.user)} ke ${shot.shotDir.toUpperCase()} terbaca!`)
+            : 'Kirim Gift atau ketik !penalti kiri/tengah/kanan untuk menendang!'}
+        </div>
+      </div>
+    `;
+  } else if (activeWidget === 'socials') {
+    const soc = widgetsState?.socials || { enabled: true, intervalSec: 6, items: [] };
+    const items = Array.isArray(soc.items) && soc.items.length > 0
+      ? soc.items
+      : [{ platform: 'tiktok', icon: '🎵', handle: '@agiva.live' }];
+    const curItem = items[socialsIdx % items.length];
+
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width: 310px; display:flex; align-items:center; gap:12px; padding:12px 18px;">
+        <div style="font-size:28px;">${esc(curItem.icon || '🔗')}</div>
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#38bdf8;letter-spacing:1px;">${esc(curItem.platform || 'SOCIAL')}</div>
+          <div style="font-size:17px;font-weight:900;color:#fff;">${esc(curItem.handle)}</div>
+        </div>
+      </div>
+    `;
+    if (!socialsIntervalTimer) {
+      socialsIntervalTimer = setInterval(() => {
+        socialsIdx++;
+        if (activeWidget === 'socials') renderActiveWidget();
+      }, Math.max(2000, (Number(soc.intervalSec) || 6) * 1000));
+    }
+  } else if (activeWidget === 'seasonal' || activeWidget === 'snow') {
+    if (!document.getElementById('w-seasonal-canvas')) {
+      widgetStage.style.padding = '0';
+      widgetStage.innerHTML = `<canvas id="w-seasonal-canvas" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;"></canvas>`;
+      startSeasonalFxLoop();
+    }
   }
+}
+
+const BUDDY_AVATARS = ['🦊', '🐱', '🐼', '🐯', '🐸', '🐧', '🦄', '🐲', '🐹', '🐰'];
+
+function upsertStreamBuddy(user, avatar = '', bubbleText = '') {
+  if (!user) return;
+  const maxB = Math.max(1, Number(widgetsState?.streamBuddies?.maxBuddies) || 8);
+  let b = streamBuddiesMap.get(user);
+  if (!b) {
+    if (streamBuddiesMap.size >= maxB) {
+      const oldestKey = streamBuddiesMap.keys().next().value;
+      if (oldestKey) streamBuddiesMap.delete(oldestKey);
+    }
+    const idx = streamBuddiesMap.size;
+    b = {
+      user,
+      avatar,
+      emoji: BUDDY_AVATARS[idx % BUDDY_AVATARS.length],
+      x: 10 + Math.random() * 75,
+      vx: (Math.random() < 0.5 ? -1 : 1) * (0.08 + Math.random() * 0.08),
+      bubble: '',
+      bubbleUntil: 0
+    };
+    streamBuddiesMap.set(user, b);
+  }
+  if (avatar) b.avatar = avatar;
+  if (bubbleText) {
+    b.bubble = bubbleText;
+    b.bubbleUntil = Date.now() + 5500;
+  }
+}
+
+function startStreamBuddiesLoop() {
+  if (streamBuddiesLoopRunning) return;
+  streamBuddiesLoopRunning = true;
+  const tick = () => {
+    const stage = document.getElementById('w-buddies-stage');
+    if (!stage) {
+      streamBuddiesLoopRunning = false;
+      return;
+    }
+    const now = Date.now();
+    let html = '';
+    for (const b of streamBuddiesMap.values()) {
+      b.x += b.vx;
+      if (b.x < 4) { b.x = 4; b.vx = Math.abs(b.vx); }
+      if (b.x > 92) { b.x = 92; b.vx = -Math.abs(b.vx); }
+      const showBubble = b.bubble && now < b.bubbleUntil;
+      const flip = b.vx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+      const avatarHtml = b.avatar
+        ? `<img src="${esc(b.avatar)}" alt="" style="width:42px;height:42px;border-radius:50%;border:2px solid #38bdf8;object-fit:cover;display:block;margin:0 auto;">`
+        : `<div style="font-size:34px;line-height:1;transform:${flip};">${b.emoji}</div>`;
+      html += `
+        <div style="position:absolute;bottom:8px;left:${b.x.toFixed(2)}%;transform:translateX(-50%);text-align:center;transition:left 0.05s linear;">
+          ${showBubble ? `<div style="background:rgba(15,23,42,0.92);color:#fff;border:1px solid #38bdf8;border-radius:10px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;">${esc(b.bubble)}</div>` : ''}
+          ${avatarHtml}
+          <div style="font-size:10px;font-weight:800;color:#f8fafc;background:rgba(0,0,0,0.65);padding:1px 6px;border-radius:999px;margin-top:2px;white-space:nowrap;">@${esc(b.user)}</div>
+        </div>
+      `;
+    }
+    stage.innerHTML = html;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function startSeasonalFxLoop() {
+  if (seasonalLoopRunning) return;
+  seasonalLoopRunning = true;
+  const step = () => {
+    const canvas = document.getElementById('w-seasonal-canvas');
+    if (!canvas) { seasonalLoopRunning = false; return; }
+    const w = canvas.width = window.innerWidth || 1280;
+    const h = canvas.height = window.innerHeight || 720;
+    const ctx = canvas.getContext('2d');
+    const mode = (urlParams.get('type') || widgetsState?.seasonalFx?.mode || 'snow').toLowerCase();
+    const targetCount = Math.max(15, Math.min(120, Number(widgetsState?.seasonalFx?.density) || 45));
+
+    while (seasonalParticles.length < targetCount) {
+      seasonalParticles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: 1.2 + Math.random() * 2.2,
+        r: 4 + Math.random() * 5,
+        color: ['#f472b6', '#38bdf8', '#facc15', '#4ade80', '#a855f7'][Math.floor(Math.random() * 5)],
+        char: String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96))
+      });
+    }
+    while (seasonalParticles.length > targetCount) seasonalParticles.pop();
+
+    ctx.clearRect(0, 0, w, h);
+    for (const p of seasonalParticles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y > h + 20) { p.y = -15; p.x = Math.random() * w; }
+      if (p.x < -20) p.x = w + 15;
+      if (p.x > w + 20) p.x = -15;
+
+      if (mode === 'sakura') {
+        ctx.fillStyle = '#f9a8d4';
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, p.r, p.r * 0.6, p.y * 0.03, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (mode === 'confetti') {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.r * 1.4, p.r * 0.8);
+      } else if (mode === 'matrix') {
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 15px JetBrains Mono, monospace';
+        ctx.fillText(p.char, p.x, p.y);
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 window.dockAction = async (kind) => {
@@ -1161,6 +1360,15 @@ function connectWS() {
       if (msg.type === 'spotify_update' && msg.state) {
         spotifyState = msg.state;
         if (activeWidget === 'song-request' || activeWidget === 'spotify') {
+          renderActiveWidget();
+        }
+      }
+      if (msg.type === 'buddy_event') {
+        upsertStreamBuddy(msg.user, msg.avatar, msg.text);
+      }
+      if (msg.type === 'penalty_shot' && msg.penaltyBattle) {
+        if (widgetsState) widgetsState.penaltyBattle = msg.penaltyBattle;
+        if (activeWidget === 'penalty' || activeWidget === 'penaltybattle') {
           renderActiveWidget();
         }
       }

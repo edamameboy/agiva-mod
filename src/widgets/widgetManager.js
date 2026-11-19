@@ -127,6 +127,38 @@ const DEFAULT_WIDGETS_STATE = {
     totalCoins: 0,
     capacityCoins: 500
   },
+  streamBuddies: {
+    enabled: true,
+    maxBuddies: 8,
+    showChatBubbles: true,
+    spriteStyle: 'chibi' // 'chibi' | 'pixel' | 'neon'
+  },
+  penaltyBattle: {
+    active: true,
+    title: '⚽ PENALTY BATTLE',
+    minCoinsToShoot: 5,
+    goals: 0,
+    saves: 0,
+    keeperDir: 'center', // 'left' | 'center' | 'right'
+    lastShot: null,
+    goalEffectId: '',
+    saveEffectId: ''
+  },
+  socials: {
+    enabled: true,
+    intervalSec: 6,
+    items: [
+      { platform: 'tiktok', icon: '🎵', handle: '@agiva.live' },
+      { platform: 'instagram', icon: '📸', handle: '@agiva.live' },
+      { platform: 'youtube', icon: '▶️', handle: 'Agiva Official' },
+      { platform: 'saweria', icon: '💸', handle: 'saweria.co/agiva' }
+    ]
+  },
+  seasonalFx: {
+    enabled: true,
+    mode: 'snow', // 'snow' | 'sakura' | 'confetti' | 'matrix'
+    density: 45
+  },
   screens: {
     1: { name: 'Screen 1 (Utama / Tengah)', position: 'center', defaultDurationMs: 4000, maxQueueLength: 10 },
     2: { name: 'Screen 2 (Pojok Kanan Atas)', position: 'top-right', defaultDurationMs: 4000, maxQueueLength: 10 },
@@ -212,6 +244,16 @@ class WidgetManager {
           coinMatch: { ...DEFAULT_WIDGETS_STATE.coinMatch, ...(saved.coinMatch || {}), active: false },
           likeathon: { ...DEFAULT_WIDGETS_STATE.likeathon, ...(saved.likeathon || {}), active: false },
           coinJar: { ...DEFAULT_WIDGETS_STATE.coinJar, ...(saved.coinJar || {}) },
+          streamBuddies: { ...DEFAULT_WIDGETS_STATE.streamBuddies, ...(saved.streamBuddies || {}) },
+          penaltyBattle: { ...DEFAULT_WIDGETS_STATE.penaltyBattle, ...(saved.penaltyBattle || {}) },
+          socials: {
+            ...DEFAULT_WIDGETS_STATE.socials,
+            ...(saved.socials || {}),
+            items: Array.isArray(saved.socials?.items) && saved.socials.items.length > 0
+              ? saved.socials.items
+              : JSON.parse(JSON.stringify(DEFAULT_WIDGETS_STATE.socials.items))
+          },
+          seasonalFx: { ...DEFAULT_WIDGETS_STATE.seasonalFx, ...(saved.seasonalFx || {}) },
           screens: mergedScreens,
           theme: { ...DEFAULT_WIDGETS_STATE.theme, ...(saved.theme || {}) }
         };
@@ -957,6 +999,23 @@ class WidgetManager {
       });
     }
 
+    // Stream Buddies spawn / speech bubble on gift
+    if (this.state.streamBuddies?.enabled !== false) {
+      this.broadcast({
+        type: 'buddy_event',
+        kind: 'gift',
+        user,
+        avatar,
+        coins: c,
+        text: `🎁 ${giftName} (${c}💎)`
+      });
+    }
+
+    // Penalty Battle auto-shoot on gift >= minCoinsToShoot
+    if (this.state.penaltyBattle?.active && c >= Math.max(1, Number(this.state.penaltyBattle.minCoinsToShoot) || 5)) {
+      this.shootPenalty(user, null, { giftName, coins: c, avatar });
+    }
+
     // Update coin goal
     this._incrementGoal('coins', c, user);
 
@@ -1068,6 +1127,149 @@ class WidgetManager {
         }
       }
     }
+
+    // Stream Buddies chat bubble
+    if (this.state.streamBuddies?.enabled !== false && this.state.streamBuddies.showChatBubbles !== false) {
+      this.broadcast({
+        type: 'buddy_event',
+        kind: 'chat',
+        user,
+        avatar,
+        text: clean.slice(0, 60)
+      });
+    }
+
+    // Penalty Battle goalkeeper direction commands (!kiri, !tengah, !kanan) or chat kick (!tendang kiri/tengah/kanan)
+    if (this.state.penaltyBattle?.active) {
+      const low = clean.toLowerCase();
+      if (low === '!kiri' || low === '!left') {
+        this.state.penaltyBattle.keeperDir = 'left';
+        this._broadcastState('penaltyBattle');
+      } else if (low === '!tengah' || low === '!center') {
+        this.state.penaltyBattle.keeperDir = 'center';
+        this._broadcastState('penaltyBattle');
+      } else if (low === '!kanan' || low === '!right') {
+        this.state.penaltyBattle.keeperDir = 'right';
+        this._broadcastState('penaltyBattle');
+      } else if (low.startsWith('!penalti') || low.startsWith('!shoot')) {
+        const dir = low.includes('kiri') || low.includes('left') ? 'left'
+          : (low.includes('kanan') || low.includes('right') ? 'right' : 'center');
+        this.shootPenalty(user, dir, { avatar });
+      }
+    }
+  }
+
+  // ─── Stream Buddies, Penalty Battle, Social Rotator & Seasonal FX Controls ──
+  updateStreamBuddies(patch = {}) {
+    this.state.streamBuddies = {
+      ...this.state.streamBuddies,
+      ...patch,
+      enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : this.state.streamBuddies.enabled,
+      maxBuddies: Math.max(1, Math.min(25, Number(patch.maxBuddies ?? this.state.streamBuddies.maxBuddies) || 8)),
+      showChatBubbles: patch.showChatBubbles !== undefined ? Boolean(patch.showChatBubbles) : this.state.streamBuddies.showChatBubbles
+    };
+    this.saveConfig();
+    this._broadcastState('streamBuddies');
+    return this.state.streamBuddies;
+  }
+
+  controlPenaltyBattle(action, payload = {}) {
+    const pb = this.state.penaltyBattle;
+    if (action === 'config' || action === 'start') {
+      if (payload.title !== undefined) pb.title = String(payload.title || '⚽ PENALTY BATTLE');
+      if (payload.minCoinsToShoot !== undefined) pb.minCoinsToShoot = Math.max(1, Number(payload.minCoinsToShoot) || 5);
+      if (payload.goalEffectId !== undefined) pb.goalEffectId = String(payload.goalEffectId || '');
+      if (payload.saveEffectId !== undefined) pb.saveEffectId = String(payload.saveEffectId || '');
+      if (payload.active !== undefined) pb.active = Boolean(payload.active);
+      else if (action === 'start') pb.active = true;
+    } else if (action === 'stop') {
+      pb.active = false;
+    } else if (action === 'reset') {
+      pb.goals = 0;
+      pb.saves = 0;
+      pb.lastShot = null;
+    } else if (action === 'shoot') {
+      return this.shootPenalty(payload.user || 'Streamer', payload.direction || null, payload);
+    }
+    this.saveConfig();
+    this._broadcastState('penaltyBattle');
+    return pb;
+  }
+
+  shootPenalty(user = 'Penonton', forcedDir = null, meta = {}) {
+    const pb = this.state.penaltyBattle;
+    const dirs = ['left', 'center', 'right'];
+    const shotDir = dirs.includes(forcedDir) ? forcedDir : dirs[Math.floor(Math.random() * dirs.length)];
+    // Goalkeeper dives toward current chat-voted keeperDir (70% chance) or random dive (30%)
+    const keeperDir = (Math.random() < 0.7 && dirs.includes(pb.keeperDir))
+      ? pb.keeperDir
+      : dirs[Math.floor(Math.random() * dirs.length)];
+    const isGoal = shotDir !== keeperDir;
+
+    if (isGoal) {
+      pb.goals = (Number(pb.goals) || 0) + 1;
+      if (pb.goalEffectId) {
+        this.triggerEffect(pb.goalEffectId, user, 'penalty_goal');
+      }
+    } else {
+      pb.saves = (Number(pb.saves) || 0) + 1;
+      if (pb.saveEffectId) {
+        this.triggerEffect(pb.saveEffectId, user, 'penalty_save');
+      }
+    }
+
+    const shot = {
+      id: `shot_${Date.now()}`,
+      user,
+      shotDir,
+      keeperDir,
+      isGoal,
+      giftName: meta.giftName || '',
+      coins: Number(meta.coins) || 0,
+      time: Date.now()
+    };
+    pb.lastShot = shot;
+    // Rotate keeper stance randomly for next shot
+    pb.keeperDir = dirs[Math.floor(Math.random() * dirs.length)];
+
+    this.saveConfig();
+    this.broadcast({
+      type: 'penalty_shot',
+      shot,
+      penaltyBattle: pb
+    });
+    this._broadcastState('penaltyBattle');
+    return shot;
+  }
+
+  updateSocials(patch = {}) {
+    if (patch.enabled !== undefined) this.state.socials.enabled = Boolean(patch.enabled);
+    if (patch.intervalSec !== undefined) this.state.socials.intervalSec = Math.max(2, Number(patch.intervalSec) || 6);
+    if (Array.isArray(patch.items)) {
+      this.state.socials.items = patch.items
+        .filter(it => it && String(it.handle || '').trim())
+        .map(it => ({
+          platform: String(it.platform || 'custom'),
+          icon: String(it.icon || '🔗'),
+          handle: String(it.handle || '').trim()
+        }));
+    }
+    this.saveConfig();
+    this._broadcastState('socials');
+    return this.state.socials;
+  }
+
+  updateSeasonalFx(patch = {}) {
+    this.state.seasonalFx = {
+      ...this.state.seasonalFx,
+      ...patch,
+      enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : this.state.seasonalFx.enabled,
+      mode: ['snow', 'sakura', 'confetti', 'matrix'].includes(patch.mode) ? patch.mode : this.state.seasonalFx.mode,
+      density: Math.max(10, Math.min(120, Number(patch.density ?? this.state.seasonalFx.density) || 45))
+    };
+    this.saveConfig();
+    this._broadcastState('seasonalFx');
+    return this.state.seasonalFx;
   }
 }
 

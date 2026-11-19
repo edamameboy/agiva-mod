@@ -113,10 +113,16 @@ function synthesizeOnce(endpoint, { text, voice, rate, pitch, timeoutMs }) {
 
     const cleanup = () => {
       clearTimeout(timer);
-      try { ws.removeAllListeners(); } catch {}
       try {
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.removeAllListeners();
+        // Always keep a no-op error listener so async abortHandshake errors never become uncaughtException
+        ws.on('error', () => {});
+      } catch {}
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
           ws.close();
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          ws.terminate();
         }
       } catch {}
     };

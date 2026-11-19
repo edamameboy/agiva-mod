@@ -105,7 +105,7 @@ class SpotifyDriver {
 
   exportRawConfig() {
     return {
-      config: { ...this.config, accessToken: '', refreshToken: '' },
+      config: { ...this.config, clientSecret: '', accessToken: '', refreshToken: '' },
       queue: this.queue
     };
   }
@@ -220,7 +220,7 @@ class SpotifyDriver {
           path: parsed.pathname + parsed.search,
           method,
           headers: {
-            'User-Agent': 'agiva-mod/1.6.0',
+            'User-Agent': 'agiva-mod/1.7.0',
             'Accept': 'application/json',
             ...headers
           },

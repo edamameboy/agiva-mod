@@ -1,6 +1,6 @@
 {
   "name": "tiktok-live-bridge",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "TikTok Live bridge server for game mods",
   "main": "src/main.js",
   "repository": {
@@ -35,6 +35,8 @@
       "!data/intervals-config.json",
       "!data/spotify-config.json",
       "!data/integrations-config.json",
+      "!data/obs-config.json",
+      "!data/donation-config.json",
       "effects-config.json",
       "gifts-data.json",
       ".env.example",

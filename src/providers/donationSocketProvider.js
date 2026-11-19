@@ -102,7 +102,12 @@ class DonationSocketProvider {
 
     // Close existing sockets
     for (const [k, ws] of Object.entries(this.sockets)) {
-      try { ws.removeAllListeners(); ws.close(); } catch {}
+      try {
+        ws.removeAllListeners();
+        ws.on('error', () => {});
+        if (ws.readyState === WebSocket.OPEN) ws.close();
+        else if (ws.readyState === WebSocket.CONNECTING) ws.terminate();
+      } catch {}
       delete this.sockets[k];
     }
 

@@ -83,7 +83,12 @@ class ObsDriver {
     if (this.ws) {
       try {
         this.ws.removeAllListeners();
-        this.ws.close();
+        this.ws.on('error', () => {});
+        if (this.ws.readyState === WebSocket.OPEN) {
+          this.ws.close();
+        } else if (this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.terminate();
+        }
       } catch {}
       this.ws = null;
     }
@@ -119,7 +124,11 @@ class ObsDriver {
       const timeout = setTimeout(() => {
         if (!settled) {
           settled = true;
-          try { ws.close(); } catch {}
+          try {
+            ws.on('error', () => {});
+            if (ws.readyState === WebSocket.OPEN) ws.close();
+            else if (ws.readyState === WebSocket.CONNECTING) ws.terminate();
+          } catch {}
           reject(new Error('OBS WebSocket connection timeout (pastikan OBS WebSocket Server aktif di Tools -> WebSocket Server Settings)'));
         }
       }, 4500);

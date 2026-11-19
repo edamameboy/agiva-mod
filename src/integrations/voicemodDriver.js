@@ -184,7 +184,12 @@ class VoicemodDriver {
 
   disconnectVoicemod(emit = true) {
     if (this.ws) {
-      try { this.ws.terminate(); } catch {}
+      try {
+        this.ws.removeAllListeners();
+        this.ws.on('error', () => {});
+        if (this.ws.readyState === WebSocket.OPEN) this.ws.close();
+        else this.ws.terminate();
+      } catch {}
       this.ws = null;
     }
     this.isConnected = false;
@@ -277,7 +282,7 @@ class VoicemodDriver {
           method: preset.method || 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'agiva-mod/1.6.0'
+            'User-Agent': 'agiva-mod/1.7.0'
           },
           timeout: 5000
         }, (res) => {

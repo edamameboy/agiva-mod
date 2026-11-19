@@ -2,6 +2,14 @@ const { app, BrowserWindow, globalShortcut, session, shell, dialog } = require('
 const path = require('path');
 const paths = require('./paths');
 
+// Prevent background WebSocket / network errors from popping up blocking Electron error dialogs mid-stream
+process.on('uncaughtException', (err) => {
+  console.error('[Main] Uncaught Exception (guarded):', err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Main] Unhandled Rejection (guarded):', reason?.message || reason);
+});
+
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {

@@ -898,8 +898,10 @@ async function connectTikTok(username, requestedMode) {
   if (tiktokConnection) {
     try {
       tiktokConnection.removeAllListeners?.();
+      tiktokConnection.on?.('error', () => {});
       if (typeof tiktokConnection.disconnect === 'function') tiktokConnection.disconnect();
-      else if (typeof tiktokConnection.close === 'function') tiktokConnection.close();
+      else if (tiktokConnection.readyState === WebSocket.OPEN && typeof tiktokConnection.close === 'function') tiktokConnection.close();
+      else if (typeof tiktokConnection.terminate === 'function') tiktokConnection.terminate();
     } catch {}
     tiktokConnection = null;
   }
@@ -1129,8 +1131,10 @@ function disconnectTikTok() {
   if (tiktokConnection) {
     try {
       tiktokConnection.removeAllListeners?.();
+      tiktokConnection.on?.('error', () => {});
       if (typeof tiktokConnection.disconnect === 'function') tiktokConnection.disconnect();
-      else if (typeof tiktokConnection.close === 'function') tiktokConnection.close();
+      else if (tiktokConnection.readyState === WebSocket.OPEN && typeof tiktokConnection.close === 'function') tiktokConnection.close();
+      else if (typeof tiktokConnection.terminate === 'function') tiktokConnection.terminate();
     } catch {}
     tiktokConnection = null;
   }
@@ -1993,6 +1997,27 @@ app.post('/api/widgets/coin-jar', (req, res) => {
 app.post('/api/widgets/records/reset', (req, res) => {
   const result = widgetManager.resetRecords();
   res.json({ success: true, ...result });
+});
+
+app.post('/api/widgets/stream-buddies', (req, res) => {
+  const streamBuddies = widgetManager.updateStreamBuddies(req.body || {});
+  res.json({ success: true, streamBuddies });
+});
+
+app.post('/api/widgets/penalty-battle', (req, res) => {
+  const { action = 'config', ...rest } = req.body || {};
+  const result = widgetManager.controlPenaltyBattle(action, rest);
+  res.json({ success: true, result, penaltyBattle: widgetManager.state.penaltyBattle });
+});
+
+app.post('/api/widgets/socials', (req, res) => {
+  const socials = widgetManager.updateSocials(req.body || {});
+  res.json({ success: true, socials });
+});
+
+app.post('/api/widgets/seasonal-fx', (req, res) => {
+  const seasonalFx = widgetManager.updateSeasonalFx(req.body || {});
+  res.json({ success: true, seasonalFx });
 });
 
 // Points & Loyalty APIs
@@ -2894,7 +2919,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.6.0      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.7.0      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);

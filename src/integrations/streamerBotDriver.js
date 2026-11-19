@@ -204,7 +204,12 @@ class StreamerBotDriver {
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      try { this.ws.terminate(); } catch {}
+      try {
+        this.ws.removeAllListeners();
+        this.ws.on('error', () => {});
+        if (this.ws.readyState === WebSocket.OPEN) this.ws.close();
+        else this.ws.terminate();
+      } catch {}
       this.ws = null;
     }
     this.isConnected = false;

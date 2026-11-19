@@ -2953,7 +2953,7 @@ function renderUpdateModal(update, state = 'idle') {
   const btnCheck = document.getElementById('btn-modal-check-update');
   const btnApply = document.getElementById('btn-modal-apply-update');
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.6.0';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.7.0';
   if (curVerEl) curVerEl.textContent = `v${curVer}`;
   if (modeEl) modeEl.textContent = formatUpdateModeLabel(update);
 
@@ -3032,7 +3032,7 @@ async function startAutoUpdateDownload(update) {
     return;
   }
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.6.0';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.7.0';
   const nextVer = update?.latestVersion || 'terbaru';
   const confirmMsg = `Unduh dan pasang Agiva Mod v${nextVer} (dari v${curVer}) secara otomatis sekarang?\n\nDi mode Portable, file .exe akan otomatis ditimpa dan aplikasi langsung me-restart tanpa perlu install ulang.`;
   if (!confirm(confirmMsg)) return;
@@ -3107,7 +3107,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.6.0'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.7.0'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       setTopbarUpdateBadge(res, 'idle');
@@ -3227,7 +3227,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.6.0'}`;
+  const curVerStr = `v${status.appVersion || '1.7.0'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -3947,9 +3947,80 @@ function syncMiniGamesUi(force = false) {
     });
     const cj = widgetState.coinJar || {};
     setWidgetInputIfIdle('cj-capacity', cj.capacityCoins || 500, force);
+
+    const pb = widgetState.penaltyBattle || {};
+    setWidgetInputIfIdle('pb-min-coins', pb.minCoinsToShoot || 5, force);
+
+    const sb = widgetState.streamBuddies || {};
+    setWidgetInputIfIdle('sb-max-buddies', sb.maxBuddies || 8, force);
+
+    const sfx = widgetState.seasonalFx || {};
+    setWidgetInputIfIdle('seasonal-fx-mode', sfx.mode || 'snow', force);
+
+    const soc = widgetState.socials || {};
+    if (Array.isArray(soc.items) && soc.items.length > 0) {
+      const str = soc.items.map(it => `${it.platform}:${it.handle}`).join(', ');
+      setWidgetInputIfIdle('socials-handles-input', str, force);
+    }
+  }
+  const pb = widgetState.penaltyBattle || {};
+  const pbBadge = document.getElementById('pb-status-badge');
+  if (pbBadge) {
+    pbBadge.textContent = `GOL ${pb.goals || 0} : ${pb.saves || 0} SAVE`;
   }
   miniGamesHydrated = true;
 }
+
+document.getElementById('btn-pb-shoot')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/widgets/penalty-battle', { action: 'shoot', user: 'Streamer_Test' });
+  if (res.penaltyBattle) {
+    widgetState.penaltyBattle = res.penaltyBattle;
+    syncMiniGamesUi(false);
+    toast(res.result?.isGoal ? '⚽ GOOOLL!' : '🧤 DITANGKAP KIPER!', res.result?.isGoal ? 'success' : 'info');
+  }
+});
+
+document.getElementById('btn-pb-save')?.addEventListener('click', async () => {
+  const minCoinsToShoot = Number(document.getElementById('pb-min-coins')?.value) || 5;
+  const res = await api('POST', '/api/widgets/penalty-battle', { action: 'config', minCoinsToShoot, active: true });
+  if (res.penaltyBattle) {
+    widgetState.penaltyBattle = res.penaltyBattle;
+    syncMiniGamesUi(false);
+    toast('Pengaturan Penalty Battle disimpan!', 'success');
+  }
+});
+
+document.getElementById('btn-pb-reset')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/widgets/penalty-battle', { action: 'reset' });
+  if (res.penaltyBattle) {
+    widgetState.penaltyBattle = res.penaltyBattle;
+    syncMiniGamesUi(false);
+    toast('Skor Penalty Battle di-reset.', 'info');
+  }
+});
+
+document.getElementById('btn-extra-overlays-save')?.addEventListener('click', async () => {
+  const maxBuddies = Number(document.getElementById('sb-max-buddies')?.value) || 8;
+  const mode = document.getElementById('seasonal-fx-mode')?.value || 'snow';
+  const rawSoc = document.getElementById('socials-handles-input')?.value.trim() || '';
+
+  await api('POST', '/api/widgets/stream-buddies', { enabled: true, maxBuddies });
+  await api('POST', '/api/widgets/seasonal-fx', { enabled: true, mode });
+
+  if (rawSoc) {
+    const iconMap = { tiktok: '🎵', instagram: '📸', youtube: '▶️', saweria: '💸', discord: '💬', twitter: '🐦' };
+    const items = rawSoc.split(',').map(part => {
+      const [plat, ...rest] = part.trim().split(':');
+      const handle = rest.length > 0 ? rest.join(':').trim() : plat.trim();
+      const platform = (rest.length > 0 ? plat.trim() : 'tiktok').toLowerCase();
+      return { platform, icon: iconMap[platform] || '🔗', handle };
+    }).filter(it => it.handle);
+    if (items.length > 0) {
+      await api('POST', '/api/widgets/socials', { enabled: true, items });
+    }
+  }
+  toast('Stream Buddies, Social Rotator & Seasonal FX diperbarui!', 'success');
+});
 
 function readGiftBattlePayload(action) {
   return {
