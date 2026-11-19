@@ -2,24 +2,61 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const paths = require('../paths');
+const edgeTtsProvider = require('./edgeTtsProvider');
 
 const SOUNDS_DIR = paths.SOUNDS_DIR;
 const TTS_CONFIG_PATH = paths.TTS_CONFIG_PATH;
 
+const BUILT_IN_SOUND_IDS = new Set([
+  'horn_basuri',
+  'siren_police',
+  'coin_jackpot',
+  'explosion_boom',
+  'jump_boing',
+  'alert_danger',
+  'victory_fanfare',
+  'laser_zap'
+]);
+
+const TTS_LANG_MAP = {
+  'id-id': { google: 'id', speech: 'id-ID' },
+  'id': { google: 'id', speech: 'id-ID' },
+  'jv-id': { google: 'jw', speech: 'jv-ID' },
+  'jv': { google: 'jw', speech: 'jv-ID' },
+  'jw': { google: 'jw', speech: 'jv-ID' },
+  'su-id': { google: 'su', speech: 'su-ID' },
+  'su': { google: 'su', speech: 'su-ID' },
+  'ms-my': { google: 'ms', speech: 'ms-MY' },
+  'ms': { google: 'ms', speech: 'ms-MY' },
+  'en-us': { google: 'en', speech: 'en-US' },
+  'en': { google: 'en', speech: 'en-US' },
+  'ja-jp': { google: 'ja', speech: 'ja-JP' },
+  'ja': { google: 'ja', speech: 'ja-JP' }
+};
+
 const DEFAULT_CONFIG = {
   tts: {
     enabled: true,
+    readChat: true,
     chatMode: 'command', // 'off' | 'command' | 'all'
     chatCommand: '!tts',
     allowedRole: 'everyone', // 'everyone' | 'follower' | 'subscriber' | 'moderator' | 'min_gifter' | 'specific_users'
     allowedUsers: '', // comma-separated usernames for 'specific_users'
+    specificUsers: [],
     minGifterLevel: 1,
+    lang: 'id-ID',
+    engine: 'auto', // 'auto' | 'edge' | 'google'
+    edgeVoice: 'id-ID-GadisNeural',
+    randomVoice: false,
     voicePreset: 'id-ID-Standard', // 'id-ID-Standard' | 'id-ID-Fast' | 'id-ID-Deep' | 'id-ID-Chipmunk' | 'en-US' | 'ja-JP'
     volume: 0.9,
     rate: 1.0,
+    speed: 1.0,
     pitch: 1.0,
     maxLength: 140,
+    maxQueueLength: 10,
     cooldownSec: 3,
+    userCooldownSec: 3,
     readGifts: true,
     minGiftCoinsForTts: 5,
     giftTemplate: '{nickname} mengirim {repeatcount} {giftname}!',
@@ -145,8 +182,203 @@ class AudioTtsDriver {
     this.broadcast = broadcastFn || (() => {});
     this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     this.userLastTtsAt = new Map();
+    this.audioCache = new Map(); // cacheKey -> { buffer, engine }
+    this.cacheBytes = 0;
+    this.maxCacheEntries = 100;
+    this.maxCacheBytes = 15 * 1024 * 1024;
+    this.ttsLogs = [];
     ensureBuiltInSounds();
     this.loadConfig();
+  }
+
+  getAvailableVoices() {
+    return edgeTtsProvider.EDGE_VOICES;
+  }
+
+  getLogs() {
+    return this.ttsLogs;
+  }
+
+  clearLogs() {
+    this.ttsLogs = [];
+    return this.ttsLogs;
+  }
+
+  _addLog(entry) {
+    this.ttsLogs.unshift({
+      time: new Date().toISOString(),
+      ...entry
+    });
+    if (this.ttsLogs.length > 100) {
+      this.ttsLogs.length = 100;
+    }
+  }
+
+  _cacheGet(key) {
+    if (!this.audioCache.has(key)) return null;
+    const entry = this.audioCache.get(key);
+    this.audioCache.delete(key);
+    this.audioCache.set(key, entry);
+    return entry;
+  }
+
+  _cacheSet(key, buffer, engine) {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) return;
+    if (buffer.length > this.maxCacheBytes) return;
+    if (this.audioCache.has(key)) {
+      const prev = this.audioCache.get(key);
+      this.cacheBytes -= prev.buffer.length;
+      this.audioCache.delete(key);
+    }
+    while (this.audioCache.size >= this.maxCacheEntries || (this.cacheBytes + buffer.length) > this.maxCacheBytes) {
+      const oldestKey = this.audioCache.keys().next().value;
+      if (!oldestKey) break;
+      const oldest = this.audioCache.get(oldestKey);
+      this.cacheBytes -= oldest.buffer.length;
+      this.audioCache.delete(oldestKey);
+    }
+    this.audioCache.set(key, { buffer, engine });
+    this.cacheBytes += buffer.length;
+  }
+
+  resolveEdgeVoice(explicitVoice, speechLang = 'id-ID', randomVoice = false) {
+    const voices = edgeTtsProvider.EDGE_VOICES;
+    if (randomVoice) {
+      const matching = voices.filter(v => v.lang.toLowerCase() === String(speechLang).toLowerCase());
+      const pool = matching.length > 0 ? matching : voices;
+      return pool[Math.floor(Math.random() * pool.length)].id;
+    }
+    if (explicitVoice && voices.some(v => v.id === explicitVoice)) {
+      return explicitVoice;
+    }
+    const cfgVoice = this.config.tts.edgeVoice;
+    if (cfgVoice && voices.some(v => v.id === cfgVoice)) {
+      const cfgLang = cfgVoice.split('-').slice(0, 2).join('-').toLowerCase();
+      if (cfgLang === String(speechLang).toLowerCase()) {
+        return cfgVoice;
+      }
+    }
+    return edgeTtsProvider.LANG_TO_DEFAULT_EDGE_VOICE[speechLang] || 'id-ID-GadisNeural';
+  }
+
+  _parseUserList(val) {
+    if (Array.isArray(val)) {
+      return val.map(s => String(s || '').trim()).filter(Boolean);
+    }
+    if (typeof val === 'string') {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
+  _normalizeTtsConfig(tts = {}, rawUpdates = null) {
+    const next = { ...DEFAULT_CONFIG.tts, ...tts };
+
+    // Volume: accept 0..1 or 0..100
+    const rawVol = Number(next.volume);
+    if (Number.isFinite(rawVol)) {
+      next.volume = rawVol > 1 ? Math.min(1, Math.max(0, rawVol / 100)) : Math.min(1, Math.max(0, rawVol));
+    } else {
+      next.volume = 0.9;
+    }
+
+    // Rate / Speed aliases
+    const rawRate = (rawUpdates && rawUpdates.speed !== undefined && rawUpdates.rate === undefined)
+      ? Number(rawUpdates.speed)
+      : Number(next.rate ?? next.speed ?? 1.0);
+    const clampedRate = Math.min(2.0, Math.max(0.5, Number.isFinite(rawRate) ? rawRate : 1.0));
+    next.rate = clampedRate;
+    next.speed = clampedRate;
+
+    // Cooldown aliases
+    const rawCd = (rawUpdates && rawUpdates.userCooldownSec !== undefined && rawUpdates.cooldownSec === undefined)
+      ? Number(rawUpdates.userCooldownSec)
+      : Number(next.cooldownSec ?? next.userCooldownSec ?? 3);
+    const clampedCd = Math.max(0, Number.isFinite(rawCd) ? rawCd : 3);
+    next.cooldownSec = clampedCd;
+    next.userCooldownSec = clampedCd;
+
+    // Min gifter level aliases
+    const rawMinGifter = (rawUpdates && rawUpdates.minGifterCoins !== undefined && rawUpdates.minGifterLevel === undefined)
+      ? Number(rawUpdates.minGifterCoins)
+      : Number(next.minGifterLevel ?? next.minGifterCoins ?? 1);
+    next.minGifterLevel = Math.max(0, Number.isFinite(rawMinGifter) ? rawMinGifter : 1);
+
+    // Allowed users / specificUsers sync (string <-> array)
+    let userList = [];
+    if (rawUpdates) {
+      if ('allowedUsers' in rawUpdates && !('specificUsers' in rawUpdates)) {
+        userList = this._parseUserList(rawUpdates.allowedUsers);
+      } else if ('specificUsers' in rawUpdates && !('allowedUsers' in rawUpdates)) {
+        userList = this._parseUserList(rawUpdates.specificUsers);
+      } else if ('allowedUsers' in rawUpdates && 'specificUsers' in rawUpdates) {
+        const aList = this._parseUserList(rawUpdates.allowedUsers);
+        const sList = this._parseUserList(rawUpdates.specificUsers);
+        userList = aList.length > 0 ? aList : sList;
+      } else {
+        const aList = this._parseUserList(next.allowedUsers);
+        const sList = this._parseUserList(next.specificUsers);
+        userList = aList.length > 0 ? aList : sList;
+      }
+    } else {
+      const aList = this._parseUserList(next.allowedUsers);
+      const sList = this._parseUserList(next.specificUsers);
+      userList = aList.length > 0 ? aList : sList;
+    }
+    next.specificUsers = userList;
+    next.allowedUsers = userList.join(', ');
+
+    // Chat command / trigger mode / readChat sync
+    if (rawUpdates && 'commentPrefix' in rawUpdates && !('chatCommand' in rawUpdates)) {
+      next.chatCommand = String(rawUpdates.commentPrefix || '!tts').trim() || '!tts';
+    } else {
+      next.chatCommand = String(next.chatCommand || next.commentPrefix || '!tts').trim() || '!tts';
+    }
+    next.commentPrefix = next.chatCommand;
+
+    if (rawUpdates) {
+      if ('readChat' in rawUpdates && rawUpdates.readChat === false) {
+        next.readChat = false;
+        next.chatMode = 'off';
+      } else if ('chatMode' in rawUpdates) {
+        next.chatMode = ['off', 'command', 'all'].includes(rawUpdates.chatMode) ? rawUpdates.chatMode : 'command';
+        next.readChat = next.chatMode !== 'off';
+      } else if ('commentTriggerMode' in rawUpdates) {
+        if (rawUpdates.commentTriggerMode === 'prefix') {
+          next.chatMode = 'command';
+          next.readChat = true;
+        } else if (rawUpdates.commentTriggerMode === 'all') {
+          next.chatMode = 'all';
+          next.readChat = true;
+        } else if (rawUpdates.commentTriggerMode === 'off') {
+          next.chatMode = 'off';
+          next.readChat = false;
+        }
+      } else if ('readChat' in rawUpdates && rawUpdates.readChat === true && next.chatMode === 'off') {
+        next.chatMode = next.commentTriggerMode === 'all' ? 'all' : 'command';
+      }
+    } else {
+      if (next.readChat === false || next.chatMode === 'off') {
+        next.readChat = false;
+        next.chatMode = 'off';
+      } else {
+        next.readChat = true;
+        if (!['command', 'all'].includes(next.chatMode)) {
+          next.chatMode = next.commentTriggerMode === 'all' ? 'all' : 'command';
+        }
+      }
+    }
+    next.commentTriggerMode = next.chatMode === 'command' ? 'prefix' : (next.chatMode === 'all' ? 'all' : 'off');
+
+    next.lang = next.lang || 'id-ID';
+    next.engine = ['auto', 'edge', 'google'].includes(next.engine) ? next.engine : 'auto';
+    next.edgeVoice = next.edgeVoice || edgeTtsProvider.LANG_TO_DEFAULT_EDGE_VOICE[next.lang] || 'id-ID-GadisNeural';
+    next.randomVoice = Boolean(next.randomVoice);
+    next.voicePreset = next.voicePreset || 'id-ID-Standard';
+    next.maxLength = Math.min(500, Math.max(20, Number(next.maxLength) || 140));
+    next.maxQueueLength = Math.min(50, Math.max(1, Number(next.maxQueueLength) || 10));
+
+    return next;
   }
 
   loadConfig() {
@@ -156,7 +388,7 @@ class AudioTtsDriver {
       if (fs.existsSync(TTS_CONFIG_PATH)) {
         const saved = JSON.parse(fs.readFileSync(TTS_CONFIG_PATH, 'utf8'));
         this.config = {
-          tts: { ...DEFAULT_CONFIG.tts, ...(saved.tts || {}) },
+          tts: this._normalizeTtsConfig(saved.tts || {}, null),
           soundboard: {
             ...DEFAULT_CONFIG.soundboard,
             ...(saved.soundboard || {}),
@@ -175,7 +407,9 @@ class AudioTtsDriver {
 
   saveConfig(nextConfig) {
     if (nextConfig) {
-      if (nextConfig.tts) this.config.tts = { ...this.config.tts, ...nextConfig.tts };
+      if (nextConfig.tts) {
+        this.config.tts = this._normalizeTtsConfig({ ...this.config.tts, ...nextConfig.tts }, nextConfig.tts);
+      }
       if (nextConfig.soundboard) {
         this.config.soundboard = {
           ...this.config.soundboard,
@@ -185,6 +419,8 @@ class AudioTtsDriver {
             : this.config.soundboard.items
         };
       }
+    } else {
+      this.config.tts = this._normalizeTtsConfig(this.config.tts, null);
     }
     try {
       const dir = path.dirname(TTS_CONFIG_PATH);
@@ -208,11 +444,10 @@ class AudioTtsDriver {
     const uid = String(userMeta.uniqueId || userMeta.user || '').toLowerCase().replace(/^@/, '');
 
     if (role === 'specific_users') {
-      const list = String(allowedUsersStr || '')
-        .split(',')
-        .map(s => s.trim().toLowerCase().replace(/^@/, ''))
+      const list = this._parseUserList(allowedUsersStr)
+        .map(s => s.toLowerCase().replace(/^@/, ''))
         .filter(Boolean);
-      if (list.length === 0) return true;
+      if (list.length === 0) return false;
       return list.includes(uid);
     }
     if (role === 'follower') {
@@ -245,7 +480,7 @@ class AudioTtsDriver {
       clean = clean.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), 'bip');
     }
 
-    const maxLen = Number(this.config.tts.maxLength) || 140;
+    const maxLen = Math.min(500, Math.max(20, Number(this.config.tts.maxLength) || 140));
     if (clean.length > maxLen) {
       clean = clean.slice(0, maxLen);
     }
@@ -257,33 +492,77 @@ class AudioTtsDriver {
     return String(template)
       .replace(/\{nickname\}/gi, vars.nickname || vars.user || 'Penonton')
       .replace(/\{user\}/gi, vars.user || vars.nickname || 'Penonton')
-      .replace(/\{giftname\}/gi, vars.giftName || 'Gift')
+      .replace(/\{giftname\}|\{gift\}/gi, vars.giftName || 'Gift')
       .replace(/\{coins\}/gi, String(vars.coins ?? ''))
-      .replace(/\{repeatcount\}/gi, String(vars.repeatCount ?? 1))
+      .replace(/\{repeatcount\}|\{repeat\}/gi, String(vars.repeatCount ?? 1))
       .replace(/\{comment\}/gi, vars.comment || '')
       .replace(/\{amount\}/gi, vars.amount ? Number(vars.amount).toLocaleString('id-ID') : '0');
   }
 
-  getVoiceParams(preset) {
+  getVoiceParams(preset, explicitLang) {
     const p = preset || this.config.tts.voicePreset || 'id-ID-Standard';
+    const rawLang = explicitLang || (TTS_LANG_MAP[String(p).toLowerCase()] ? p : this.config.tts.lang) || 'id-ID';
+    const mapped = TTS_LANG_MAP[String(rawLang).toLowerCase()] || { google: 'id', speech: 'id-ID' };
+
     switch (p) {
       case 'id-ID-Fast':
-        return { lang: 'id', rate: 1.25, pitch: 1.05 };
+        return { lang: mapped.google, speechLang: mapped.speech, rate: 1.25, pitch: 1.05 };
       case 'id-ID-Deep':
-        return { lang: 'id', rate: 0.92, pitch: 0.72 };
+        return { lang: mapped.google, speechLang: mapped.speech, rate: 0.92, pitch: 0.72 };
       case 'id-ID-Chipmunk':
-        return { lang: 'id', rate: 1.18, pitch: 1.45 };
+        return { lang: mapped.google, speechLang: mapped.speech, rate: 1.18, pitch: 1.45 };
       case 'en-US':
-        return { lang: 'en', rate: 1.0, pitch: 1.0 };
-      case 'ja-JP':
-        return { lang: 'ja', rate: 1.0, pitch: 1.05 };
+      case 'ja-JP': {
+        const presetMapped = explicitLang ? mapped : TTS_LANG_MAP[p.toLowerCase()];
+        return {
+          lang: presetMapped.google,
+          speechLang: presetMapped.speech,
+          rate: Number(this.config.tts.rate) || 1.0,
+          pitch: Number(this.config.tts.pitch) || 1.0
+        };
+      }
       default:
         return {
-          lang: 'id',
+          lang: mapped.google,
+          speechLang: mapped.speech,
           rate: Number(this.config.tts.rate) || 1.0,
           pitch: Number(this.config.tts.pitch) || 1.0
         };
     }
+  }
+
+  _chunkText(text, maxChunkLen = 180) {
+    const clean = String(text || '').trim();
+    if (!clean) return [];
+    if (clean.length <= maxChunkLen) return [clean];
+
+    const chunks = [];
+    let rest = clean;
+    while (rest.length > 0) {
+      if (rest.length <= maxChunkLen) {
+        chunks.push(rest);
+        break;
+      }
+      const slice = rest.slice(0, maxChunkLen);
+      let splitAt = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? '),
+        slice.lastIndexOf(', ')
+      );
+      if (splitAt < Math.floor(maxChunkLen * 0.4)) {
+        splitAt = slice.lastIndexOf(' ');
+      }
+      if (splitAt <= 0) {
+        splitAt = maxChunkLen;
+      } else {
+        splitAt += 1;
+      }
+      const part = rest.slice(0, splitAt).trim();
+      if (part) chunks.push(part);
+      rest = rest.slice(splitAt).trim();
+    }
+    return chunks;
   }
 
   /**
@@ -294,18 +573,42 @@ class AudioTtsDriver {
     const text = this.sanitizeText(rawText);
     if (!text || text.length < 2) return false;
 
-    const vp = this.getVoiceParams(options.voicePreset);
+    const vp = this.getVoiceParams(options.voicePreset, options.lang);
+    const engine = options.engine || this.config.tts.engine || 'auto';
+    const voice = this.resolveEdgeVoice(options.voice, vp.speechLang, options.randomVoice ?? this.config.tts.randomVoice);
+    const rate = options.rate || vp.rate;
+    const pitch = options.pitch || vp.pitch;
+    const chunks = this._chunkText(text, 180);
+    const audioUrls = chunks.map(c =>
+      `/api/tts/stream?engine=${encodeURIComponent(engine)}&voice=${encodeURIComponent(voice)}&lang=${encodeURIComponent(vp.lang)}&rate=${encodeURIComponent(rate)}&pitch=${encodeURIComponent(pitch)}&text=${encodeURIComponent(c)}`
+    );
+    const id = `tts_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const payload = {
       type: 'tts_speak',
-      id: `tts_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id,
       text,
-      lang: options.lang || vp.lang,
-      rate: options.rate || vp.rate,
-      pitch: options.pitch || vp.pitch,
+      chunks,
+      engine,
+      voice,
+      lang: vp.lang,
+      speechLang: vp.speechLang,
+      rate,
+      pitch,
       volume: options.volume ?? this.config.tts.volume ?? 0.9,
       user: options.user || '',
-      audioUrl: `/api/tts/stream?lang=${encodeURIComponent(options.lang || vp.lang)}&text=${encodeURIComponent(text)}`
+      maxQueueLength: Number(this.config.tts.maxQueueLength) || 10,
+      audioUrl: audioUrls[0],
+      audioUrls
     };
+    this._addLog({
+      id,
+      user: payload.user || 'System',
+      text,
+      engine,
+      voice,
+      lang: vp.speechLang,
+      status: 'dispatched'
+    });
     this.broadcast(payload);
     return payload;
   }
@@ -313,8 +616,8 @@ class AudioTtsDriver {
   /**
    * Evaluate incoming chat message for automatic or !tts command reading
    */
-  handleChatTts(chatData, masterTtsEnabled = true) {
-    if (!masterTtsEnabled || !this.config.tts.enabled) return false;
+  handleChatTts(chatData, masterTtsEnabled = true, opts = {}) {
+    if (!masterTtsEnabled || !this.config.tts.enabled || this.config.tts.readChat === false) return false;
     const mode = this.config.tts.chatMode || 'command';
     if (mode === 'off') return false;
 
@@ -338,7 +641,7 @@ class AudioTtsDriver {
     const allowed = this.checkRoleAllowed(
       chatData,
       this.config.tts.allowedRole,
-      this.config.tts.allowedUsers,
+      this.config.tts.allowedUsers || this.config.tts.specificUsers,
       this.config.tts.minGifterLevel
     );
     if (!allowed) return false;
@@ -349,6 +652,9 @@ class AudioTtsDriver {
     const now = Date.now();
     if (cdMs > 0 && this.userLastTtsAt.has(uid)) {
       if (now - this.userLastTtsAt.get(uid) < cdMs) return false;
+    }
+    if (typeof opts.beforeSpeak === 'function' && opts.beforeSpeak() === false) {
+      return false;
     }
     this.userLastTtsAt.set(uid, now);
 
@@ -369,6 +675,7 @@ class AudioTtsDriver {
       soundId: item?.id || soundIdOrFile,
       name: item?.name || soundIdOrFile,
       file: fileUrl,
+      url: fileUrl,
       volume: options.volume ?? this.config.soundboard.volume ?? 0.85,
       overlap: options.overlap ?? this.config.soundboard.overlap ?? false,
       screen: Number(options.screen) || 1
@@ -384,7 +691,10 @@ class AudioTtsDriver {
   /**
    * Save an uploaded audio file (base64 data URI) into public/sounds/
    */
-  uploadSound({ name, icon = '🔊', color = '#6366f1', hotkey = '', filename, dataBase64 }) {
+  uploadSound(payload = {}) {
+    const { name, icon = '🔊', color = '#6366f1', hotkey = '' } = payload;
+    const filename = payload.filename || payload.fileName;
+    const dataBase64 = payload.dataBase64 || payload.base64Data;
     if (!filename || !dataBase64) throw new Error('filename dan dataBase64 diperlukan');
     const ext = path.extname(filename).toLowerCase();
     if (!['.mp3', '.wav', '.ogg', '.webm'].includes(ext)) {
@@ -394,6 +704,9 @@ class AudioTtsDriver {
     const finalName = `${safeBase}_${Date.now().toString(36)}${ext}`;
     const fullPath = path.join(SOUNDS_DIR, finalName);
 
+    if (!fs.existsSync(SOUNDS_DIR)) {
+      fs.mkdirSync(SOUNDS_DIR, { recursive: true });
+    }
     const rawBase64 = String(dataBase64).replace(/^data:[^;]+;base64,/, '');
     const buf = Buffer.from(rawBase64, 'base64');
     if (buf.length > 8 * 1024 * 1024) {
@@ -417,9 +730,107 @@ class AudioTtsDriver {
   deleteSound(id) {
     const idx = this.config.soundboard.items.findIndex(i => i.id === id);
     if (idx === -1) return false;
-    this.config.soundboard.items.splice(idx, 1);
+    const [removed] = this.config.soundboard.items.splice(idx, 1);
     this.saveConfig();
+
+    if (removed && !BUILT_IN_SOUND_IDS.has(removed.id) && removed.file && String(removed.file).startsWith('/sounds/')) {
+      try {
+        const fname = path.basename(removed.file);
+        const soundsRoot = path.resolve(SOUNDS_DIR);
+        const targetPath = path.resolve(soundsRoot, fname);
+        if (targetPath.startsWith(soundsRoot + path.sep) && fs.existsSync(targetPath)) {
+          fs.unlinkSync(targetPath);
+        }
+      } catch (e) {
+        console.error('[AudioTTS] Failed to delete sound file:', e.message);
+      }
+    }
     return true;
+  }
+
+  _fetchGoogleTtsBuffer(cleanText, mappedLang = 'id') {
+    return new Promise((resolve, reject) => {
+      const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(mappedLang)}&q=${encodeURIComponent(cleanText)}`;
+      https.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36'
+        },
+        timeout: 6000
+      }, (upRes) => {
+        if (upRes.statusCode !== 200) {
+          upRes.resume();
+          return reject(new Error(`Google TTS HTTP ${upRes.statusCode}`));
+        }
+        const chunks = [];
+        upRes.on('data', d => chunks.push(d));
+        upRes.on('end', () => resolve(Buffer.concat(chunks)));
+        upRes.on('error', reject);
+      }).on('error', reject).on('timeout', function () {
+        this.destroy();
+        reject(new Error('Google TTS timeout'));
+      });
+    });
+  }
+
+  /**
+   * Stream TTS audio using Edge Neural TTS (with LRU cache & Google TTS automatic fallback)
+   */
+  async streamTts(params = {}, res) {
+    const clean = String(params.text || '').slice(0, 220).trim();
+    if (!clean) {
+      res.status(400).end();
+      return;
+    }
+    const rawLang = params.lang || this.config.tts.lang || 'id';
+    const mapped = TTS_LANG_MAP[String(rawLang).toLowerCase()] || { google: rawLang || 'id', speech: 'id-ID' };
+    const engine = ['auto', 'edge', 'google'].includes(params.engine)
+      ? params.engine
+      : (this.config.tts.engine || 'auto');
+    const voice = this.resolveEdgeVoice(params.voice, mapped.speech, false);
+    const rate = Number(params.rate) || Number(this.config.tts.rate) || 1.0;
+    const pitch = Number(params.pitch) || Number(this.config.tts.pitch) || 1.0;
+
+    const cacheKey = `${engine}|${voice}|${mapped.google}|${rate}|${pitch}|${clean}`;
+    const cached = this._cacheGet(cacheKey);
+    if (cached) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('X-TTS-Cache', 'HIT');
+      res.setHeader('X-TTS-Engine', cached.engine);
+      res.end(cached.buffer);
+      return;
+    }
+
+    if (engine !== 'google') {
+      try {
+        const edgeBuf = await edgeTtsProvider.synthesize({ text: clean, voice, rate, pitch });
+        if (edgeBuf && edgeBuf.length > 0) {
+          this._cacheSet(cacheKey, edgeBuf, 'edge');
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.setHeader('X-TTS-Cache', 'MISS');
+          res.setHeader('X-TTS-Engine', 'edge');
+          res.end(edgeBuf);
+          return;
+        }
+      } catch (err) {
+        if (engine === 'edge') {
+          console.warn('[AudioTTS] Edge TTS error, falling back to Google:', err.message);
+        }
+      }
+    }
+
+    try {
+      const googleBuf = await this._fetchGoogleTtsBuffer(clean.slice(0, 200), mapped.google);
+      this._cacheSet(cacheKey, googleBuf, 'google');
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('X-TTS-Cache', 'MISS');
+      res.setHeader('X-TTS-Engine', 'google');
+      res.end(googleBuf);
+    } catch {
+      if (!res.headersSent) res.status(502).end();
+    }
   }
 
   /**
@@ -431,7 +842,8 @@ class AudioTtsDriver {
       res.status(400).end();
       return;
     }
-    const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(lang || 'id')}&q=${encodeURIComponent(clean)}`;
+    const mappedLang = TTS_LANG_MAP[String(lang || 'id').toLowerCase()]?.google || lang || 'id';
+    const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(mappedLang)}&q=${encodeURIComponent(clean)}`;
     https.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36'

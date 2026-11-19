@@ -10,11 +10,21 @@ const DEFAULT_WIDGETS_STATE = {
     defaultSec: 3600,
     isRunning: false,
     title: '⏳ SUBATHON TIMER',
+    boostEnabled: false,
+    boostMultiplier: 2,
+    randomBonusEnabled: false,
+    randomMinSec: 5,
+    randomMaxSec: 30,
+    hideWhenZero: false,
+    endEffectId: '',
+    endActionId: '',
     autoAdd: {
       enabled: true,
       secPerCoin: 2,
       secPer100Likes: 5,
       secPerFollow: 10,
+      secPerSub: 60,
+      secPerChat: 0,
       secPer10kIdr: 60
     }
   },
@@ -24,18 +34,23 @@ const DEFAULT_WIDGETS_STATE = {
     isSpinning: false,
     lastWinner: null,
     segments: [
-      { id: 'seg_1', label: '⚡ Speed Boost', color: '#6366f1', weight: 25, effectId: '' },
-      { id: 'seg_2', label: '💰 Bonus Uang', color: '#22c55e', weight: 25, effectId: '' },
-      { id: 'seg_3', label: '🌧️ Cuaca Buruk', color: '#38bdf8', weight: 20, effectId: '' },
-      { id: 'seg_4', label: '🤡 Troll / Zonk', color: '#f59e0b', weight: 20, effectId: '' },
-      { id: 'seg_5', label: '💀 JACKPOT RUSUH', color: '#ef4444', weight: 10, effectId: '' }
+      { id: 'seg_1', label: '⚡ Speed Boost', color: '#6366f1', weight: 25, effectId: '', actionId: '' },
+      { id: 'seg_2', label: '💰 Bonus Uang', color: '#22c55e', weight: 25, effectId: '', actionId: '' },
+      { id: 'seg_3', label: '🌧️ Cuaca Buruk', color: '#38bdf8', weight: 20, effectId: '', actionId: '' },
+      { id: 'seg_4', label: '🤡 Troll / Zonk', color: '#f59e0b', weight: 20, effectId: '', actionId: '' },
+      { id: 'seg_5', label: '💀 JACKPOT RUSUH', color: '#ef4444', weight: 10, effectId: '', actionId: '' }
     ]
   },
   goals: {
-    likes: { title: '❤️ Target Like', current: 0, target: 1000, autoScale: true, rewardEffectId: '' },
-    coins: { title: '💎 Target Koin Gift', current: 0, target: 500, autoScale: true, rewardEffectId: '' },
-    followers: { title: '👤 Target Follower Baru', current: 0, target: 50, autoScale: true, rewardEffectId: '' },
-    donations: { title: '💸 Target Donasi (Rp)', current: 0, target: 100000, autoScale: true, rewardEffectId: '' }
+    likes: { title: '❤️ Target Like', current: 0, target: 1000, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    coins: { title: '💎 Target Koin Gift', current: 0, target: 500, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    followers: { title: '👤 Target Follower Baru', current: 0, target: 50, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    donations: { title: '💸 Target Donasi (Rp)', current: 0, target: 100000, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    shares: { title: '🔄 Target Share Live', current: 0, target: 50, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    subscribers: { title: '⭐ Target Subscriber', current: 0, target: 20, autoScale: true, rewardEffectId: '', deadlineAt: 0 },
+    custom_1: { title: '🎯 Custom Goal 1', current: 0, target: 100, autoScale: false, rewardEffectId: '', deadlineAt: 0 },
+    custom_2: { title: '🔥 Custom Goal 2', current: 0, target: 100, autoScale: false, rewardEffectId: '', deadlineAt: 0 },
+    custom_3: { title: '👑 Custom Goal 3', current: 0, target: 100, autoScale: false, rewardEffectId: '', deadlineAt: 0 }
   },
   counter: {
     title: '⚔️ REKOR TANTANGAN',
@@ -64,25 +79,89 @@ const DEFAULT_WIDGETS_STATE = {
     participants: [], // [{ user, tickets }]
     winner: null
   },
+  lastX: {
+    follower: null,
+    gifter: null,
+    subscriber: null,
+    share: null,
+    like: null,
+    chatter: null
+  },
+  records: {
+    topGift: null,
+    topStreak: null
+  },
+  giftCounters: [
+    { id: 'slot_1', enabled: true, giftId: 5655, label: '🌹 Rose', count: 0, target: 100 },
+    { id: 'slot_2', enabled: false, giftId: 5879, label: '🍩 Doughnut', count: 0, target: 50 },
+    { id: 'slot_3', enabled: false, giftId: 5487, label: '🫰 Finger Heart', count: 0, target: 50 }
+  ],
+  giftBattle: {
+    active: false,
+    title: '⚔️ GIFT BATTLE',
+    target: 50,
+    left: { label: 'TEAM A (Rose)', giftId: 5655, score: 0, color: '#3b82f6', winEffectId: '', winActionId: '' },
+    right: { label: 'TEAM B (Doughnut)', giftId: 5879, score: 0, color: '#ef4444', winEffectId: '', winActionId: '' },
+    winner: null
+  },
+  coinMatch: {
+    active: false,
+    title: '🏆 COIN MATCH',
+    durationSec: 120,
+    remainingSec: 120,
+    entries: {},
+    showWinners: false,
+    topWinners: []
+  },
+  likeathon: {
+    active: false,
+    title: '🔥 LIKEATHON',
+    decayPercent: 10,
+    decayIntervalSec: 10,
+    lastDecayAt: 0,
+    scores: {}
+  },
+  coinJar: {
+    enabled: true,
+    title: '🪙 COIN JAR',
+    totalCoins: 0,
+    capacityCoins: 500
+  },
   screens: {
-    1: { name: 'Screen 1 (Utama / Tengah)', position: 'center', defaultDurationMs: 4000 },
-    2: { name: 'Screen 2 (Pojok Kanan Atas)', position: 'top-right', defaultDurationMs: 4000 },
-    3: { name: 'Screen 3 (Pojok Kiri Atas)', position: 'top-left', defaultDurationMs: 4000 },
-    4: { name: 'Screen 4 (Bawah / Memes)', position: 'bottom', defaultDurationMs: 5000 },
-    5: { name: 'Screen 5 (Full Screen Jumpscare)', position: 'fullscreen', defaultDurationMs: 3500 }
+    1: { name: 'Screen 1 (Utama / Tengah)', position: 'center', defaultDurationMs: 4000, maxQueueLength: 10 },
+    2: { name: 'Screen 2 (Pojok Kanan Atas)', position: 'top-right', defaultDurationMs: 4000, maxQueueLength: 10 },
+    3: { name: 'Screen 3 (Pojok Kiri Atas)', position: 'top-left', defaultDurationMs: 4000, maxQueueLength: 10 },
+    4: { name: 'Screen 4 (Bawah / Memes)', position: 'bottom', defaultDurationMs: 5000, maxQueueLength: 10 },
+    5: { name: 'Screen 5 (Full Screen Jumpscare)', position: 'fullscreen', defaultDurationMs: 3500, maxQueueLength: 10 }
+  },
+  theme: {
+    pack: 'default',
+    fontFamily: 'Inter',
+    fontSizeScale: 1.0,
+    textColor: '#f8fafc',
+    accentColor: '#6366f1',
+    bgColor: '#0b0f19',
+    bgOpacity: 0.9,
+    borderRadius: 16,
+    animation: 'pop',
+    customCss: ''
   }
 };
 
 class WidgetManager {
-  constructor({ broadcastFn, triggerEffectFn }) {
+  constructor({ broadcastFn, triggerEffectFn, triggerActionFn }) {
     this.broadcast = broadcastFn || (() => {});
     this.triggerEffect = triggerEffectFn || (() => {});
+    this.triggerAction = triggerActionFn || (() => {});
     this.state = JSON.parse(JSON.stringify(DEFAULT_WIDGETS_STATE));
     this.likeSubAccumulator = 0;
     this.pollVoters = new Set();
     this.pollTimeout = null;
     this.giftersMap = new Map(); // user -> { user, coins, gifts }
     this.likersMap = new Map();  // user -> { user, likes }
+    this._saveTimer = null;
+    this._dirty = false;
+    this._isWriting = false;
 
     this.loadConfig();
 
@@ -96,19 +175,48 @@ class WidgetManager {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       if (fs.existsSync(WIDGETS_CONFIG_PATH)) {
         const saved = JSON.parse(fs.readFileSync(WIDGETS_CONFIG_PATH, 'utf8'));
+        const mergedGoals = { ...DEFAULT_WIDGETS_STATE.goals };
+        for (const [k, v] of Object.entries(saved.goals || {})) {
+          mergedGoals[k] = { ...(DEFAULT_WIDGETS_STATE.goals[k] || {}), ...(v || {}) };
+        }
+        const mergedScreens = { ...DEFAULT_WIDGETS_STATE.screens };
+        for (const [k, v] of Object.entries(saved.screens || {})) {
+          mergedScreens[k] = { ...(DEFAULT_WIDGETS_STATE.screens[k] || {}), ...(v || {}) };
+        }
         this.state = {
           ...DEFAULT_WIDGETS_STATE,
           ...saved,
-          timer: { ...DEFAULT_WIDGETS_STATE.timer, ...(saved.timer || {}), isRunning: false },
+          timer: {
+            ...DEFAULT_WIDGETS_STATE.timer,
+            ...(saved.timer || {}),
+            autoAdd: { ...DEFAULT_WIDGETS_STATE.timer.autoAdd, ...(saved.timer?.autoAdd || {}) },
+            isRunning: false
+          },
           wheel: { ...DEFAULT_WIDGETS_STATE.wheel, ...(saved.wheel || {}), isSpinning: false },
-          goals: { ...DEFAULT_WIDGETS_STATE.goals, ...(saved.goals || {}) },
+          goals: mergedGoals,
           counter: { ...DEFAULT_WIDGETS_STATE.counter, ...(saved.counter || {}) },
           poll: { ...DEFAULT_WIDGETS_STATE.poll, ...(saved.poll || {}), active: false },
           giveaway: { ...DEFAULT_WIDGETS_STATE.giveaway, ...(saved.giveaway || {}) },
-          screens: { ...DEFAULT_WIDGETS_STATE.screens, ...(saved.screens || {}) }
+          lastX: { ...DEFAULT_WIDGETS_STATE.lastX, ...(saved.lastX || {}) },
+          records: { ...DEFAULT_WIDGETS_STATE.records, ...(saved.records || {}) },
+          giftCounters: Array.isArray(saved.giftCounters) && saved.giftCounters.length > 0
+            ? saved.giftCounters
+            : JSON.parse(JSON.stringify(DEFAULT_WIDGETS_STATE.giftCounters)),
+          giftBattle: {
+            ...DEFAULT_WIDGETS_STATE.giftBattle,
+            ...(saved.giftBattle || {}),
+            left: { ...DEFAULT_WIDGETS_STATE.giftBattle.left, ...(saved.giftBattle?.left || {}) },
+            right: { ...DEFAULT_WIDGETS_STATE.giftBattle.right, ...(saved.giftBattle?.right || {}) },
+            active: false
+          },
+          coinMatch: { ...DEFAULT_WIDGETS_STATE.coinMatch, ...(saved.coinMatch || {}), active: false },
+          likeathon: { ...DEFAULT_WIDGETS_STATE.likeathon, ...(saved.likeathon || {}), active: false },
+          coinJar: { ...DEFAULT_WIDGETS_STATE.coinJar, ...(saved.coinJar || {}) },
+          screens: mergedScreens,
+          theme: { ...DEFAULT_WIDGETS_STATE.theme, ...(saved.theme || {}) }
         };
       } else {
-        this.saveConfig();
+        this.flushSaveSync(true);
       }
     } catch (e) {
       console.error('[Widgets] Failed to load config:', e.message);
@@ -116,19 +224,72 @@ class WidgetManager {
   }
 
   saveConfig() {
+    this._dirty = true;
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._flushSaveAsync();
+    }, 2000);
+  }
+
+  async _flushSaveAsync() {
+    if (!this._dirty || this._isWriting) return;
+    this._isWriting = true;
+    this._dirty = false;
+    try {
+      const dir = path.dirname(WIDGETS_CONFIG_PATH);
+      await fs.promises.mkdir(dir, { recursive: true });
+      const tmp = `${WIDGETS_CONFIG_PATH}.tmp`;
+      await fs.promises.writeFile(tmp, JSON.stringify(this.state, null, 2), 'utf8');
+      await fs.promises.rename(tmp, WIDGETS_CONFIG_PATH);
+    } catch (e) {
+      console.error('[Widgets] Failed to save config:', e.message);
+    } finally {
+      this._isWriting = false;
+      if (this._dirty) this.saveConfig();
+    }
+  }
+
+  flushSaveSync(force = false) {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    if (!this._dirty && !force) return;
+    this._dirty = false;
     try {
       const dir = path.dirname(WIDGETS_CONFIG_PATH);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(WIDGETS_CONFIG_PATH, JSON.stringify(this.state, null, 2), 'utf8');
+      const tmp = `${WIDGETS_CONFIG_PATH}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2), 'utf8');
+      fs.renameSync(tmp, WIDGETS_CONFIG_PATH);
     } catch (e) {
-      console.error('[Widgets] Failed to save config:', e.message);
+      console.error('[Widgets] Failed to flush config:', e.message);
     }
+  }
+
+  _sortedLikeathonLeaderboard() {
+    return Object.entries(this.state.likeathon?.scores || {})
+      .map(([user, likes]) => ({ user, likes: Number(likes) || 0 }))
+      .filter(x => x.likes > 0)
+      .sort((a, b) => b.likes - a.likes)
+      .slice(0, 10);
+  }
+
+  _sortedCoinMatchLeaderboard() {
+    return Object.entries(this.state.coinMatch?.entries || {})
+      .map(([user, coins]) => ({ user, coins: Number(coins) || 0 }))
+      .filter(x => x.coins > 0)
+      .sort((a, b) => b.coins - a.coins)
+      .slice(0, 10);
   }
 
   getState() {
     return {
       ...this.state,
-      leaderboard: this.getLeaderboard()
+      leaderboard: this.getLeaderboard(),
+      likeathonLeaderboard: this._sortedLikeathonLeaderboard(),
+      coinMatchLeaderboard: this._sortedCoinMatchLeaderboard()
     };
   }
 
@@ -142,10 +303,12 @@ class WidgetManager {
 
   _onTick() {
     let changed = false;
+    let endedNow = false;
     if (this.state.timer.isRunning && this.state.timer.remainingSec > 0) {
       this.state.timer.remainingSec = Math.max(0, this.state.timer.remainingSec - 1);
       if (this.state.timer.remainingSec === 0) {
         this.state.timer.isRunning = false;
+        endedNow = true;
       }
       changed = true;
     }
@@ -153,6 +316,28 @@ class WidgetManager {
       this.endPoll();
       return;
     }
+
+    // Coin Match countdown
+    const cm = this.state.coinMatch;
+    if (cm && cm.active && cm.remainingSec > 0) {
+      cm.remainingSec = Math.max(0, cm.remainingSec - 1);
+      if (cm.remainingSec === 0) {
+        this.controlCoinMatch('end');
+      } else {
+        this._broadcastState('coinMatch');
+      }
+    }
+
+    // Likeathon auto-decay
+    const lk = this.state.likeathon;
+    if (lk && lk.active) {
+      const intervalMs = Math.max(2, Number(lk.decayIntervalSec) || 10) * 1000;
+      const now = Date.now();
+      if (now - (lk.lastDecayAt || 0) >= intervalMs) {
+        this._applyLikeathonDecay(now);
+      }
+    }
+
     if (changed) {
       this.broadcast({
         type: 'timer_tick',
@@ -161,6 +346,52 @@ class WidgetManager {
         title: this.state.timer.title
       });
     }
+    if (endedNow) {
+      this.broadcast({ type: 'timer_ended', title: this.state.timer.title });
+      if (this.state.timer.endEffectId) {
+        this.triggerEffect(this.state.timer.endEffectId, 'Timer 0:00', 'timer_end');
+      }
+      if (this.state.timer.endActionId) {
+        this.triggerAction(this.state.timer.endActionId, { user: 'Timer 0:00', source: 'timer_end' });
+      }
+      this.saveConfig();
+    }
+  }
+
+  _applyLikeathonDecay(now = Date.now()) {
+    const lk = this.state.likeathon;
+    lk.lastDecayAt = now;
+    const pct = Math.max(0, Math.min(95, Number(lk.decayPercent) || 10));
+    const ratio = 1 - pct / 100;
+    let mutated = false;
+    for (const [k, v] of Object.entries(lk.scores || {})) {
+      const next = Math.floor((Number(v) || 0) * ratio);
+      if (next <= 0) {
+        delete lk.scores[k];
+        mutated = true;
+      } else if (next !== v) {
+        lk.scores[k] = next;
+        mutated = true;
+      }
+    }
+    if (mutated) {
+      this._broadcastState('likeathon');
+    }
+  }
+
+  _computeTimerBonus(baseSec) {
+    let sec = Number(baseSec) || 0;
+    if (sec <= 0) return 0;
+    const t = this.state.timer;
+    if (t.boostEnabled) {
+      sec = Math.round(sec * Math.max(1, Number(t.boostMultiplier) || 2));
+    }
+    if (t.randomBonusEnabled) {
+      const minS = Math.max(0, Number(t.randomMinSec) || 0);
+      const maxS = Math.max(minS, Number(t.randomMaxSec) || minS);
+      sec += minS + Math.floor(Math.random() * (maxS - minS + 1));
+    }
+    return sec;
   }
 
   // ─── 1. Subathon Timer Controls ───────────────────────────────────────────
@@ -189,7 +420,17 @@ class WidgetManager {
     } else if (action === 'config' && value && typeof value === 'object') {
       if (value.title !== undefined) t.title = String(value.title);
       if (value.defaultSec !== undefined) t.defaultSec = Math.max(0, Number(value.defaultSec));
-      if (value.autoAdd) t.autoAdd = { ...t.autoAdd, ...value.autoAdd };
+      if (value.boostEnabled !== undefined) t.boostEnabled = Boolean(value.boostEnabled);
+      if (value.boostMultiplier !== undefined) t.boostMultiplier = Math.max(1, Number(value.boostMultiplier) || 2);
+      if (value.randomBonusEnabled !== undefined) t.randomBonusEnabled = Boolean(value.randomBonusEnabled);
+      if (value.randomMinSec !== undefined) t.randomMinSec = Math.max(0, Number(value.randomMinSec) || 0);
+      if (value.randomMaxSec !== undefined) t.randomMaxSec = Math.max(t.randomMinSec || 0, Number(value.randomMaxSec) || 30);
+      if (value.hideWhenZero !== undefined) t.hideWhenZero = Boolean(value.hideWhenZero);
+      if (value.endEffectId !== undefined) t.endEffectId = String(value.endEffectId || '');
+      if (value.endActionId !== undefined) t.endActionId = String(value.endActionId || '');
+      if (value.autoAdd && typeof value.autoAdd === 'object') {
+        t.autoAdd = { ...t.autoAdd, ...value.autoAdd };
+      }
     }
     this.saveConfig();
     this._broadcastState('timer');
@@ -201,12 +442,13 @@ class WidgetManager {
     if (title !== undefined) this.state.wheel.title = String(title);
     if (autoTriggerEffect !== undefined) this.state.wheel.autoTriggerEffect = Boolean(autoTriggerEffect);
     if (Array.isArray(segments) && segments.length > 0) {
-      this.state.wheel.segments = segments.map((s, idx) => ({
+      this.state.wheel.segments = segments.slice(0, 24).map((s, idx) => ({
         id: s.id || `seg_${idx + 1}`,
         label: s.label || `Opsi ${idx + 1}`,
         color: s.color || '#6366f1',
         weight: Math.max(1, Number(s.weight) || 10),
-        effectId: s.effectId || ''
+        effectId: s.effectId || '',
+        actionId: s.actionId || ''
       }));
     }
     this.saveConfig();
@@ -241,9 +483,14 @@ class WidgetManager {
     };
     this.broadcast(spinPayload);
 
-    if (this.state.wheel.autoTriggerEffect && winner.effectId) {
+    if (this.state.wheel.autoTriggerEffect && (winner.effectId || winner.actionId)) {
       setTimeout(() => {
-        this.triggerEffect(winner.effectId, `${triggeredBy} (Wheel: ${winner.label})`, 'wheel');
+        if (winner.effectId) {
+          this.triggerEffect(winner.effectId, `${triggeredBy} (Wheel: ${winner.label})`, 'wheel');
+        }
+        if (winner.actionId) {
+          this.triggerAction(winner.actionId, { user: triggeredBy, nickname: triggeredBy, wheelWinner: winner.label, source: 'wheel' });
+        }
       }, 4300);
     }
 
@@ -252,16 +499,36 @@ class WidgetManager {
 
   // ─── 3. Goal Bars Controls ────────────────────────────────────────────────
   updateGoal(goalType, updates = {}) {
-    if (!this.state.goals[goalType]) return null;
+    if (!this.state.goals[goalType]) {
+      this.state.goals[goalType] = { title: goalType, current: 0, target: 100, autoScale: false, rewardEffectId: '', deadlineAt: 0 };
+    }
     const g = this.state.goals[goalType];
     if (updates.title !== undefined) g.title = String(updates.title);
     if (updates.target !== undefined) g.target = Math.max(1, Number(updates.target));
     if (updates.current !== undefined) g.current = Math.max(0, Number(updates.current));
     if (updates.autoScale !== undefined) g.autoScale = Boolean(updates.autoScale);
     if (updates.rewardEffectId !== undefined) g.rewardEffectId = String(updates.rewardEffectId);
+    if (updates.countdownMinutes !== undefined) {
+      const mins = Math.max(0, Number(updates.countdownMinutes) || 0);
+      g.deadlineAt = mins > 0 ? (Date.now() + mins * 60000) : 0;
+    } else if (updates.deadlineAt !== undefined) {
+      g.deadlineAt = Math.max(0, Number(updates.deadlineAt) || 0);
+    }
     this.saveConfig();
     this._broadcastState('goals');
     return g;
+  }
+
+  adjustGoal(goalType, delta = 1, user = 'System') {
+    const d = Number(delta) || 0;
+    if (d > 0) {
+      this._incrementGoal(goalType, d, user);
+    } else if (d < 0 && this.state.goals[goalType]) {
+      this.state.goals[goalType].current = Math.max(0, (this.state.goals[goalType].current || 0) + d);
+      this.saveConfig();
+      this._broadcastState('goals');
+    }
+    return this.state.goals[goalType] || null;
   }
 
   _incrementGoal(goalType, amount, user = 'Penonton') {
@@ -423,10 +690,172 @@ class WidgetManager {
     this._broadcastState('giveaway');
   }
 
-  // ─── 8. Multi-Screen Media Alert (Screen 1..10) ───────────────────────────
+  // ─── 8. Multi-Screen Media Alert & Theme Customizer ───────────────────────
+  updateTheme(updates = {}) {
+    const t = this.state.theme;
+    if (updates.pack !== undefined) t.pack = String(updates.pack || 'default');
+    if (updates.fontFamily !== undefined) t.fontFamily = String(updates.fontFamily || 'Inter');
+    if (updates.fontSizeScale !== undefined) t.fontSizeScale = Math.max(0.6, Math.min(2.0, Number(updates.fontSizeScale) || 1.0));
+    if (updates.textColor !== undefined) t.textColor = String(updates.textColor || '#f8fafc');
+    if (updates.accentColor !== undefined) t.accentColor = String(updates.accentColor || '#6366f1');
+    if (updates.bgColor !== undefined) t.bgColor = String(updates.bgColor || '#0b0f19');
+    if (updates.bgOpacity !== undefined) t.bgOpacity = Math.max(0, Math.min(1, Number(updates.bgOpacity) ?? 0.9));
+    if (updates.borderRadius !== undefined) t.borderRadius = Math.max(0, Math.min(36, Number(updates.borderRadius) ?? 16));
+    if (updates.animation !== undefined) t.animation = String(updates.animation || 'pop');
+    if (updates.customCss !== undefined) t.customCss = String(updates.customCss || '').slice(0, 4000);
+    this.saveConfig();
+    this._broadcastState('theme');
+    return t;
+  }
+
+  // ─── 9. Mini-Games & PRO Overlays Controls (Phase 3) ──────────────────────
+  configureGiftCounters(slots = []) {
+    if (Array.isArray(slots)) {
+      this.state.giftCounters = slots.slice(0, 3).map((s, idx) => ({
+        id: s.id || `slot_${idx + 1}`,
+        enabled: s.enabled !== false,
+        giftId: s.giftId !== undefined && s.giftId !== '' && !isNaN(s.giftId) ? Number(s.giftId) : (s.giftId || 5655),
+        label: String(s.label || `Slot ${idx + 1}`),
+        count: Math.max(0, Number(s.count ?? this.state.giftCounters?.[idx]?.count) || 0),
+        target: Math.max(0, Number(s.target) || 0)
+      }));
+    }
+    this.saveConfig();
+    this._broadcastState('giftCounters');
+    return this.state.giftCounters;
+  }
+
+  controlGiftBattle(action = 'config', opts = {}) {
+    const gb = this.state.giftBattle;
+    if (opts.title !== undefined) gb.title = String(opts.title);
+    if (opts.target !== undefined) gb.target = Math.max(1, Number(opts.target) || 50);
+    if (opts.left && typeof opts.left === 'object') {
+      gb.left = {
+        ...gb.left,
+        ...opts.left,
+        giftId: !isNaN(opts.left.giftId) && opts.left.giftId !== '' ? Number(opts.left.giftId) : gb.left.giftId
+      };
+    }
+    if (opts.right && typeof opts.right === 'object') {
+      gb.right = {
+        ...gb.right,
+        ...opts.right,
+        giftId: !isNaN(opts.right.giftId) && opts.right.giftId !== '' ? Number(opts.right.giftId) : gb.right.giftId
+      };
+    }
+
+    if (action === 'start') {
+      gb.active = true;
+      gb.winner = null;
+      gb.left.score = 0;
+      gb.right.score = 0;
+    } else if (action === 'stop') {
+      gb.active = false;
+    } else if (action === 'reset') {
+      gb.active = false;
+      gb.winner = null;
+      gb.left.score = 0;
+      gb.right.score = 0;
+    }
+    this.saveConfig();
+    this._broadcastState('giftBattle');
+    return gb;
+  }
+
+  controlCoinMatch(action = 'config', opts = {}) {
+    const cm = this.state.coinMatch;
+    if (opts.title !== undefined) cm.title = String(opts.title);
+    if (opts.durationSec !== undefined) cm.durationSec = Math.max(10, Number(opts.durationSec) || 120);
+
+    if (action === 'start') {
+      cm.active = true;
+      cm.entries = {};
+      cm.topWinners = [];
+      cm.showWinners = false;
+      cm.remainingSec = cm.durationSec;
+    } else if (action === 'end' || action === 'stop') {
+      cm.active = false;
+      cm.topWinners = this._sortedCoinMatchLeaderboard().slice(0, 3);
+      cm.showWinners = true;
+      this.broadcast({ type: 'coin_match_ended', topWinners: cm.topWinners, coinMatch: cm });
+    } else if (action === 'reset') {
+      cm.active = false;
+      cm.entries = {};
+      cm.topWinners = [];
+      cm.showWinners = false;
+      cm.remainingSec = cm.durationSec;
+    } else if (action === 'show_winners') {
+      cm.showWinners = true;
+      cm.topWinners = this._sortedCoinMatchLeaderboard().slice(0, 3);
+    }
+    this.saveConfig();
+    this._broadcastState('coinMatch');
+    return cm;
+  }
+
+  controlLikeathon(action = 'config', opts = {}) {
+    const lk = this.state.likeathon;
+    if (opts.title !== undefined) lk.title = String(opts.title);
+    if (opts.decayPercent !== undefined) lk.decayPercent = Math.max(0, Math.min(95, Number(opts.decayPercent) ?? 10));
+    if (opts.decayIntervalSec !== undefined) lk.decayIntervalSec = Math.max(2, Number(opts.decayIntervalSec) || 10);
+
+    if (action === 'start') {
+      lk.active = true;
+      lk.lastDecayAt = Date.now();
+    } else if (action === 'stop' || action === 'pause') {
+      lk.active = false;
+    } else if (action === 'reset') {
+      lk.active = false;
+      lk.scores = {};
+      lk.lastDecayAt = 0;
+    }
+    this.saveConfig();
+    this._broadcastState('likeathon');
+    return lk;
+  }
+
+  controlCoinJar(action = 'config', opts = {}) {
+    const cj = this.state.coinJar;
+    if (opts.title !== undefined) cj.title = String(opts.title);
+    if (opts.enabled !== undefined) cj.enabled = Boolean(opts.enabled);
+    if (opts.capacityCoins !== undefined) cj.capacityCoins = Math.max(10, Number(opts.capacityCoins) || 500);
+    if (action === 'reset') {
+      cj.totalCoins = 0;
+    }
+    this.saveConfig();
+    this._broadcastState('coinJar');
+    return cj;
+  }
+
+  resetRecords() {
+    this.state.records = { topGift: null, topStreak: null };
+    this.state.lastX = { follower: null, gifter: null, subscriber: null, share: null, like: null, chatter: null };
+    for (const c of this.state.giftCounters || []) {
+      c.count = 0;
+    }
+    this.saveConfig();
+    this._broadcastState('records');
+    return { records: this.state.records, lastX: this.state.lastX, giftCounters: this.state.giftCounters };
+  }
+
+  updateScreenConfig(screenId, updates = {}) {
+    const sid = Math.max(1, Math.min(10, Number(screenId) || 1));
+    const cur = this.state.screens[sid] || { name: `Screen ${sid}`, position: 'center', defaultDurationMs: 4000, maxQueueLength: 10 };
+    this.state.screens[sid] = {
+      ...cur,
+      ...(updates.name !== undefined ? { name: String(updates.name) } : {}),
+      ...(updates.position !== undefined ? { position: String(updates.position) } : {}),
+      ...(updates.defaultDurationMs !== undefined ? { defaultDurationMs: Math.max(500, Number(updates.defaultDurationMs) || 4000) } : {}),
+      ...(updates.maxQueueLength !== undefined ? { maxQueueLength: Math.max(1, Math.min(50, Number(updates.maxQueueLength) || 10)) } : {})
+    };
+    this.saveConfig();
+    this._broadcastState('screens');
+    return this.state.screens[sid];
+  }
+
   triggerScreenAlert(screenId = 1, alertData = {}) {
     const sid = Math.max(1, Math.min(10, Number(screenId) || 1));
-    const screenCfg = this.state.screens[sid] || { name: `Screen ${sid}`, position: 'center', defaultDurationMs: 4000 };
+    const screenCfg = this.state.screens[sid] || { name: `Screen ${sid}`, position: 'center', defaultDurationMs: 4000, maxQueueLength: 10 };
     const payload = {
       type: 'screen_alert',
       screen: sid,
@@ -437,27 +866,104 @@ class WidgetManager {
       mediaType: alertData.mediaType || 'auto',
       soundUrl: alertData.soundUrl || '',
       color: alertData.color || '#6366f1',
-      durationMs: Number(alertData.durationMs) || screenCfg.defaultDurationMs || 4000
+      durationMs: Number(alertData.durationMs) || screenCfg.defaultDurationMs || 4000,
+      maxQueueLength: Number(screenCfg.maxQueueLength) || 10
     };
     this.broadcast(payload);
     return payload;
   }
 
-  // ─── Stream Event Hooks (Auto-update Timer, Goals, Leaderboard, Poll, Giveaway) ──
-  onGift({ user, coins = 1, giftName = '', repeatCount = 1 }) {
+  // ─── Stream Event Hooks (Auto-update Timer, Goals, Leaderboard, Poll, Giveaway, Mini-Games) ──
+  onGift({ user, coins = 1, giftName = '', giftId = '', repeatCount = 1, avatar = '' }) {
     const c = Number(coins) || 1;
+    const rep = Number(repeatCount) || 1;
+    const now = Date.now();
+
     // Update leaderboard
     const prev = this.giftersMap.get(user) || { user, coins: 0, gifts: 0 };
     prev.coins += c;
-    prev.gifts += (Number(repeatCount) || 1);
+    prev.gifts += rep;
     this.giftersMap.set(user, prev);
+
+    // Update Last X & Records
+    this.state.lastX.gifter = { user, giftName, giftId, coins: c, repeatCount: rep, avatar, time: now };
+    if (!this.state.records.topGift || c >= (this.state.records.topGift.coins || 0)) {
+      this.state.records.topGift = { user, giftName, giftId, coins: c, time: now };
+    }
+    if (!this.state.records.topStreak || rep >= (this.state.records.topStreak.repeatCount || 0)) {
+      this.state.records.topStreak = { user, giftName, giftId, repeatCount: rep, coins: c, time: now };
+    }
+
+    // Update Gift Counters
+    if (giftId) {
+      for (const slot of this.state.giftCounters || []) {
+        if (slot.enabled && String(slot.giftId) === String(giftId)) {
+          slot.count = (Number(slot.count) || 0) + rep;
+        }
+      }
+    }
+
+    // Update Gift Battle
+    const gb = this.state.giftBattle;
+    if (gb && gb.active && giftId) {
+      let hitSide = null;
+      if (String(gb.left.giftId) === String(giftId)) {
+        gb.left.score = (Number(gb.left.score) || 0) + rep;
+        hitSide = 'left';
+      } else if (String(gb.right.giftId) === String(giftId)) {
+        gb.right.score = (Number(gb.right.score) || 0) + rep;
+        hitSide = 'right';
+      }
+      if (hitSide) {
+        const sideObj = gb[hitSide];
+        if (sideObj.score >= (Number(gb.target) || 50)) {
+          gb.winner = {
+            side: hitSide,
+            label: sideObj.label,
+            giftId: sideObj.giftId,
+            score: sideObj.score,
+            user,
+            time: now
+          };
+          gb.active = false;
+          this.broadcast({ type: 'gift_battle_winner', winner: gb.winner, battle: gb });
+          if (sideObj.winEffectId) {
+            this.triggerEffect(sideObj.winEffectId, `${user} (${sideObj.label} Menang!)`, 'gift_battle');
+          }
+          if (sideObj.winActionId) {
+            this.triggerAction(sideObj.winActionId, { user, nickname: user, battleWinner: sideObj.label, source: 'gift_battle' });
+          }
+        }
+      }
+    }
+
+    // Update Coin Match
+    const cm = this.state.coinMatch;
+    if (cm && cm.active) {
+      cm.entries[user] = (Number(cm.entries[user]) || 0) + c;
+    }
+
+    // Update Coin Jar
+    if (this.state.coinJar?.enabled) {
+      this.state.coinJar.totalCoins = (Number(this.state.coinJar.totalCoins) || 0) + c;
+      this.broadcast({
+        type: 'coin_jar_drop',
+        user,
+        giftName,
+        giftId,
+        coins: c,
+        totalCoins: this.state.coinJar.totalCoins,
+        capacityCoins: this.state.coinJar.capacityCoins || 500
+      });
+    }
 
     // Update coin goal
     this._incrementGoal('coins', c, user);
 
     // Auto-add Subathon Timer
     if (this.state.timer.autoAdd?.enabled && this.state.timer.autoAdd.secPerCoin > 0) {
-      this.controlTimer('add', Math.round(c * this.state.timer.autoAdd.secPerCoin), user);
+      const addSec = this._computeTimerBonus(Math.round(c * this.state.timer.autoAdd.secPerCoin));
+      if (addSec > 0) this.controlTimer('add', addSec, user);
     }
 
     // Giveaway gift tickets
@@ -466,14 +972,21 @@ class WidgetManager {
       this._addGiveawayTicket(user, tks);
     }
 
+    this.saveConfig();
     this._broadcastState('leaderboard');
   }
 
-  onLike({ user, count = 1 }) {
+  onLike({ user, count = 1, avatar = '' }) {
     const c = Number(count) || 1;
     const prev = this.likersMap.get(user) || { user, likes: 0 };
     prev.likes += c;
     this.likersMap.set(user, prev);
+
+    this.state.lastX.like = { user, count: c, avatar, time: Date.now() };
+    if (this.state.likeathon?.active) {
+      this.state.likeathon.scores[user] = (Number(this.state.likeathon.scores[user]) || 0) + c;
+      this._broadcastState('likeathon');
+    }
 
     this._incrementGoal('likes', c, user);
 
@@ -481,17 +994,34 @@ class WidgetManager {
       this.likeSubAccumulator += c;
       while (this.likeSubAccumulator >= 100) {
         this.likeSubAccumulator -= 100;
-        this.controlTimer('add', this.state.timer.autoAdd.secPer100Likes, user);
+        const addSec = this._computeTimerBonus(this.state.timer.autoAdd.secPer100Likes);
+        if (addSec > 0) this.controlTimer('add', addSec, user);
       }
     }
 
     this._broadcastState('leaderboard');
   }
 
-  onFollow({ user }) {
+  onFollow({ user, avatar = '' }) {
+    this.state.lastX.follower = { user, avatar, time: Date.now() };
     this._incrementGoal('followers', 1, user);
     if (this.state.timer.autoAdd?.enabled && this.state.timer.autoAdd.secPerFollow > 0) {
-      this.controlTimer('add', this.state.timer.autoAdd.secPerFollow, user);
+      const addSec = this._computeTimerBonus(this.state.timer.autoAdd.secPerFollow);
+      if (addSec > 0) this.controlTimer('add', addSec, user);
+    }
+  }
+
+  onShare({ user, avatar = '' }) {
+    this.state.lastX.share = { user, avatar, time: Date.now() };
+    this._incrementGoal('shares', 1, user);
+  }
+
+  onSubscribe({ user, avatar = '' }) {
+    this.state.lastX.subscriber = { user, avatar, time: Date.now() };
+    this._incrementGoal('subscribers', 1, user);
+    if (this.state.timer.autoAdd?.enabled && this.state.timer.autoAdd.secPerSub > 0) {
+      const addSec = this._computeTimerBonus(this.state.timer.autoAdd.secPerSub);
+      if (addSec > 0) this.controlTimer('add', addSec, user);
     }
   }
 
@@ -499,14 +1029,23 @@ class WidgetManager {
     const amt = Number(amount) || 0;
     this._incrementGoal('donations', amt, user);
     if (this.state.timer.autoAdd?.enabled && this.state.timer.autoAdd.secPer10kIdr > 0 && amt >= 1000) {
-      const addSec = Math.round((amt / 10000) * this.state.timer.autoAdd.secPer10kIdr);
+      const baseSec = Math.round((amt / 10000) * this.state.timer.autoAdd.secPer10kIdr);
+      const addSec = this._computeTimerBonus(baseSec);
       if (addSec > 0) this.controlTimer('add', addSec, user);
     }
   }
 
-  onChat({ user, comment = '' }) {
+  onChat({ user, comment = '', avatar = '' }) {
     const clean = String(comment || '').trim();
     if (!clean) return;
+
+    this.state.lastX.chatter = { user, comment: clean, avatar, time: Date.now() };
+    this._broadcastState('lastX');
+
+    if (this.state.timer.autoAdd?.enabled && this.state.timer.autoAdd.secPerChat > 0) {
+      const addSec = this._computeTimerBonus(this.state.timer.autoAdd.secPerChat);
+      if (addSec > 0) this.controlTimer('add', addSec, user);
+    }
 
     // Check active Poll voting
     if (this.state.poll.active) {

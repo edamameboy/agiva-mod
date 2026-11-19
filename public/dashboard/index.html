@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v1.3.1</span>
+          <span class="brand-sub">Universal Bridge v1.5.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -35,6 +35,10 @@
         <a href="#" class="nav-item" data-tab="widgets">
           <span class="nav-icon" aria-hidden="true">🎡</span>
           <span>Stream Widgets</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="loyalty">
+          <span class="nav-icon" aria-hidden="true">💎</span>
+          <span>Points &amp; Chatbot</span>
         </a>
         <a href="#" class="nav-item" data-tab="effects">
           <span class="nav-icon" aria-hidden="true">✨</span>
@@ -281,6 +285,99 @@
         </div>
 
         <div class="config-sections">
+          <!-- 0. Reusable Multi-Step Actions & Event Matrix (TikFinity Workflow) -->
+          <div class="card config-card">
+            <div class="card-header">
+              <span>⚡ Actions &amp; Events Matrix (Multi-Step Workflow)</span>
+              <div class="card-actions">
+                <button type="button" class="btn-sm" id="btn-open-media-library">🗂️ Media Library</button>
+                <button type="button" class="btn-sm" id="btn-import-actions">📥 Import</button>
+                <input type="file" id="actions-import-file" accept=".json" style="display:none">
+                <button type="button" class="btn-sm" id="btn-export-actions">📤 Export</button>
+                <button type="button" class="btn-primary" id="btn-new-action">+ Buat Action Baru</button>
+              </div>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Buat Action reusable berisi urutan multi-step (Game Effect + Delay + Sound + TTS + OBS Scene/Source/Filter/Replay + Timer + Wheel + Goal + Screen Alert), lalu pasangkan ke Event Rule atau kolom Gift di bawah.</p>
+              <div class="actions-list" id="actions-list">
+                <div class="form-hint">Memuat Actions...</div>
+              </div>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+
+              <div class="card-header" style="padding:0 0 8px 0; border-bottom:none;">
+                <span style="font-size:13px; font-weight:800;">🔀 Event Rules Matrix (Trigger Otomatis ke Action)</span>
+                <button type="button" class="btn-sm primary" id="btn-add-event-rule">+ Tambah Event Rule</button>
+              </div>
+              <div id="event-rule-editor" class="event-rule-editor" style="display:none;">
+                <input type="hidden" id="rule-edit-id">
+                <div class="form-row-2">
+                  <div>
+                    <label class="form-label" for="rule-name">Nama Rule</label>
+                    <input type="text" id="rule-name" class="form-input" placeholder="mis. Subscribe Jumpscare + Timer">
+                  </div>
+                  <div>
+                    <label class="form-label" for="rule-event-type">Event Trigger</label>
+                    <select id="rule-event-type" class="form-input">
+                      <option value="gift">🎁 Gift TikTok</option>
+                      <option value="follow">👤 Follow</option>
+                      <option value="subscribe">⭐ Subscribe / Superfan</option>
+                      <option value="like">❤️ Tap-Tap Likes</option>
+                      <option value="share">🔄 Share Stream</option>
+                      <option value="repost">🔁 Repost Stream</option>
+                      <option value="member">👋 Join Room</option>
+                      <option value="chat">💬 Live Chat</option>
+                      <option value="donation">💸 Donasi (Saweria/SociaBuzz/Trakteer)</option>
+                      <option value="emote">😄 Emote</option>
+                      <option value="envelope">🧧 Angpao / Treasure Box</option>
+                      <option value="battle">⚔️ PK Battle</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row-2">
+                  <div>
+                    <label class="form-label" for="rule-min-coins">Min Coins / Min Amount / Filter</label>
+                    <div class="input-row">
+                      <input type="text" id="rule-gift-id" class="form-input" placeholder="Gift ID (opsional)">
+                      <input type="number" id="rule-min-coins" class="form-input" placeholder="Min Koin" value="0" min="0">
+                      <input type="number" id="rule-min-amount" class="form-input" placeholder="Min Donasi Rp" value="0" min="0">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="form-label" for="rule-command">Command Chat / Role / Cooldown</label>
+                    <div class="input-row">
+                      <input type="text" id="rule-command" class="form-input" placeholder="!command (khusus chat)">
+                      <select id="rule-role" class="form-input">
+                        <option value="everyone">Everyone</option>
+                        <option value="follower">Follower</option>
+                        <option value="subscriber">Subscriber</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="specific_users">Specific Users</option>
+                      </select>
+                      <input type="number" id="rule-cooldown" class="form-input" placeholder="CD (s)" value="0" min="0" style="max-width:85px">
+                    </div>
+                  </div>
+                </div>
+                <div class="form-row-2">
+                  <div>
+                    <label class="form-label" for="rule-allowed-users">Whitelist Users (opsional, pisah koma)</label>
+                    <input type="text" id="rule-allowed-users" class="form-input" placeholder="@sultan, @mod1">
+                  </div>
+                  <div>
+                    <label class="form-label">Target Actions yang Dieksekusi</label>
+                    <div id="rule-actions-checks" class="rule-actions-checks"></div>
+                  </div>
+                </div>
+                <div class="input-row">
+                  <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="rule-enabled" checked> Rule Aktif</label>
+                  <button type="button" class="btn-primary" id="btn-save-event-rule">💾 Simpan Event Rule</button>
+                  <button type="button" class="btn-sm" id="btn-cancel-event-rule">Batal</button>
+                </div>
+              </div>
+              <div class="events-matrix-list" id="events-matrix-list"></div>
+            </div>
+          </div>
+
           <!-- 1. Specific Gift Tiers -->
           <div class="card config-card">
             <div class="card-header">
@@ -436,8 +533,11 @@
           <div class="events-filters">
             <label><input type="checkbox" id="filter-gift" checked> 🎁 Gifts</label>
             <label><input type="checkbox" id="filter-follow" checked> 👤 Follows</label>
+            <label><input type="checkbox" id="filter-subscribe" checked> ⭐ Subs</label>
             <label><input type="checkbox" id="filter-member" checked> 👋 Joins</label>
             <label><input type="checkbox" id="filter-like" checked> ❤️ Likes</label>
+            <label><input type="checkbox" id="filter-share" checked> 🔄 Shares</label>
+            <label><input type="checkbox" id="filter-emote" checked> 😄 Emotes</label>
             <label><input type="checkbox" id="filter-chat" checked> 💬 Chat</label>
             <label><input type="checkbox" id="filter-donation" checked> 💸 Donations</label>
           </div>
@@ -549,13 +649,13 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.3.1</span>
+              <span class="badge info" id="app-version-badge">v1.5.0</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.3.1</span>
+                  <span class="info-val" id="info-current-ver">v1.5.0</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
@@ -648,15 +748,41 @@
                   </select>
                 </div>
                 <div>
-                  <label class="form-label" for="tts-lang-select">Bahasa &amp; Aksen Suara (100% Gratis)</label>
+                  <label class="form-label" for="tts-engine-select">Provider Suara TTS (100% Gratis)</label>
+                  <select id="tts-engine-select" class="form-input">
+                    <option value="auto">🤖 Auto (Microsoft Edge Neural + Google Fallback)</option>
+                    <option value="edge">🎙️ Microsoft Edge Neural TTS</option>
+                    <option value="google">🌐 Google Translate TTS</option>
+                    <option value="browser">💻 Browser SpeechSynthesis Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="tts-lang-select">Bahasa Utama (Fallback &amp; Filter)</label>
                   <select id="tts-lang-select" class="form-input">
-                    <option value="id-ID">🇮🇩 Bahasa Indonesia (Gadis / Natural)</option>
+                    <option value="id-ID">🇮🇩 Bahasa Indonesia (Gadis / Ardi)</option>
                     <option value="jv-ID">🇮🇩 Bahasa Jawa</option>
                     <option value="su-ID">🇮🇩 Bahasa Sunda</option>
-                    <option value="ms-MY">🇲🇾 Bahasa Melayu</option>
+                    <option value="ms-MY">🇲🇾 Bahasa Melayu (Yasmin / Osman)</option>
                     <option value="en-US">🇺🇸 English (US)</option>
                     <option value="ja-JP">🇯🇵 Japanese (Anime Accent)</option>
                   </select>
+                </div>
+                <div>
+                  <label class="form-label" for="tts-edge-voice-select">Suara Neural Spesifik (Edge Voice)</label>
+                  <select id="tts-edge-voice-select" class="form-input">
+                    <option value="">✨ Otomatis Ikuti Bahasa Utama</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <label class="checkbox-label"><input type="checkbox" id="tts-random-voice"> 🎲 Acak Suara Neural per Chat/User</label>
+                <div>
+                  <label class="form-label" for="tts-max-queue">Max Antrean TTS (Queue)</label>
+                  <input type="number" id="tts-max-queue" class="form-input" value="10" min="1" max="100">
                 </div>
               </div>
 
@@ -711,7 +837,7 @@
               </div>
 
               <label class="form-label" for="tts-template-gift">Template Kalimat Gift / Donasi</label>
-              <input type="text" id="tts-template-gift" class="form-input" value="Terima kasih {user} atas {gift} sebanyak {repeat} kali">
+              <input type="text" id="tts-template-gift" class="form-input" value="Terima kasih {nickname} atas {repeatcount} {giftname}!">
 
               <label class="form-label" for="tts-badwords">Filter Kata Kasar / Badwords (Pisahkan koma)</label>
               <input type="text" id="tts-badwords" class="form-input" placeholder="anjing, tolol, goblok, slot, judi">
@@ -729,6 +855,7 @@
             <div class="card-header">
               <span>🎵 Soundboard Instan &amp; Efek Suara Meme</span>
               <div class="card-actions">
+                <button type="button" class="btn-sm" id="btn-open-media-from-tts">🗂️ Media Library</button>
                 <label class="btn-sm primary" style="cursor:pointer; margin:0;">
                   + Upload MP3/WAV
                   <input type="file" id="soundboard-upload-input" accept=".mp3,.wav,.ogg" style="display:none">
@@ -738,6 +865,22 @@
             <div class="settings-form">
               <p class="form-hint">Klik tombol di bawah untuk memutar efek suara secara instan di Stream Overlay &amp; Dashboard. Anda juga bisa memasang setiap suara ini ke Gift / Koin / Chat di tab Configurator.</p>
               <div class="soundboard-grid" id="soundboard-grid"></div>
+            </div>
+          </div>
+
+          <!-- Card 3: TTS Logs History -->
+          <div class="card settings-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <span>📜 Riwayat Log TTS (Queue &amp; Synthesis History)</span>
+              <div class="card-actions">
+                <button type="button" class="btn-sm" id="btn-tts-logs-refresh">🔄 Refresh</button>
+                <button type="button" class="btn-sm danger" id="btn-tts-logs-clear">🗑️ Hapus Log</button>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="tts-logs-list" id="tts-logs-list">
+                <div class="form-hint">Belum ada riwayat TTS pada sesi ini.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -758,12 +901,41 @@
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?screen=4">📋 Screen 4 (Khusus Sultan)</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=timer">⏱️ URL Subathon Timer</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=wheel">🎡 URL Spin Wheel</button>
-            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=goal">🎯 URL Goal Bar</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=goal&type=coins">🎯 URL Goal Bar</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=winlose">🏆 URL Win/Lose</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=leaderboard">👑 URL Leaderboard</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=poll">📊 URL Live Poll</button>
             <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=giveaway">🎁 URL Giveaway</button>
             <button type="button" class="btn-sm primary" data-copy-overlay="/overlay?widget=all">🌟 URL Semua Widget</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=chatbox">💬 URL Chat Box</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=giftfeed">🎁 URL Gift Feed</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=viewers">👁️ URL Viewer Count</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=followers">👤 URL Follower Count</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=slider">🎯 URL Interaction Slider</button>
+            <button type="button" class="btn-sm primary" data-copy-overlay="/overlay?widget=dock">🖥️ URL OBS Dock</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=topgift">💎 URL Top Gift</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=topstreak">🔥 URL Top Streak</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=giftcounter">🧮 URL Gift Counter</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=giftbattle">⚔️ URL Gift Battle</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=coinmatch">🏆 URL Coin Match</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=likeathon">❤️ URL Likeathon</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=coinjar">🪙 URL Coin Jar</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=firework">🎆 URL Gift Firework</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=cannon">💥 URL Gift Cannon</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=likefountain">⛲ URL Like Fountain</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=emojify">😄 URL Emojify</button>
+            <button type="button" class="btn-sm" data-copy-overlay="/overlay?widget=frame">🖼️ URL Webcam Frame</button>
+            <div class="input-row" style="margin:0; gap:4px;">
+              <select id="lastx-type-select" class="form-input" style="max-width:140px; margin:0; padding:5px 8px; font-size:12px;">
+                <option value="follower">Last Follower</option>
+                <option value="gifter">Last Gifter</option>
+                <option value="subscriber">Last Subscriber</option>
+                <option value="share">Last Share</option>
+                <option value="like">Last Like</option>
+                <option value="chatter">Last Chatter</option>
+              </select>
+              <button type="button" class="btn-sm" id="btn-copy-lastx">📋 URL Last X</button>
+            </div>
           </div>
         </div>
 
@@ -788,8 +960,57 @@
                   <input type="text" id="timer-title-input" class="form-input" value="SUBATHON TIMER">
                 </div>
                 <div>
-                  <label class="form-label" for="timer-sec-per-coin">Tambah Detik Otomatis per 1 Koin Gift</label>
+                  <label class="form-label" for="timer-sec-per-coin">Detik / 1 Koin Gift</label>
                   <input type="number" id="timer-sec-per-coin" class="form-input" value="2" min="0" max="3600">
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="timer-sec-per-100likes">Detik / 100 Likes</label>
+                  <input type="number" id="timer-sec-per-100likes" class="form-input" value="5" min="0" max="3600">
+                </div>
+                <div>
+                  <label class="form-label" for="timer-sec-per-follow">Detik / Follow Baru</label>
+                  <input type="number" id="timer-sec-per-follow" class="form-input" value="10" min="0" max="3600">
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="timer-sec-per-sub">Detik / Subscribe</label>
+                  <input type="number" id="timer-sec-per-sub" class="form-input" value="60" min="0" max="3600">
+                </div>
+                <div>
+                  <label class="form-label" for="timer-sec-per-chat">Detik / Chat Penonton</label>
+                  <input type="number" id="timer-sec-per-chat" class="form-input" value="0" min="0" max="600">
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="timer-sec-per-10kidr">Detik / Rp 10rb Donasi</label>
+                  <input type="number" id="timer-sec-per-10kidr" class="form-input" value="60" min="0" max="7200">
+                </div>
+                <div>
+                  <label class="form-label" for="timer-boost-mult">Boost Multiplier (x)</label>
+                  <input type="number" id="timer-boost-mult" class="form-input" value="2" min="1" max="10" step="0.5">
+                </div>
+              </div>
+              <div class="form-row-2">
+                <label class="checkbox-label"><input type="checkbox" id="timer-boost-enabled"> ⚡ Mode Boost Aktif</label>
+                <label class="checkbox-label"><input type="checkbox" id="timer-random-enabled"> 🎲 Bonus Random (+5..30s)</label>
+                <label class="checkbox-label"><input type="checkbox" id="timer-hide-zero"> 🙈 Sembunyikan Jika 00:00</label>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="timer-end-action">Action Saat Waktu Habis</label>
+                  <select id="timer-end-action" class="form-input">
+                    <option value="">-- Tanpa Action --</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="timer-end-effect">Efek Game Saat Habis</label>
+                  <select id="timer-end-effect" class="form-input">
+                    <option value="">-- Tanpa Efek Game --</option>
+                  </select>
                 </div>
               </div>
               <button type="button" class="btn-primary" id="btn-timer-save">Simpan Konfigurasi Timer</button>
@@ -803,25 +1024,68 @@
               <button type="button" class="btn-sm success" id="btn-wheel-spin">🎰 PUTAR RODA SEKARANG!</button>
             </div>
             <div class="settings-form">
-              <p class="form-hint">Daftar segmen roda gacha (Format per baris: <code>Label Hadiah | effectId | WarnaHex</code>)</p>
-              <textarea id="wheel-segments-input" class="form-input" rows="5" placeholder="⚡ Thor Strike | thor | #ff6b35&#10;💀 Kill Player | kill | #ef4444&#10;🚀 Fling | fling | #3b82f6"></textarea>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="wheel-title-input">Judul Spin Wheel</label>
+                  <input type="text" id="wheel-title-input" class="form-input" value="🎡 RODA GACHA STREAMER">
+                </div>
+                <label class="checkbox-label" style="align-self:end;"><input type="checkbox" id="wheel-auto-trigger" checked> ⚡ Auto Jalankan Efek/Action</label>
+              </div>
+              <div class="card-header" style="padding:4px 0; border-bottom:none;">
+                <span class="form-hint" style="margin:0;">Segmen Roda Gacha (Hingga 24 Segmen, Weight = Probabilitas)</span>
+                <button type="button" class="btn-sm primary" id="btn-wheel-add-seg">+ Tambah Segmen</button>
+              </div>
+              <div class="wheel-segments-editor" id="wheel-segments-editor"></div>
               <button type="button" class="btn-primary" id="btn-wheel-save">Simpan Segmen Spin Wheel</button>
             </div>
           </div>
 
           <!-- Widget 3: Goal Bar & Win/Lose Counter -->
           <div class="card settings-card">
-            <div class="card-header">🎯 Target Goal Bar &amp; 🏆 Win / Lose Counter</div>
+            <div class="card-header">
+              <span>🎯 Target Goal Bar &amp; 🏆 Win / Lose Counter</span>
+              <span class="badge-pill" id="goal-current-progress">0 / 500</span>
+            </div>
             <div class="settings-form">
               <div class="form-row-2">
                 <div>
-                  <label class="form-label" for="goal-coins-title">Judul Goal Koin</label>
-                  <input type="text" id="goal-coins-title" class="form-input" value="Target Koin Hari Ini">
+                  <label class="form-label" for="goal-type-select">Pilih Jenis Goal (9 Tipe)</label>
+                  <select id="goal-type-select" class="form-input">
+                    <option value="coins">💎 Target Koin Gift</option>
+                    <option value="likes">❤️ Target Like</option>
+                    <option value="followers">👤 Target Follower Baru</option>
+                    <option value="donations">💸 Target Donasi (Rp)</option>
+                    <option value="shares">🔄 Target Share Live</option>
+                    <option value="subscribers">⭐ Target Subscriber</option>
+                    <option value="custom_1">🎯 Custom Goal 1</option>
+                    <option value="custom_2">🔥 Custom Goal 2</option>
+                    <option value="custom_3">👑 Custom Goal 3</option>
+                  </select>
                 </div>
                 <div>
-                  <label class="form-label" for="goal-coins-target">Target Koin</label>
-                  <input type="number" id="goal-coins-target" class="form-input" value="1000" min="10">
+                  <label class="form-label" for="goal-reward-effect">Hadiah Efek Saat Goal Tercapai</label>
+                  <select id="goal-reward-effect" class="form-input">
+                    <option value="">-- Tanpa Efek Otomatis --</option>
+                  </select>
                 </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="goal-coins-title">Judul Goal Terpilih</label>
+                  <input type="text" id="goal-coins-title" class="form-input" value="💎 Target Koin Gift">
+                </div>
+                <div>
+                  <label class="form-label" for="goal-coins-target">Target Goal</label>
+                  <input type="number" id="goal-coins-target" class="form-input" value="500" min="1">
+                </div>
+              </div>
+              <div class="input-row">
+                <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="goal-auto-scale" checked> 📈 Auto Scale Target (x2)</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <label class="form-label" for="goal-countdown-mins" style="margin:0;">⏳ Countdown (menit):</label>
+                  <input type="number" id="goal-countdown-mins" class="form-input" value="0" min="0" max="1440" style="width:82px; margin:0;" title="0 = tanpa countdown">
+                </div>
+                <button type="button" class="btn-sm" id="btn-copy-selected-goal">📋 Copy URL Goal Ini</button>
               </div>
               <div class="input-row">
                 <button type="button" class="btn-primary" id="btn-goal-save">Simpan Goal Bar</button>
@@ -863,6 +1127,398 @@
                 <button type="button" class="btn-sm danger" id="btn-giveaway-clear">Reset</button>
               </div>
               <div id="giveaway-winner-banner" class="form-hint" style="font-weight:700; color:var(--accent);"></div>
+            </div>
+          </div>
+
+          <!-- Widget 5: Overlay Theme Customizer & Per-Screen Queue -->
+          <div class="card settings-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <span>🎨 Overlay Theme Customizer &amp; Multi-Screen Queue</span>
+              <span class="form-hint" style="margin:0;">Berlaku Real-Time pada semua Browser Source <code>/overlay</code></span>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="theme-font-family">Font Overlay (Google Fonts)</label>
+                  <select id="theme-font-family" class="form-input">
+                    <option value="Inter">Inter (Modern Clean)</option>
+                    <option value="Space Grotesk">Space Grotesk (Gaming Sharp)</option>
+                    <option value="Poppins">Poppins (Friendly Rounded)</option>
+                    <option value="Orbitron">Orbitron (Sci-Fi / Cyber)</option>
+                    <option value="Comic Neue">Comic Neue (Meme / Cartoon)</option>
+                    <option value="JetBrains Mono">JetBrains Mono (Arcade / Dev)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="theme-animation">Animasi Alert Masuk</label>
+                  <select id="theme-animation" class="form-input">
+                    <option value="pop">💥 Pop Scale</option>
+                    <option value="slide">🚀 Slide In</option>
+                    <option value="bounce">🏀 Bounce</option>
+                    <option value="fade">✨ Smooth Fade</option>
+                  </select>
+                </div>
+              </div>
+              <label class="form-label" for="theme-pack-select">Graphic Theme Pack Overlay</label>
+              <select id="theme-pack-select" class="form-input">
+                <option value="default">🎨 Default Modern</option>
+                <option value="cyberpunk">⚡ Cyberpunk Yellow/Cyan</option>
+                <option value="neon">🌈 Neon Glow</option>
+                <option value="kawaii">🎀 Kawaii Pink Pastel</option>
+                <option value="minimalist">🧊 Minimalist Glass</option>
+                <option value="pixel">👾 Pixel Arcade</option>
+              </select>
+              <div class="form-row-2">
+                <div class="input-row">
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-font-scale">Skala Ukuran (x)</label>
+                    <input type="number" id="theme-font-scale" class="form-input" value="1.0" min="0.5" max="2.5" step="0.1">
+                  </div>
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-border-radius">Radius (px)</label>
+                    <input type="number" id="theme-border-radius" class="form-input" value="16" min="0" max="48">
+                  </div>
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-bg-opacity">Opasitas BG</label>
+                    <input type="number" id="theme-bg-opacity" class="form-input" value="0.9" min="0" max="1" step="0.05">
+                  </div>
+                </div>
+                <div class="input-row">
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-text-color">Warna Teks</label>
+                    <input type="color" id="theme-text-color" class="form-input" value="#f8fafc" style="height:38px; padding:2px;">
+                  </div>
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-accent-color">Warna Aksen</label>
+                    <input type="color" id="theme-accent-color" class="form-input" value="#6366f1" style="height:38px; padding:2px;">
+                  </div>
+                  <div style="flex:1;">
+                    <label class="form-label" for="theme-bg-color">Warna BG</label>
+                    <input type="color" id="theme-bg-color" class="form-input" value="#0b0f19" style="height:38px; padding:2px;">
+                  </div>
+                </div>
+              </div>
+              <label class="form-label" for="theme-custom-css">Custom CSS Tambahan (Opsional)</label>
+              <textarea id="theme-custom-css" class="form-input" rows="2" placeholder="mis. .alert-card { border-width: 4px; }"></textarea>
+              <button type="button" class="btn-primary" id="btn-theme-save">💾 Terapkan Tema Overlay Live</button>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+              <label class="form-label">Konfigurasi Antrean &amp; Posisi Per Screen (Screen 1–5)</label>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="screen-config-select">Pilih Screen</label>
+                  <select id="screen-config-select" class="form-input">
+                    <option value="1">Screen 1 (Utama)</option>
+                    <option value="2">Screen 2 (Pojok Kanan)</option>
+                    <option value="3">Screen 3 (Pojok Kiri)</option>
+                    <option value="4">Screen 4 (Bawah / Meme)</option>
+                    <option value="5">Screen 5 (Full Screen Jumpscare)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="screen-pos-select">Posisi di Layar</label>
+                  <select id="screen-pos-select" class="form-input">
+                    <option value="center">Tengah (Center)</option>
+                    <option value="top-right">Pojok Kanan Atas</option>
+                    <option value="top-left">Pojok Kiri Atas</option>
+                    <option value="bottom">Bawah (Bottom)</option>
+                    <option value="fullscreen">Full Screen</option>
+                  </select>
+                </div>
+              </div>
+              <div class="input-row">
+                <div style="flex:1;">
+                  <label class="form-label" for="screen-duration-ms">Durasi Default (ms)</label>
+                  <input type="number" id="screen-duration-ms" class="form-input" value="4000" min="500" max="30000" step="500">
+                </div>
+                <div style="flex:1;">
+                  <label class="form-label" for="screen-max-queue">Max Antrean Alert Screen</label>
+                  <input type="number" id="screen-max-queue" class="form-input" value="10" min="1" max="50">
+                </div>
+                <button type="button" class="btn-primary" id="btn-screen-save" style="align-self:end;">💾 Simpan Screen</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Widget 6: Mini-Games & PRO Overlays Control -->
+          <div class="card settings-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <span>🎮 Mini-Games &amp; PRO Overlays Control (Gratis 100%)</span>
+              <button type="button" class="btn-sm danger" id="btn-records-reset">🔄 Reset Top Gift / Streak / Last X</button>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <!-- Gift Battle -->
+                <div class="mini-game-box">
+                  <div class="card-header" style="padding:0 0 6px 0; border-bottom:none;">
+                    <strong>⚔️ Gift Battle</strong>
+                    <span class="badge-pill" id="gb-status-badge">IDLE (0 vs 0)</span>
+                  </div>
+                  <div class="form-row-2">
+                    <input type="text" id="gb-title" class="form-input" value="⚔️ GIFT BATTLE" placeholder="Judul Battle">
+                    <input type="number" id="gb-target" class="form-input" value="50" min="1" placeholder="Target Skor">
+                  </div>
+                  <div class="form-row-2">
+                    <div class="input-row">
+                      <input type="text" id="gb-left-label" class="form-input" value="TEAM A (Rose)" placeholder="Tim Kiri">
+                      <input type="text" id="gb-left-gift" class="form-input" value="5655" placeholder="Gift ID" style="max-width:85px;">
+                    </div>
+                    <div class="input-row">
+                      <input type="text" id="gb-right-label" class="form-input" value="TEAM B (Doughnut)" placeholder="Tim Kanan">
+                      <input type="text" id="gb-right-gift" class="form-input" value="5879" placeholder="Gift ID" style="max-width:85px;">
+                    </div>
+                  </div>
+                  <div class="input-row">
+                    <button type="button" class="btn-sm success" id="btn-gb-start">▶️ Mulai Battle</button>
+                    <button type="button" class="btn-sm" id="btn-gb-stop">⏹️ Stop</button>
+                    <button type="button" class="btn-sm danger" id="btn-gb-reset">Reset</button>
+                  </div>
+                </div>
+
+                <!-- Coin Match & Likeathon -->
+                <div class="mini-game-box">
+                  <div class="card-header" style="padding:0 0 6px 0; border-bottom:none;">
+                    <strong>🏆 Coin Match (Lelang Koin)</strong>
+                    <span class="badge-pill" id="cm-status-badge">IDLE (120s)</span>
+                  </div>
+                  <div class="input-row">
+                    <input type="number" id="cm-duration" class="form-input" value="120" min="10" max="3600" style="max-width:110px;" title="Durasi detik">
+                    <button type="button" class="btn-sm success" id="btn-cm-start">▶️ Mulai</button>
+                    <button type="button" class="btn-sm danger" id="btn-cm-end">⏹️ Akhiri</button>
+                    <button type="button" class="btn-sm primary" id="btn-cm-winners">🏆 Pemenang</button>
+                    <button type="button" class="btn-sm" id="btn-cm-reset">Reset</button>
+                  </div>
+
+                  <hr style="border:none; border-top:1px solid var(--border); margin:4px 0;">
+
+                  <div class="card-header" style="padding:0 0 6px 0; border-bottom:none;">
+                    <strong>❤️ Likeathon (Auto-Decay)</strong>
+                    <span class="badge-pill" id="lk-status-badge">IDLE</span>
+                  </div>
+                  <div class="input-row">
+                    <input type="number" id="lk-decay-pct" class="form-input" value="10" min="1" max="90" style="max-width:80px;" title="Decay %">
+                    <input type="number" id="lk-decay-sec" class="form-input" value="10" min="2" max="120" style="max-width:80px;" title="Interval detik">
+                    <button type="button" class="btn-sm success" id="btn-lk-start">▶️ Mulai</button>
+                    <button type="button" class="btn-sm" id="btn-lk-stop">⏸️ Stop</button>
+                    <button type="button" class="btn-sm danger" id="btn-lk-reset">Reset</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Gift Counter x3 + Coin Jar -->
+              <div class="form-row-2">
+                <div class="mini-game-box">
+                  <strong>🧮 Gift Counter (3 Slot)</strong>
+                  <div class="input-row">
+                    <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="gc-1-en" checked></label>
+                    <input type="text" id="gc-1-label" class="form-input" value="🌹 Rose" placeholder="Label">
+                    <input type="text" id="gc-1-gift" class="form-input" value="5655" placeholder="Gift ID" style="max-width:80px;">
+                    <input type="number" id="gc-1-target" class="form-input" value="100" placeholder="Target" style="max-width:80px;">
+                  </div>
+                  <div class="input-row">
+                    <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="gc-2-en"></label>
+                    <input type="text" id="gc-2-label" class="form-input" value="🍩 Doughnut" placeholder="Label">
+                    <input type="text" id="gc-2-gift" class="form-input" value="5879" placeholder="Gift ID" style="max-width:80px;">
+                    <input type="number" id="gc-2-target" class="form-input" value="50" placeholder="Target" style="max-width:80px;">
+                  </div>
+                  <div class="input-row">
+                    <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="gc-3-en"></label>
+                    <input type="text" id="gc-3-label" class="form-input" value="🫰 Finger Heart" placeholder="Label">
+                    <input type="text" id="gc-3-gift" class="form-input" value="5487" placeholder="Gift ID" style="max-width:80px;">
+                    <input type="number" id="gc-3-target" class="form-input" value="50" placeholder="Target" style="max-width:80px;">
+                  </div>
+                  <button type="button" class="btn-sm primary" id="btn-gc-save">💾 Simpan Gift Counters</button>
+                </div>
+
+                <div class="mini-game-box">
+                  <strong>🪙 Coin Jar 2D Physics</strong>
+                  <div class="input-row">
+                    <label class="form-label" for="cj-capacity" style="margin:0;">Kapasitas Penuh (Koin):</label>
+                    <input type="number" id="cj-capacity" class="form-input" value="500" min="10" style="max-width:120px;">
+                    <button type="button" class="btn-sm primary" id="btn-cj-save">💾 Simpan</button>
+                    <button type="button" class="btn-sm danger" id="btn-cj-reset">🔄 Kosongkan Jar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Loyalty Points, Active Chatbot & Interval Periodic Timers (Phase 3) -->
+      <section class="tab-content" id="tab-loyalty">
+        <div class="settings-grid">
+          <!-- Card 1: Points, Levels & Loyalty Tools -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>💎 Points, Levels &amp; Loyalty Economy</span>
+              <div class="card-actions">
+                <span class="badge-pill" id="pts-drop-badge">DROP IDLE</span>
+                <span class="badge-pill" id="pts-challenge-badge">NORMAL</span>
+              </div>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <label class="checkbox-label"><input type="checkbox" id="pts-enabled" checked> Aktifkan Sistem Points Penonton</label>
+                <div class="input-row">
+                  <input type="text" id="pts-currency-name" class="form-input" value="Agiva Points" placeholder="Nama Poin">
+                  <input type="text" id="pts-currency-symbol" class="form-input" value="⭐" style="max-width:60px;" placeholder="Simbol">
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="pts-per-coin">Poin / 1 Koin Gift</label>
+                  <input type="number" id="pts-per-coin" class="form-input" value="10" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-per-likes">Poin / 100 Likes</label>
+                  <input type="number" id="pts-per-likes" class="form-input" value="5" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-per-follow">Poin / Follow Baru</label>
+                  <input type="number" id="pts-per-follow" class="form-input" value="25" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-per-share">Poin / Share Live</label>
+                  <input type="number" id="pts-per-share" class="form-input" value="15" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-per-sub">Poin / Subscribe</label>
+                  <input type="number" id="pts-per-sub" class="form-input" value="200" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-per-chat">Poin / Chat (per Cooldown)</label>
+                  <input type="number" id="pts-per-chat" class="form-input" value="2" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="pts-sub-bonus">Subscriber Bonus (%)</label>
+                  <input type="number" id="pts-sub-bonus" class="form-input" value="50" min="0" max="500">
+                </div>
+                <div class="input-row">
+                  <div style="flex:1;">
+                    <label class="form-label" for="pts-spin-cost">Biaya !spin</label>
+                    <input type="number" id="pts-spin-cost" class="form-input" value="50" min="0">
+                  </div>
+                  <div style="flex:1;">
+                    <label class="form-label" for="pts-tts-cost">Biaya TTS Chat</label>
+                    <input type="number" id="pts-tts-cost" class="form-input" value="0" min="0">
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn-primary" id="btn-pts-save">💾 Simpan Aturan Points</button>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:8px 0;">
+
+              <label class="form-label">Loyalty Events: Points Drop, Challenge &amp; Halving</label>
+              <div class="input-row">
+                <input type="text" id="pts-drop-keyword" class="form-input" value="!get" style="max-width:90px;" placeholder="!get">
+                <input type="number" id="pts-drop-amount" class="form-input" value="50" min="1" style="max-width:90px;" placeholder="Poin">
+                <button type="button" class="btn-sm success" id="btn-pts-drop-start">🎁 Mulai Drop</button>
+                <button type="button" class="btn-sm" id="btn-pts-drop-stop">⏹️ Tutup Drop</button>
+              </div>
+              <div class="input-row">
+                <button type="button" class="btn-sm primary" id="btn-pts-challenge-start">🏁 Mulai Challenge (0-kan Poin)</button>
+                <button type="button" class="btn-sm success" id="btn-pts-challenge-merge">✅ Merge</button>
+                <button type="button" class="btn-sm danger" id="btn-pts-challenge-discard">↩️ Restore</button>
+              </div>
+              <div class="input-row">
+                <input type="number" id="pts-halving-pct" class="form-input" value="50" min="1" max="99" style="max-width:85px;">
+                <button type="button" class="btn-sm danger" id="btn-pts-halving">✂️ Halving (-% Semua Poin)</button>
+              </div>
+              <div class="input-row">
+                <input type="text" id="pts-adj-user" class="form-input" placeholder="@username">
+                <input type="number" id="pts-adj-delta" class="form-input" value="100" style="max-width:100px;" placeholder="+/- Poin">
+                <button type="button" class="btn-sm" id="btn-pts-adjust">± Ubah Poin</button>
+              </div>
+
+              <label class="form-label">Top Penonton (Leaderboard Poin &amp; Level)</label>
+              <div class="loyalty-list" id="pts-leaderboard-list">
+                <div class="form-hint">Belum ada penonton tercatat.</div>
+              </div>
+              <label class="form-label">Transaksi Poin Terbaru</label>
+              <div class="loyalty-list" id="pts-transactions-list">
+                <div class="form-hint">Belum ada transaksi poin.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Active TikTok Chatbot -->
+          <div class="card settings-card">
+            <div class="card-header"><span>🤖 Active TikTok Chatbot &amp; Auto-Reply</span></div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <label class="checkbox-label"><input type="checkbox" id="bot-enabled" checked> Aktifkan Chatbot Engine</label>
+                <label class="checkbox-label"><input type="checkbox" id="bot-send-tiktok"> Kirim Langsung ke TikTok Chat (Desktop Login)</label>
+              </div>
+              <div>
+                <label class="form-label" for="bot-rate-limit">Spam Guard (Max Pesan per 15 Detik)</label>
+                <input type="number" id="bot-rate-limit" class="form-input" value="3" min="1" max="20">
+              </div>
+              <div class="input-row">
+                <label class="checkbox-label" style="margin:0; min-width:140px;"><input type="checkbox" id="bot-welcome-enabled"> Welcome Join</label>
+                <input type="text" id="bot-welcome-tpl" class="form-input" value="Selamat datang @{user}! Ketik !help untuk melihat command.">
+              </div>
+              <div class="input-row">
+                <label class="checkbox-label" style="margin:0; min-width:140px;"><input type="checkbox" id="bot-gift-enabled"> Thank Gift</label>
+                <input type="text" id="bot-gift-tpl" class="form-input" value="Terima kasih @{user} atas {giftname} ({coins} koin)!">
+              </div>
+              <div class="input-row">
+                <label class="checkbox-label" style="margin:0; min-width:140px;"><input type="checkbox" id="bot-follow-enabled"> Thank Follow</label>
+                <input type="text" id="bot-follow-tpl" class="form-input" value="Terima kasih sudah follow @{user}!">
+              </div>
+              <button type="button" class="btn-primary" id="btn-bot-save">💾 Simpan Pengaturan Chatbot</button>
+
+              <hr style="border:none; border-top:1px solid var(--border); margin:8px 0;">
+
+              <label class="form-label">Tambah Custom Auto-Reply Command</label>
+              <div class="input-row">
+                <input type="text" id="bot-cmd-trigger" class="form-input" placeholder="!halo" style="max-width:110px;">
+                <input type="text" id="bot-cmd-response" class="form-input" placeholder="Balasan bot ({user}, {points}, {level})">
+              </div>
+              <div class="input-row">
+                <input type="number" id="bot-cmd-cost" class="form-input" value="0" min="0" style="max-width:95px;" title="Biaya Poin">
+                <input type="number" id="bot-cmd-cd" class="form-input" value="5" min="0" style="max-width:95px;" title="Cooldown detik">
+                <button type="button" class="btn-sm primary" id="btn-bot-cmd-add">+ Tambah Command</button>
+              </div>
+              <div class="loyalty-list" id="bot-cmds-list"></div>
+
+              <div class="input-row" style="margin-top:6px;">
+                <input type="text" id="bot-test-msg" class="form-input" placeholder="Kirim pesan tes chatbot ke Overlay/Chat...">
+                <button type="button" class="btn-sm success" id="btn-bot-send">📤 Kirim</button>
+                <button type="button" class="btn-sm danger" id="btn-bot-logs-clear">🗑️ Log</button>
+              </div>
+              <div class="loyalty-list" id="bot-logs-list"></div>
+            </div>
+          </div>
+
+          <!-- Card 3: Interval Periodic Timers -->
+          <div class="card settings-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <span>⏰ Interval Periodic Timers (Aksi Berkala Otomatis Saat Live)</span>
+              <label class="checkbox-label" style="margin:0;"><input type="checkbox" id="iv-only-live" checked> Hanya Berjalan Saat TikTok Live Terhubung</label>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2">
+                <div class="input-row">
+                  <input type="text" id="iv-name" class="form-input" placeholder="Nama Timer (mis. Pengingat Saweria)">
+                  <input type="number" id="iv-minutes" class="form-input" value="5" min="0.5" step="0.5" style="max-width:90px;" title="Interval (menit)">
+                  <select id="iv-mode" class="form-input" style="max-width:155px;">
+                    <option value="chat">💬 Kirim Pesan Chatbot</option>
+                    <option value="action">⚡ Jalankan Action</option>
+                    <option value="points_drop">🎁 Points Drop Otomatis</option>
+                  </select>
+                </div>
+                <div class="input-row">
+                  <select id="iv-action-id" class="form-input">
+                    <option value="">-- Pilih Action --</option>
+                  </select>
+                  <input type="text" id="iv-chat-msg" class="form-input" placeholder="Pesan chat berkala (mode chat)">
+                  <input type="number" id="iv-drop-amt" class="form-input" value="50" min="1" style="max-width:85px;" title="Jumlah Points Drop">
+                  <button type="button" class="btn-sm primary" id="btn-iv-add">+ Tambah Interval</button>
+                </div>
+              </div>
+              <div class="loyalty-list" id="intervals-list"></div>
             </div>
           </div>
         </div>
@@ -963,7 +1619,10 @@
               <div class="input-row">
                 <button type="button" class="btn-primary" id="btn-obs-connect">Hubungkan ke OBS Studio</button>
                 <button type="button" class="btn-sm" id="btn-obs-disconnect">Putuskan</button>
+                <button type="button" class="btn-sm" id="btn-obs-refresh">🔄 Refresh Scenes/Sources OBS</button>
+                <button type="button" class="btn-sm success" id="btn-obs-test-replay">🎬 Save Replay Buffer</button>
               </div>
+              <div class="obs-resources-box" id="obs-resources-summary">OBS belum terhubung — hubungkan OBS Studio v28+ (WebSocket v5 :4455) untuk otomatis mendeteksi Scenes, Sources, Audio Inputs, dan Filters ke Action Builder.</div>
 
               <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
 
@@ -972,7 +1631,37 @@
                 <button type="button" class="btn-sm primary" id="btn-open-floating-hud">📌 Toggle Floating HUD (Always-on-Top)</button>
                 <button type="button" class="btn-sm" id="btn-open-tt-login">🔑 Login TikTok 1-Klik (Ambil SessionID)</button>
               </div>
-              <p class="form-hint">Global Hotkeys Aktif: <code>Alt+Shift+P</code> (Pause Queue), <code>Alt+Shift+S</code> (Skip TTS), <code>Alt+Shift+W</code> (Putar Spin Wheel), <code>Alt+Shift+H</code> (Toggle HUD).</p>
+              <p class="form-hint" id="hotkeys-info-hint">Global Hotkeys Aktif: <code>Alt+P</code> (Pause/Resume), <code>Alt+C</code> (Clear Queue), <code>Alt+S</code> (Skip Audio), <code>Alt+H</code> (Toggle HUD), <code>Alt+L</code> (Lock HUD), <code>Alt+W</code> (Spin Wheel), <code>Alt+1</code>/<code>Alt+2</code> (+Win/+Lose).</p>
+              <details class="hotkey-editor-details">
+                <summary style="cursor:pointer;font-size:12px;font-weight:700;">⌨️ Kustomisasi Global Hotkeys</summary>
+                <div class="form-row-2" style="margin-top:8px;">
+                  <div>
+                    <label class="form-label" for="hk-toggle-all">Pause / Resume Interaksi</label>
+                    <input type="text" id="hk-toggle-all" class="form-input" value="Alt+P">
+                  </div>
+                  <div>
+                    <label class="form-label" for="hk-clear-queue">Clear Queue</label>
+                    <input type="text" id="hk-clear-queue" class="form-input" value="Alt+C">
+                  </div>
+                  <div>
+                    <label class="form-label" for="hk-skip-tts">Skip Audio / TTS</label>
+                    <input type="text" id="hk-skip-tts" class="form-input" value="Alt+S">
+                  </div>
+                  <div>
+                    <label class="form-label" for="hk-toggle-hud">Toggle Floating HUD</label>
+                    <input type="text" id="hk-toggle-hud" class="form-input" value="Alt+H">
+                  </div>
+                  <div>
+                    <label class="form-label" for="hk-toggle-hud-lock">Lock HUD Click-Through</label>
+                    <input type="text" id="hk-toggle-hud-lock" class="form-input" value="Alt+L">
+                  </div>
+                  <div>
+                    <label class="form-label" for="hk-spin-wheel">Putar Spin Wheel</label>
+                    <input type="text" id="hk-spin-wheel" class="form-input" value="Alt+W">
+                  </div>
+                </div>
+                <button type="button" class="btn-sm primary" id="btn-save-hotkeys">💾 Simpan Hotkeys</button>
+              </details>
             </div>
           </div>
 
@@ -1136,6 +1825,10 @@
             <button type="button" class="btn-sm success" data-sim="like" data-count="100">❤️ +100 Likes</button>
             <button type="button" class="btn-sm" data-sim="follow">👤 Follow</button>
             <button type="button" class="btn-sm" data-sim="share">🔄 Share</button>
+            <button type="button" class="btn-sm primary" data-sim="subscribe">⭐ Subscribe</button>
+            <button type="button" class="btn-sm" data-sim="emote">😄 Emote</button>
+            <button type="button" class="btn-sm" data-sim="envelope">🧧 Angpao</button>
+            <button type="button" class="btn-sm danger" data-sim="battle">⚔️ PK Battle</button>
           </div>
         </div>
 
@@ -1153,6 +1846,91 @@
             <input type="number" id="sim-donation-amount" class="form-input" value="10000" step="5000">
             <button type="button" class="btn-primary" id="btn-sim-donation">💸 Kirim Donasi Rp</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Centralized Gift Picker -->
+  <div class="modal-backdrop" id="modal-gift-picker" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-gift-picker-title">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <span id="modal-gift-picker-title">🎁 Pilih TikTok Gift</span>
+        <button type="button" class="btn-close-modal" data-close="modal-gift-picker" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-row" style="margin-bottom:12px;">
+          <input type="text" id="gift-picker-search" class="form-input" placeholder="Cari nama gift atau ID...">
+          <select id="gift-picker-sort" class="form-input" style="max-width:200px; margin-bottom:0;">
+            <option value="coins-asc">Koin: Termurah → Termahal</option>
+            <option value="coins-desc">Koin: Termahal → Termurah</option>
+            <option value="name">Nama: A → Z</option>
+          </select>
+        </div>
+        <div class="gift-picker-grid" id="gift-picker-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: Multi-Step Action Builder -->
+  <div class="modal-backdrop" id="modal-action-builder" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-action-title">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <span id="modal-action-title">⚡ Multi-Step Action Builder</span>
+        <button type="button" class="btn-close-modal" data-close="modal-action-builder" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="action-edit-id">
+        <div class="form-row-2">
+          <div>
+            <label class="form-label" for="action-edit-name">Nama Action</label>
+            <input type="text" id="action-edit-name" class="form-input" placeholder="mis. Jumpscare + Subathon + Sound">
+          </div>
+          <div>
+            <label class="form-label" for="action-edit-priority">Prioritas Queue</label>
+            <select id="action-edit-priority" class="form-input">
+              <option value="normal">Normal (Antre Urutan Biasa)</option>
+              <option value="high">🔥 High Priority (Lompat ke Depan Antrean)</option>
+            </select>
+          </div>
+        </div>
+        <label class="form-label" for="action-edit-desc">Deskripsi Action</label>
+        <input type="text" id="action-edit-desc" class="form-input" placeholder="Penjelasan singkat workflow ini">
+
+        <div class="card-header" style="padding:8px 0 4px 0; border-bottom:none;">
+          <span class="form-label" style="margin:0;">Urutan Step Eksekusi</span>
+          <button type="button" class="btn-sm primary" id="btn-action-add-step">+ Tambah Step</button>
+        </div>
+        <div class="action-steps-container" id="action-steps-container"></div>
+        <datalist id="dl-obs-scenes"></datalist>
+        <datalist id="dl-obs-sources"></datalist>
+        <datalist id="dl-obs-inputs"></datalist>
+        <datalist id="dl-obs-filters"></datalist>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-sm" data-close="modal-action-builder">Batal</button>
+        <button type="button" class="btn-primary" id="btn-action-save">💾 Simpan Action</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: Media Library Manager -->
+  <div class="modal-backdrop" id="modal-media-library" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-media-title">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <span id="modal-media-title">🗂️ Media Library (GIF, Gambar, Video, Audio Overlay)</span>
+        <div class="card-actions">
+          <label class="btn-sm primary" style="cursor:pointer; margin:0;">
+            + Upload Media
+            <input type="file" id="media-upload-input" accept="image/*,audio/*,video/mp4,video/webm,.gif,.png,.jpg,.jpeg,.webp,.mp3,.wav,.ogg" style="display:none">
+          </label>
+          <button type="button" class="btn-close-modal" data-close="modal-media-library" aria-label="Tutup">✕</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="form-hint" id="media-library-hint">Upload file media sekali (maks 10MB) lalu salin URL <code>/media/...</code> atau pilih langsung ke Screen Alert di Action Builder.</p>
+        <div class="media-grid" id="media-library-grid">
+          <div class="form-hint">Memuat Media Library...</div>
         </div>
       </div>
     </div>

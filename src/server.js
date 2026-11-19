@@ -23,6 +23,10 @@ const CompatBridgeServer = require('./drivers/compatBridgeServer');
 const ObsDriver = require('./drivers/obsDriver');
 const DonationSocketProvider = require('./providers/donationSocketProvider');
 const sessionStore = require('./storage/sessionStore');
+const ActionEngine = require('./core/actionEngine');
+const PointsManager = require('./points/pointsManager');
+const ChatbotDriver = require('./drivers/chatbotDriver');
+const IntervalScheduler = require('./core/intervalScheduler');
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT) || 3000;
@@ -36,7 +40,7 @@ let currentRoomId = '';
 let connectionMode = process.env.TIKTOK_CONNECTION_MODE || 'eulerstream'; // 'eulerstream' | 'connector' | 'hybrid'
 let activeConnectionProvider = 'none';
 let currentUsername = process.env.TIKTOK_USERNAME || '';
-let roomStats = { viewers: 0, likes: 0, gifts: 0, followers: 0, shares: 0, reposts: 0, donations: 0 };
+let roomStats = { viewers: 0, likes: 0, gifts: 0, followers: 0, shares: 0, reposts: 0, subscribers: 0, donations: 0 };
 let recentEvents = []; // circular buffer for dashboard
 let reconnectTimer = null;
 let manualDisconnect = false;
@@ -64,6 +68,14 @@ modWss.on('connection', (ws) => {
       if (msg.type === 'hello' && msg.gameId) {
         ws.gameId = msg.gameId;
         console.log(`[ModWS] Handshake from game mod: ${msg.gameId}`);
+      } else if (msg.type === 'game_event') {
+        if (msg.event === 'win') {
+          widgetManager.controlCounter('win_add', Math.abs(Number(msg.delta) || 1));
+          pushEvent({ time: Date.now(), type: 'system', user: msg.gameId || 'Game', message: `GAME CLEARED! WIN +1 (${msg.wins}/${msg.target})` });
+        } else if (msg.event === 'reset') {
+          widgetManager.controlCounter('lose_add', 1);
+          pushEvent({ time: Date.now(), type: 'system', user: msg.gameId || 'Game', message: `GAME RESET! WIN -1 (${msg.wins}/${msg.target})` });
+        }
       }
     } catch {}
   });
@@ -126,7 +138,7 @@ function pushEvent(event) {
 // ─── Initialize Advanced Feature Engines (TTS, Widgets, OBS, Compat Ports, Donations) ──
 const audioTtsDriver = new AudioTtsDriver(broadcastDash);
 
-function enqueueEffectById(effectId, user = 'System', source = 'widget', extraData = {}) {
+function enqueueEffectById(effectId, user = 'System', source = 'widget', extraData = {}, priority = 'normal') {
   if (!effectId) return;
   const resolved = effectMap._resolveEffect(effectId);
   if (!resolved) return;
@@ -134,18 +146,43 @@ function enqueueEffectById(effectId, user = 'System', source = 'widget', extraDa
     effectId: resolved.id || effectId,
     label: resolved.label || effectId,
     duration: resolved.duration || 0,
+    lane: resolved.driver || 'ws-mod',
+    priority,
     user,
     source,
     data: { macro: resolved.macro, command: resolved.command, ...extraData }
   });
 }
 
+let actionEngine = null;
+
 const widgetManager = new WidgetManager({
   broadcastFn: broadcastDash,
-  triggerEffectFn: enqueueEffectById
+  triggerEffectFn: enqueueEffectById,
+  triggerActionFn: (actionId, vars) => actionEngine?.executeAction(actionId, vars)
 });
 
 const obsDriver = new ObsDriver(broadcastDash);
+
+actionEngine = new ActionEngine({
+  effectMap,
+  audioTtsDriver,
+  widgetManager,
+  obsDriver,
+  webhook,
+  enqueueEffectFn: enqueueEffectById,
+  broadcastFn: broadcastDash
+});
+
+const pointsManager = new PointsManager({ broadcastFn: broadcastDash });
+const chatbotDriver = new ChatbotDriver({ broadcastFn: broadcastDash, effectMap });
+const intervalScheduler = new IntervalScheduler({
+  isLiveFn: () => isConnected,
+  executeActionFn: (actionId, vars) => actionEngine?.executeAction(actionId, vars),
+  sendChatFn: (msg, vars) => chatbotDriver.sendMessage(msg, vars, { tiktokConn: tiktokConnection }),
+  startDropFn: (opts) => pointsManager.startDrop(opts),
+  broadcastFn: broadcastDash
+});
 
 const compatBridge = new CompatBridgeServer({
   widgetManager,
@@ -164,7 +201,9 @@ let hotkeysConfig = {
   toggle_all: 'Alt+P',
   clear_queue: 'Alt+C',
   skip_tts: 'Alt+S',
+  toggle_hud: 'Alt+H',
   toggle_hud_lock: 'Alt+L',
+  spin_wheel: 'Alt+W',
   win_add: 'Alt+1',
   lose_add: 'Alt+2'
 };
@@ -183,16 +222,37 @@ function handleHotkeyTriggered(action) {
     queue.clear();
   } else if (action === 'skip_tts') {
     audioTtsDriver.stopAllAudio();
+  } else if (action === 'toggle_hud') {
+    if (global.agivaElectronBridge) {
+      global.agivaElectronBridge.toggleFloatingHud('toggle');
+    }
+  } else if (action === 'spin_wheel') {
+    widgetManager.spinWheel('Hotkey');
   } else if (action === 'win_add') {
     widgetManager.controlCounter('win_add', 1);
   } else if (action === 'lose_add') {
     widgetManager.controlCounter('lose_add', 1);
+  } else if (String(action).startsWith('sound:')) {
+    const soundId = String(action).slice(6);
+    if (soundId) {
+      audioTtsDriver.playSound(soundId, {}, effectMap.masterSwitches.tts !== false);
+    }
   }
 }
 
-if (global.agivaElectronBridge) {
-  global.agivaElectronBridge.registerHotkeys(hotkeysConfig, handleHotkeyTriggered);
+function registerAllHotkeys() {
+  if (!global.agivaElectronBridge) return;
+  const merged = { ...hotkeysConfig };
+  const items = audioTtsDriver.getConfig()?.soundboard?.items || [];
+  for (const item of items) {
+    if (item && item.id && item.hotkey) {
+      merged[`sound:${item.id}`] = item.hotkey;
+    }
+  }
+  global.agivaElectronBridge.registerHotkeys(merged, handleHotkeyTriggered);
 }
+
+registerAllHotkeys();
 
 // ─── Multi-Driver Effect Queue Processor ──────────────────────────────────────
 queue.setProcessor(async (item) => {
@@ -305,7 +365,8 @@ function extractUserMeta(data) {
       if (lvl > gifterLevel) gifterLevel = lvl;
     }
   }
-  return { uniqueId, user: uniqueId, nickname, followRole, isFollower, isSubscribe, isModerator, isAdmin: isModerator, gifterLevel };
+  const avatar = u.profilePictureUrl || data?.profilePictureUrl || u.avatarThumb?.urlList?.[0] || '';
+  return { uniqueId, user: uniqueId, nickname, avatar, followRole, isFollower, isSubscribe, isModerator, isAdmin: isModerator, gifterLevel };
 }
 
 /**
@@ -323,7 +384,18 @@ function executeChainedActions(effect, vars = {}) {
     const text = audioTtsDriver.formatTemplate(chain.ttsTemplate, vars);
     audioTtsDriver.speak(text, { user: vars.user }, switches.tts !== false);
   }
-  if (chain.overlayScreen && chain.overlayScreen >= 1) {
+
+  const chainedAction = chain.actionId && actionEngine
+    ? actionEngine.data?.actions?.find(a => a.id === chain.actionId)
+    : null;
+  const actionHandlesScreen = Boolean(chainedAction?.steps?.some(s => s && s.type === 'screen_alert'));
+
+  if (
+    chain.overlayScreen &&
+    chain.overlayScreen >= 1 &&
+    (!actionHandlesScreen || chain.overlayMediaUrl) &&
+    (!effect.skipGameEffect || chain.overlayMediaUrl)
+  ) {
     widgetManager.triggerScreenAlert(chain.overlayScreen, {
       title: effect.label || effect.id,
       subtitle: `${vars.user || 'Penonton'} ${vars.giftName ? `(${vars.giftName})` : ''}`,
@@ -339,6 +411,22 @@ function executeChainedActions(effect, vars = {}) {
   if (chain.obsScene && switches.obs !== false) {
     obsDriver.switchSceneTemporary(chain.obsScene, chain.obsDurationSec || 5, switches.obs !== false).catch(() => {});
   }
+  if (chain.actionId && actionEngine) {
+    actionEngine.executeAction(chain.actionId, vars).catch(() => {});
+  }
+}
+
+function enqueueGameEffect(effect, queuePayload = {}) {
+  if (!effect || effect.skipGameEffect || !effect.id || effect.id === '__none__') {
+    return false;
+  }
+  return queue.enqueue({
+    effectId: effect.id,
+    label: effect.label,
+    duration: effect.duration || 0,
+    lane: effect.driver || 'ws-mod',
+    ...queuePayload
+  });
 }
 
 function handleGift(data) {
@@ -362,12 +450,26 @@ function handleGift(data) {
   if (giftType === undefined && (data.repeatEnd === false || data.repeat_end === 0)) return;
 
   roomStats.gifts++;
-  const event = { time: Date.now(), type: 'gift', user, giftName, coins, giftId: data.giftId, repeatCount };
+  const giftImage = knownGift?.image || data.giftPictureUrl || '';
+  const event = { time: Date.now(), type: 'gift', user, giftName, coins, giftId: data.giftId, repeatCount, avatar: userMeta.avatar, giftImage };
   pushEvent(event);
   broadcastDash({ type: 'stats', roomStats });
+  broadcastDash({
+    type: 'gift_fx',
+    user,
+    nickname: userMeta.nickname,
+    giftName,
+    giftId: data.giftId,
+    coins,
+    repeatCount,
+    avatar: userMeta.avatar,
+    giftImage
+  });
 
-  // Update Widgets, Session Analytics & Compat Bridge
-  widgetManager.onGift({ user, coins, giftName, repeatCount });
+  // Update Widgets, Points, Chatbot, Session Analytics & Compat Bridge
+  widgetManager.onGift({ user, coins, giftName, giftId: data.giftId, repeatCount, avatar: userMeta.avatar });
+  pointsManager.onGift({ user, nickname: userMeta.nickname, coins, isSub: userMeta.isSubscribe });
+  chatbotDriver.onGift({ user, nickname: userMeta.nickname, giftName, coins }, { tiktokConn: tiktokConnection });
   sessionStore.recordGift({ user, giftName, giftId: data.giftId, coins, repeatCount });
   compatBridge.broadcastEvent('gift', event);
 
@@ -378,26 +480,33 @@ function handleGift(data) {
     audioTtsDriver.speak(msg, { user }, effectMap.masterSwitches.tts !== false);
   }
 
+  const vars = { user, nickname: userMeta.nickname, giftName, giftId: data.giftId, coins, repeatCount };
+  if (actionEngine) {
+    actionEngine.dispatchEvent('gift', vars, userMeta);
+    actionEngine.dispatchEvent('coin_range', vars, userMeta);
+  }
+
   const effect = effectMap.resolveGiftById(data.giftId, coins, userMeta);
   if (!effect) {
     console.log(`[Gift] No mapping for gift ID ${data.giftId} (${giftName}, ${coins}💎)`);
     return;
   }
 
-  const vars = { user, nickname: userMeta.nickname, giftName, coins, repeatCount };
   executeChainedActions(effect, vars);
 
   const times = effect.chainActions?.multiplyByRepeat ? Math.min(10, Math.max(1, repeatCount)) : 1;
-  console.log(`[Gift] ${user} → ${giftName} (${coins}💎) → ${effect.id}${times > 1 ? ` (x${times})` : ''}`);
-  for (let i = 0; i < times; i++) {
-    queue.enqueue({
-      effectId: effect.id,
-      label: effect.label,
-      duration: effect.duration || 0,
-      user,
-      source: 'gift',
-      data: { giftName, coins, giftId: data.giftId, repeatCount }
-    });
+  if (effect.skipGameEffect) {
+    console.log(`[Gift] ${user} → ${giftName} (${coins}💎) → [Multi-Action Only]`);
+  } else {
+    console.log(`[Gift] ${user} → ${giftName} (${coins}💎) → ${effect.id}${times > 1 ? ` (x${times})` : ''}`);
+    for (let i = 0; i < times; i++) {
+      enqueueGameEffect(effect, {
+        user,
+        source: 'gift',
+        priority: coins >= 100 ? 'high' : 'normal',
+        data: { giftName, coins, giftId: data.giftId, repeatCount }
+      });
+    }
   }
 }
 
@@ -409,7 +518,9 @@ function handleFollow(data) {
   pushEvent(ev);
   broadcastDash({ type: 'stats', roomStats });
 
-  widgetManager.onFollow({ user });
+  widgetManager.onFollow({ user, avatar: userMeta.avatar });
+  pointsManager.onFollow({ user, nickname: userMeta.nickname, isSub: userMeta.isSubscribe });
+  chatbotDriver.onFollow({ user, nickname: userMeta.nickname }, { tiktokConn: tiktokConnection });
   sessionStore.recordFollow();
   compatBridge.broadcastEvent('follow', ev);
 
@@ -418,11 +529,16 @@ function handleFollow(data) {
     audioTtsDriver.speak(msg, { user }, effectMap.masterSwitches.tts !== false);
   }
 
+  const vars = { user, nickname: userMeta.nickname };
+  if (actionEngine) actionEngine.dispatchEvent('follow', vars, userMeta);
+
   const effects = effectMap.resolveEvent('follow', userMeta);
   for (const effect of effects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname });
-    console.log(`[Follow] ${user} → ${effect.id}`);
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'follow' });
+    executeChainedActions(effect, vars);
+    if (!effect.skipGameEffect) {
+      console.log(`[Follow] ${user} → ${effect.id}`);
+      enqueueGameEffect(effect, { user, source: 'follow' });
+    }
   }
 }
 
@@ -434,14 +550,21 @@ function handleShare(data) {
   pushEvent(ev);
   broadcastDash({ type: 'stats', roomStats });
 
+  widgetManager.onShare({ user, avatar: userMeta.avatar });
+  pointsManager.onShare({ user, nickname: userMeta.nickname, isSub: userMeta.isSubscribe });
   sessionStore.recordShare();
   compatBridge.broadcastEvent('share', ev);
 
+  const vars = { user, nickname: userMeta.nickname };
+  if (actionEngine) actionEngine.dispatchEvent('share', vars, userMeta);
+
   const effects = effectMap.resolveEvent('share', userMeta);
   for (const effect of effects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname });
-    console.log(`[Share] ${user} → ${effect.id}`);
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'share' });
+    executeChainedActions(effect, vars);
+    if (!effect.skipGameEffect) {
+      console.log(`[Share] ${user} → ${effect.id}`);
+      enqueueGameEffect(effect, { user, source: 'share' });
+    }
   }
 }
 
@@ -454,11 +577,16 @@ function handleRepost(data) {
   broadcastDash({ type: 'stats', roomStats });
   compatBridge.broadcastEvent('repost', ev);
 
+  const vars = { user, nickname: userMeta.nickname };
+  if (actionEngine) actionEngine.dispatchEvent('repost', vars, userMeta);
+
   const effects = effectMap.resolveEvent('repost', userMeta);
   for (const effect of effects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname });
-    console.log(`[Repost] ${user} → ${effect.id}`);
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'repost' });
+    executeChainedActions(effect, vars);
+    if (!effect.skipGameEffect) {
+      console.log(`[Repost] ${user} → ${effect.id}`);
+      enqueueGameEffect(effect, { user, source: 'repost' });
+    }
   }
 }
 
@@ -469,10 +597,14 @@ function handleMember(data) {
   pushEvent(ev);
   compatBridge.broadcastEvent('member', ev);
 
+  const vars = { user, nickname: userMeta.nickname };
+  chatbotDriver.onMember(vars, { tiktokConn: tiktokConnection });
+  if (actionEngine) actionEngine.dispatchEvent('member', vars, userMeta);
+
   const effects = effectMap.resolveEvent('member', userMeta);
   for (const effect of effects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname });
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'member' });
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'member' });
   }
 }
 
@@ -484,23 +616,28 @@ function handleLike(data) {
   const ev = { time: Date.now(), type: 'like', user, count };
   pushEvent(ev);
   broadcastDash({ type: 'stats', roomStats });
+  broadcastDash({ type: 'like_fx', user, nickname: userMeta.nickname, count });
 
-  widgetManager.onLike({ user, count });
+  widgetManager.onLike({ user, count, avatar: userMeta.avatar });
+  pointsManager.onLike({ user, nickname: userMeta.nickname, count, isSub: userMeta.isSubscribe });
   sessionStore.recordLike({ user, count });
   compatBridge.broadcastEvent('like', ev);
+
+  const vars = { user, nickname: userMeta.nickname, count };
+  if (actionEngine) actionEngine.dispatchEvent('like', vars, userMeta);
 
   // Resolve Like Goal Incremental Thresholds
   const effects = effectMap.resolveLikes(count);
   for (const effect of effects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname, count });
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'like', data: { count } });
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'like', data: { count } });
   }
 
   // Resolve standard 'like' social event (triggers on every like batch)
   const socialEffects = effectMap.resolveEvent('like', userMeta);
   for (const effect of socialEffects) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname, count });
-    queue.enqueue({ effectId: effect.id, label: effect.label, duration: effect.duration || 0, user, source: 'like_event', data: { count } });
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'like_event', data: { count } });
   }
 }
 
@@ -510,28 +647,149 @@ function handleChat(data) {
   const comment = data.comment || data.content || data.text || '';
   if (!comment) return;
 
-  const ev = { time: Date.now(), type: 'chat', user, comment, role: userMeta };
+  const ev = { time: Date.now(), type: 'chat', user, comment, role: userMeta, avatar: userMeta.avatar };
   pushEvent(ev);
 
-  widgetManager.onChat({ user, comment });
+  const emojiMatches = comment.match(/\p{Extended_Pictographic}/gu);
+  if (emojiMatches && emojiMatches.length > 0) {
+    broadcastDash({ type: 'emoji_fx', user, emojis: emojiMatches.slice(0, 8), emoteUrl: '' });
+  }
+
+  widgetManager.onChat({ user, comment, avatar: userMeta.avatar });
+  pointsManager.onChat({ user, nickname: userMeta.nickname, isSub: userMeta.isSubscribe });
   sessionStore.recordChat();
   compatBridge.broadcastEvent('chat', ev);
 
-  // Check Chat TTS (!tts or all chat mode)
-  audioTtsDriver.handleChatTts({ ...userMeta, comment }, effectMap.masterSwitches.tts !== false);
+  const vars = { user, nickname: userMeta.nickname, comment };
+
+  // Economy Commands (!score, !transfer, !gamble, !spin, !get, !help)
+  pointsManager.handleEconomyCommand(comment, userMeta, {
+    spinWheelFn: (u) => widgetManager.spinWheel(u),
+    replyFn: (msg) => chatbotDriver.sendMessage(msg, vars, { tiktokConn: tiktokConnection })
+  });
+
+  // Active Chatbot custom commands
+  chatbotDriver.handleIncomingChat(comment, userMeta, vars, pointsManager, { tiktokConn: tiktokConnection }).catch(() => {});
+
+  // Check Chat TTS (!tts or all chat mode) with optional Points cost
+  audioTtsDriver.handleChatTts({ ...userMeta, comment }, effectMap.masterSwitches.tts !== false, {
+    beforeSpeak: () => {
+      const ttsCost = Number(pointsManager.config.ttsCostPoints) || 0;
+      if (ttsCost <= 0) return true;
+      const spent = pointsManager.spendPoints(user, ttsCost, 'tts_chat', { nickname: userMeta.nickname });
+      if (!spent.ok) {
+        chatbotDriver.sendMessage(`@${userMeta.nickname || user} ${spent.error}`, vars, { tiktokConn: tiktokConnection }).catch(() => {});
+        return false;
+      }
+      return true;
+    }
+  });
+
+  if (actionEngine) actionEngine.dispatchEvent('chat', vars, userMeta);
 
   const effect = effectMap.resolveChatCommand(comment, userMeta);
   if (effect) {
-    executeChainedActions(effect, { user, nickname: userMeta.nickname, comment });
-    console.log(`[ChatCmd] ${user} ("${comment}") → ${effect.id}`);
-    queue.enqueue({
-      effectId: effect.id,
-      label: effect.label,
-      duration: effect.duration || 0,
-      user,
-      source: 'chat',
-      data: { comment }
-    });
+    const cmdCost = Number(effect.chainActions?.costPoints) || 0;
+    if (cmdCost > 0) {
+      const spent = pointsManager.spendPoints(user, cmdCost, `chat_cmd_${effect.id}`, { nickname: userMeta.nickname });
+      if (!spent.ok) {
+        chatbotDriver.sendMessage(`@${userMeta.nickname || user} ${spent.error}`, vars, { tiktokConn: tiktokConnection }).catch(() => {});
+        return;
+      }
+    }
+    executeChainedActions(effect, vars);
+    if (!effect.skipGameEffect) {
+      console.log(`[ChatCmd] ${user} ("${comment}") → ${effect.id}`);
+      enqueueGameEffect(effect, { user, source: 'chat', data: { comment } });
+    }
+  }
+}
+
+function handleSubscribe(data) {
+  const userMeta = extractUserMeta(data);
+  const user = userMeta.uniqueId;
+  const subMonth = Number(data.subMonth || data.months || 1);
+  roomStats.subscribers = (roomStats.subscribers || 0) + 1;
+  const ev = { time: Date.now(), type: 'subscribe', user, subMonth };
+  pushEvent(ev);
+  broadcastDash({ type: 'stats', roomStats });
+
+  widgetManager.onSubscribe({ user, avatar: userMeta.avatar });
+  pointsManager.onSubscribe({ user, nickname: userMeta.nickname });
+  compatBridge.broadcastEvent('subscribe', ev);
+
+  const vars = { user, nickname: userMeta.nickname, subMonth };
+  if (actionEngine) actionEngine.dispatchEvent('subscribe', vars, userMeta);
+
+  const effects = effectMap.resolveEvent('subscribe', userMeta);
+  for (const effect of effects) {
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'subscribe', priority: 'high' });
+  }
+}
+
+function handleEmote(data) {
+  const userMeta = extractUserMeta(data);
+  const user = userMeta.uniqueId;
+  const emoteId = data.emoteId || data.emote?.emoteId || '';
+  const emoteUrl = data.emoteImageUrl || data.emote?.image?.url_list?.[0] || '';
+  const ev = { time: Date.now(), type: 'emote', user, emoteId, emoteUrl };
+  pushEvent(ev);
+  broadcastDash({ type: 'emoji_fx', user, emoteUrl, emojis: [] });
+  compatBridge.broadcastEvent('emote', ev);
+
+  const vars = { user, nickname: userMeta.nickname, emoteId, emoteUrl };
+  if (actionEngine) actionEngine.dispatchEvent('emote', vars, userMeta);
+
+  const effects = effectMap.resolveEvent('emote', userMeta);
+  for (const effect of effects) {
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'emote' });
+  }
+}
+
+function handleEnvelope(data) {
+  const userMeta = extractUserMeta(data);
+  const user = userMeta.uniqueId;
+  const coins = Number(data.envelopeInfo?.businessType || data.coins || 1);
+  const ev = { time: Date.now(), type: 'envelope', user, coins };
+  pushEvent(ev);
+  compatBridge.broadcastEvent('envelope', ev);
+
+  const vars = { user, nickname: userMeta.nickname, coins };
+  if (actionEngine) actionEngine.dispatchEvent('envelope', vars, userMeta);
+
+  const effects = effectMap.resolveEvent('envelope', userMeta);
+  for (const effect of effects) {
+    executeChainedActions(effect, vars);
+    enqueueGameEffect(effect, { user, source: 'envelope' });
+  }
+}
+
+function handleQuestion(data) {
+  const userMeta = extractUserMeta(data);
+  const user = userMeta.uniqueId;
+  const comment = data.questionText || data.content || '';
+  const ev = { time: Date.now(), type: 'question', user, comment };
+  pushEvent(ev);
+  compatBridge.broadcastEvent('questionNew', ev);
+  if (actionEngine) actionEngine.dispatchEvent('questionNew', { user, nickname: userMeta.nickname, comment }, userMeta);
+}
+
+function handleBattle(data) {
+  const user = data?.anchorInfo?.nickname || 'PK Battle';
+  const ev = { time: Date.now(), type: 'battle', user, battleId: data?.battleId || '' };
+  pushEvent(ev);
+  compatBridge.broadcastEvent('linkMicBattle', ev);
+  if (actionEngine) actionEngine.dispatchEvent('linkMicBattle', { user, nickname: user }, { uniqueId: user });
+}
+
+function emitLiveStatus(status, username) {
+  const ev = { time: Date.now(), type: 'live_status', user: username || currentUsername || 'Streamer', status };
+  pushEvent(ev);
+  compatBridge.broadcastEvent('liveStatusChange', { status, username: ev.user });
+  if (actionEngine) {
+    actionEngine.dispatchEvent('liveStatusChange', { user: ev.user, nickname: ev.user, status }, { uniqueId: ev.user });
   }
 }
 
@@ -547,6 +805,7 @@ function handleDonation(data) {
   broadcastDash({ type: 'stats', roomStats });
 
   widgetManager.onDonation({ user, amount });
+  pointsManager.onDonation({ user, nickname: user, amount });
   sessionStore.recordDonation({ user, platform, amount, message });
   compatBridge.broadcastEvent('donation', ev);
 
@@ -560,6 +819,9 @@ function handleDonation(data) {
     audioTtsDriver.speak(spoken, { user }, effectMap.masterSwitches.tts !== false);
   }
 
+  const vars = { user, nickname: user, amount, platform, comment: message };
+  if (actionEngine) actionEngine.dispatchEvent('donation', vars, { uniqueId: user });
+
   let effect = effectMap.resolveDonation(amount);
   // Fallback to Coin Tiers using IDR-to-Coin conversion if enabled
   if (!effect && donationSocketProvider.config.autoTriggerCoinTiers && amount > 0) {
@@ -572,22 +834,25 @@ function handleDonation(data) {
     return;
   }
 
-  executeChainedActions(effect, { user, nickname: user, amount, comment: message });
-  console.log(`[Donation] ${user} (${platform}: Rp ${amount}) → ${effect.id}`);
-  queue.enqueue({
-    effectId: effect.id,
-    label: effect.label,
-    duration: effect.duration || 0,
-    user,
-    source: platform,
-    data: { amount, platform, message }
-  });
+  executeChainedActions(effect, vars);
+  if (effect.skipGameEffect) {
+    console.log(`[Donation] ${user} (${platform}: Rp ${amount}) → [Multi-Action Only]`);
+  } else {
+    console.log(`[Donation] ${user} (${platform}: Rp ${amount}) → ${effect.id}`);
+    enqueueGameEffect(effect, {
+      user,
+      source: platform,
+      priority: amount >= 25000 ? 'high' : 'normal',
+      data: { amount, platform, message }
+    });
+  }
 }
 
 function handleRoomUser(data) {
   const viewers = data.viewerCount ?? data.total;
   if (viewers !== undefined) {
     roomStats.viewers = Number(viewers);
+    sessionStore.recordViewers(roomStats.viewers);
     broadcastDash({ type: 'stats', roomStats });
   }
 }
@@ -613,7 +878,7 @@ async function connectTikTok(username, requestedMode) {
   currentUsername = username;
   if (requestedMode) connectionMode = requestedMode;
   sendToMod({ type: 'auth', username: currentUsername });
-  roomStats = { viewers: 0, likes: 0, gifts: 0, followers: 0, shares: 0, reposts: 0, donations: roomStats.donations || 0 };
+  roomStats = { viewers: 0, likes: 0, gifts: 0, followers: 0, shares: 0, reposts: 0, subscribers: 0, donations: roomStats.donations || 0 };
   effectMap.resetLikeCounter();
 
   const apiKey = process.env.EULERSTREAM_API_KEY;
@@ -646,6 +911,7 @@ async function connectTikTok(username, requestedMode) {
     isConnected = true;
     console.log(`[TikTok] Connected to ${username} via Eulerstream WS`);
     broadcastDash({ type: 'state', isConnected, activeConnectionProvider, currentUsername, roomStats, roomId: currentRoomId || username });
+    emitLiveStatus('connected', username);
 
     // Eulerstream closes immediately if offline. If we stay connected for 5s, we consider it established.
     setTimeout(() => {
@@ -670,25 +936,40 @@ async function connectTikTok(username, requestedMode) {
           } else if (msg.type === 'WebcastLikeMessage' && msg.data) {
             hasEstablishedConnection = true;
             const likes = msg.data.count || msg.data.likeCount || 1;
-            handleLike({ uniqueId: msg.data.user?.uniqueId, likeCount: likes });
+            handleLike({ ...msg.data, uniqueId: msg.data.user?.uniqueId, likeCount: likes });
           } else if (msg.type === 'WebcastSocialMessage' && msg.data) {
             hasEstablishedConnection = true;
             if (String(msg.data.action) === '1') {
-              handleFollow({ uniqueId: msg.data.user?.uniqueId });
+              handleFollow({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
             } else if (String(msg.data.action) === '3') {
-              handleShare({ uniqueId: msg.data.user?.uniqueId });
+              handleShare({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
             } else {
-              handleRepost({ uniqueId: msg.data.user?.uniqueId });
+              handleRepost({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
             }
           } else if (msg.type === 'WebcastMemberMessage' && msg.data) {
             hasEstablishedConnection = true;
-            handleMember({ uniqueId: msg.data.user?.uniqueId });
+            handleMember({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
           } else if (msg.type === 'WebcastChatMessage' && msg.data) {
             hasEstablishedConnection = true;
-            handleChat({ uniqueId: msg.data.user?.uniqueId, comment: msg.data.comment });
+            handleChat({ ...msg.data, uniqueId: msg.data.user?.uniqueId, comment: msg.data.comment });
           } else if (msg.type === 'WebcastRoomUserSeqMessage' && msg.data) {
             hasEstablishedConnection = true;
             handleRoomUser({ viewerCount: msg.data.total || msg.data.viewerCount });
+          } else if (msg.type === 'WebcastSubNotifyMessage' && msg.data) {
+            hasEstablishedConnection = true;
+            handleSubscribe({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
+          } else if (msg.type === 'WebcastEmoteChatMessage' && msg.data) {
+            hasEstablishedConnection = true;
+            handleEmote({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
+          } else if (msg.type === 'WebcastEnvelopeMessage' && msg.data) {
+            hasEstablishedConnection = true;
+            handleEnvelope({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
+          } else if (msg.type === 'WebcastQuestionNewMessage' && msg.data) {
+            hasEstablishedConnection = true;
+            handleQuestion({ ...msg.data, uniqueId: msg.data.user?.uniqueId });
+          } else if ((msg.type === 'WebcastLinkMicBattle' || msg.type === 'WebcastLinkMicArmies') && msg.data) {
+            hasEstablishedConnection = true;
+            handleBattle(msg.data);
           }
         }
       }
@@ -707,6 +988,7 @@ async function connectTikTok(username, requestedMode) {
 
     if (!manualDisconnect && currentUsername) {
       if (hasEstablishedConnection) {
+        emitLiveStatus('disconnected', currentUsername);
         console.log(`[TikTok] Connection lost. Attempting to reconnect in 3 seconds...`);
         reconnectTimer = setTimeout(() => {
           connectTikTok(currentUsername).catch(e => console.error('[TikTok] Reconnect failed:', e.message));
@@ -778,9 +1060,17 @@ async function connectTikTokConnector(username) {
     conn.on('member', (data) => handleMember(data));
     conn.on('chat', (data) => handleChat(data));
     conn.on('roomUser', (data) => handleRoomUser(data));
+    conn.on('subscribe', (data) => handleSubscribe(data));
+    conn.on('emote', (data) => handleEmote(data));
+    conn.on('envelope', (data) => handleEnvelope(data));
+    conn.on('questionNew', (data) => handleQuestion(data));
+    conn.on('linkMicBattle', (data) => handleBattle(data));
+    conn.on('linkMicArmies', (data) => handleBattle(data));
+    emitLiveStatus('connected', username);
     conn.on('streamEnd', () => {
       if (tiktokConnection !== conn) return;
       isConnected = false;
+      emitLiveStatus('streamEnd', currentUsername);
       currentUsername = '';
       broadcastDash({ type: 'state', isConnected: false, currentUsername: '', roomStats });
     });
@@ -847,6 +1137,10 @@ app.use('/sounds', express.static(paths.SOUNDS_DIR));
 if (paths.BUNDLED_SOUNDS_DIR !== paths.SOUNDS_DIR) {
   app.use('/sounds', express.static(paths.BUNDLED_SOUNDS_DIR));
 }
+app.use('/media', express.static(paths.MEDIA_DIR));
+if (paths.BUNDLED_MEDIA_DIR !== paths.MEDIA_DIR) {
+  app.use('/media', express.static(paths.BUNDLED_MEDIA_DIR));
+}
 
 // ─── REST API ─────────────────────────────────────────────────────────────────
 // Status
@@ -869,6 +1163,11 @@ app.get('/api/status', (req, res) => {
     masterSwitches: effectMap.masterSwitches,
     games: gameDetect.getDetected(),
     ttsSoundConfig: audioTtsDriver.getConfig(),
+    ttsVoices: audioTtsDriver.getAvailableVoices(),
+    actionsData: actionEngine.getAll(),
+    pointsSummary: pointsManager.getState(),
+    chatbotConfig: chatbotDriver.getState(),
+    intervalsData: intervalScheduler.getState(),
     widgetState: widgetManager.getState(),
     compatPorts: compatBridge.getStatus(),
     obsStatus: obsDriver.getStatus(),
@@ -1039,6 +1338,9 @@ app.put('/api/config', (req, res) => {
       ...req.body
     };
     effectMap.save();
+    if (effectMap.config.queueSettings) {
+      queue.updateSettings(effectMap.config.queueSettings);
+    }
     res.json({ success: true, config: effectMap.getConfig() });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1273,26 +1575,69 @@ app.get('/api/windows', async (req, res) => {
 });
 
 // ─── Test & Simulation Endpoints ──────────────────────────────────────────────
-// Test fire an effect manually
+// Test fire an effect manually (with optional Multi-Action / standalone __none__ execution)
 app.post('/api/test-effect', (req, res) => {
-  const { effectId, user, source } = req.body;
-  if (!effectId) return res.status(400).json({ error: 'effectId required' });
+  const { effectId, user, source, chainActions, label, giftName, coins } = req.body;
+  const chainRule = {
+    ...(chainActions && typeof chainActions === 'object' ? chainActions : {}),
+    ...(label ? { label } : {})
+  };
+  const hasChain = Boolean(
+    chainRule.actionId ||
+    chainRule.soundId ||
+    chainRule.spinWheel ||
+    chainRule.ttsTemplate ||
+    chainRule.obsScene ||
+    chainRule.overlayMediaUrl ||
+    Number(chainRule.timerAddSec) ||
+    Number(chainRule.overlayScreen) >= 1
+  );
 
-  const effect = effectMap._resolveEffect(effectId) || { id: effectId, effectId, label: effectId, duration: 0 };
-  queue.enqueue({
-    effectId: effect.id || effectId,
-    label: effect.label || effectId,
-    duration: effect.duration || 0,
-    user: user || 'dashboard-test',
+  if (!effectId && !hasChain) {
+    return res.status(400).json({ error: 'effectId or multi-action required' });
+  }
+
+  const testUser = user || 'dashboard-test';
+  const pickedId = effectId === '__random__'
+    ? effectMap._pickEffectId({ effectId: '__random__' })
+    : (effectId || '__none__');
+  const effect = effectMap._resolveEffect(pickedId, {}, chainRule) || {
+    id: pickedId,
+    effectId: pickedId,
+    label: chainRule.label || pickedId,
+    skipGameEffect: pickedId === '__none__',
+    duration: 0,
+    driver: pickedId === '__none__' ? 'none' : 'ws-mod',
+    chainActions: chainRule
+  };
+
+  executeChainedActions(effect, {
+    user: testUser,
+    nickname: testUser,
+    giftName: giftName || chainRule.label || 'Test Gift',
+    coins: Number(coins) || 1,
+    repeatCount: 1,
+    source: source || 'test'
+  });
+
+  enqueueGameEffect(effect, {
+    user: testUser,
     source: source || 'test',
     data: { macro: effect.macro, command: effect.command }
   });
-  res.json({ success: true, effectId, driver: effect.driver });
+
+  res.json({
+    success: true,
+    effectId: effect.id,
+    skipGameEffect: Boolean(effect.skipGameEffect),
+    driver: effect.driver,
+    chainExecuted: hasChain
+  });
 });
 
-// Built-in Live Event Simulator (Test Gift, Like, Follow, Share, Chat, Donation)
+// Built-in Live Event Simulator (Test Gift, Like, Follow, Share, Chat, Donation, Subscribe, Emote, Envelope, Battle)
 app.post('/api/simulate', (req, res) => {
-  const { type, user = 'AgivaTester', giftId = 5655, giftName = 'Rose', coins = 1, count = 100, comment = '!lompat', amount = 10000, platform = 'saweria' } = req.body;
+  const { type, user = 'AgivaTester', giftId = 5655, giftName = 'Rose', coins = 1, count = 100, comment = '!lompat', amount = 10000, platform = 'saweria', subMonth = 1 } = req.body;
   switch (type) {
     case 'gift':
       handleGift({ uniqueId: user, giftId: Number(giftId), giftName, diamondCount: Number(coins), repeatCount: 1, repeatEnd: true });
@@ -1314,6 +1659,18 @@ app.post('/api/simulate', (req, res) => {
       break;
     case 'donation':
       handleDonation({ user, amount: Number(amount) || 10000, platform, message: comment });
+      break;
+    case 'subscribe':
+      handleSubscribe({ uniqueId: user, subMonth: Number(subMonth) || 1 });
+      break;
+    case 'emote':
+      handleEmote({ uniqueId: user, emoteId: 'sub_emote_1' });
+      break;
+    case 'envelope':
+      handleEnvelope({ uniqueId: user, coins: Number(coins) || 10 });
+      break;
+    case 'battle':
+      handleBattle({ anchorInfo: { nickname: user }, battleId: 'sim_battle_1' });
       break;
     default:
       return res.status(400).json({ error: 'Unknown simulation type' });
@@ -1342,6 +1699,7 @@ app.post('/api/v1/interaksi', (req, res) => {
     effectId: effect.id || effectId,
     label: effect.label || effectId,
     duration: effect.duration || 0,
+    lane: effect.driver || 'ws-mod',
     user,
     source: 'local_api'
   });
@@ -1388,17 +1746,33 @@ app.get('/api/tts-sound/config', (req, res) => {
 
 app.put('/api/tts-sound/config', (req, res) => {
   const updated = audioTtsDriver.saveConfig(req.body || {});
+  registerAllHotkeys();
   res.json({ success: true, config: updated });
 });
 
 app.get('/api/tts/stream', (req, res) => {
-  audioTtsDriver.streamGoogleTts(req.query.text || '', req.query.lang || 'id', res);
+  audioTtsDriver.streamTts(req.query || {}, res);
+});
+
+app.get('/api/tts/voices', (req, res) => {
+  res.json(audioTtsDriver.getAvailableVoices());
+});
+
+app.get('/api/tts/logs', (req, res) => {
+  res.json(audioTtsDriver.getLogs());
+});
+
+app.delete('/api/tts/logs', (req, res) => {
+  res.json({ success: true, logs: audioTtsDriver.clearLogs() });
 });
 
 app.post(['/api/tts/test', '/api/tts/speak'], (req, res) => {
   const text = req.body.text || 'Halo penonton Agiva, ini adalah tes suara Text to Speech Bahasa Indonesia gratis!';
   const spoken = audioTtsDriver.speak(text, {
-    voicePreset: req.body.voicePreset || req.body.lang,
+    voicePreset: req.body.voicePreset,
+    voice: req.body.voice,
+    engine: req.body.engine,
+    lang: req.body.lang,
     user: req.body.user || 'Streamer'
   }, true);
   res.json({ success: Boolean(spoken), spoken });
@@ -1420,6 +1794,7 @@ app.post(['/api/soundboard/stop', '/api/tts/skip'], (req, res) => {
 app.post('/api/soundboard/upload', (req, res) => {
   try {
     const item = audioTtsDriver.uploadSound(req.body || {});
+    registerAllHotkeys();
     res.json({ success: true, item, config: audioTtsDriver.getConfig() });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -1428,6 +1803,7 @@ app.post('/api/soundboard/upload', (req, res) => {
 
 app.delete('/api/soundboard/:id', (req, res) => {
   const ok = audioTtsDriver.deleteSound(req.params.id);
+  registerAllHotkeys();
   res.json({ success: ok, config: audioTtsDriver.getConfig() });
 });
 
@@ -1437,16 +1813,39 @@ app.get('/api/widgets', (req, res) => {
 });
 
 app.post('/api/widgets/timer', (req, res) => {
-  const { action, value, seconds, title, secondsPerCoin } = req.body || {};
+  const body = req.body || {};
+  const { action, value, seconds, title, secondsPerCoin } = body;
   let val = value !== undefined ? value : seconds;
   if (action === 'config' && (!val || typeof val !== 'object')) {
     val = {
-      title,
-      autoAdd: secondsPerCoin !== undefined ? { secPerCoin: Number(secondsPerCoin) } : undefined
+      ...(title !== undefined ? { title } : {}),
+      ...(body.defaultSec !== undefined ? { defaultSec: body.defaultSec } : {}),
+      ...(body.boostEnabled !== undefined ? { boostEnabled: body.boostEnabled } : {}),
+      ...(body.boostMultiplier !== undefined ? { boostMultiplier: body.boostMultiplier } : {}),
+      ...(body.randomBonusEnabled !== undefined ? { randomBonusEnabled: body.randomBonusEnabled } : {}),
+      ...(body.randomMinSec !== undefined ? { randomMinSec: body.randomMinSec } : {}),
+      ...(body.randomMaxSec !== undefined ? { randomMaxSec: body.randomMaxSec } : {}),
+      ...(body.hideWhenZero !== undefined ? { hideWhenZero: body.hideWhenZero } : {}),
+      ...(body.endEffectId !== undefined ? { endEffectId: body.endEffectId } : {}),
+      ...(body.endActionId !== undefined ? { endActionId: body.endActionId } : {}),
+      autoAdd: {
+        ...(body.autoAdd || {}),
+        ...(secondsPerCoin !== undefined ? { secPerCoin: Number(secondsPerCoin) } : {})
+      }
     };
   }
   const timer = widgetManager.controlTimer(action || 'toggle', val, 'Dashboard');
   res.json({ success: true, timer });
+});
+
+app.post('/api/widgets/theme', (req, res) => {
+  const theme = widgetManager.updateTheme(req.body || {});
+  res.json({ success: true, theme });
+});
+
+app.post('/api/widgets/screen/:id', (req, res) => {
+  const screen = widgetManager.updateScreenConfig(req.params.id, req.body || {});
+  res.json({ success: true, screen });
 });
 
 app.post('/api/widgets/wheel', (req, res) => {
@@ -1522,6 +1921,140 @@ app.post('/api/widgets/giveaway', (req, res) => {
 app.post('/api/widgets/leaderboard/reset', (req, res) => {
   widgetManager.resetLeaderboard();
   res.json({ success: true, leaderboard: widgetManager.getLeaderboard() });
+});
+
+// ─── Phase 3: Mini-Games, PRO Overlays, Points, Chatbot & Intervals REST APIs ─
+app.post('/api/widgets/gift-counters', (req, res) => {
+  const slots = Array.isArray(req.body?.slots) ? req.body.slots : req.body;
+  const giftCounters = widgetManager.configureGiftCounters(slots);
+  res.json({ success: true, giftCounters });
+});
+
+app.post('/api/widgets/gift-battle', (req, res) => {
+  const { action = 'config', ...rest } = req.body || {};
+  const giftBattle = widgetManager.controlGiftBattle(action, rest);
+  res.json({ success: true, giftBattle });
+});
+
+app.post('/api/widgets/coin-match', (req, res) => {
+  const { action = 'config', ...rest } = req.body || {};
+  const coinMatch = widgetManager.controlCoinMatch(action, rest);
+  res.json({ success: true, coinMatch });
+});
+
+app.post('/api/widgets/likeathon', (req, res) => {
+  const { action = 'config', ...rest } = req.body || {};
+  const likeathon = widgetManager.controlLikeathon(action, rest);
+  res.json({ success: true, likeathon });
+});
+
+app.post('/api/widgets/coin-jar', (req, res) => {
+  const { action = 'config', ...rest } = req.body || {};
+  const coinJar = widgetManager.controlCoinJar(action, rest);
+  res.json({ success: true, coinJar });
+});
+
+app.post('/api/widgets/records/reset', (req, res) => {
+  const result = widgetManager.resetRecords();
+  res.json({ success: true, ...result });
+});
+
+// Points & Loyalty APIs
+app.get('/api/points', (req, res) => {
+  res.json(pointsManager.getState());
+});
+
+app.put('/api/points/config', (req, res) => {
+  res.json({ success: true, state: pointsManager.updateConfig(req.body || {}) });
+});
+
+app.post('/api/points/adjust', (req, res) => {
+  const { user, delta, reason } = req.body || {};
+  if (!user || delta === undefined) return res.status(400).json({ error: 'user and delta required' });
+  const record = pointsManager.adjustPoints(user, delta, reason || 'admin_adjust');
+  if (!record) return res.status(400).json({ error: 'Invalid user or zero delta' });
+  res.json({ success: true, user: record, state: pointsManager.getState() });
+});
+
+app.post('/api/points/drop', (req, res) => {
+  const action = req.body?.action || 'start';
+  const drop = action === 'stop' || action === 'end'
+    ? pointsManager.endDrop()
+    : pointsManager.startDrop(req.body || {});
+  res.json({ success: true, drop, state: pointsManager.getState() });
+});
+
+app.post('/api/points/challenge', (req, res) => {
+  const { action = 'start', mode = 'discard' } = req.body || {};
+  const challenge = action === 'end' || action === 'stop'
+    ? pointsManager.endChallenge(mode)
+    : pointsManager.startChallenge();
+  res.json({ success: true, challenge, state: pointsManager.getState() });
+});
+
+app.post('/api/points/halving', (req, res) => {
+  const percent = Number(req.body?.percent ?? 50);
+  const result = pointsManager.halveAllPoints(percent);
+  res.json({ success: true, ...result, state: pointsManager.getState() });
+});
+
+// Active Chatbot APIs
+app.get('/api/chatbot', (req, res) => {
+  res.json(chatbotDriver.getState());
+});
+
+app.put('/api/chatbot/config', (req, res) => {
+  res.json({ success: true, state: chatbotDriver.updateConfig(req.body || {}) });
+});
+
+app.post('/api/chatbot/command', (req, res) => {
+  try {
+    const command = chatbotDriver.upsertCommand(req.body || {});
+    res.json({ success: true, command, state: chatbotDriver.getState() });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.delete('/api/chatbot/command/:id', (req, res) => {
+  const ok = chatbotDriver.deleteCommand(req.params.id);
+  res.json({ success: ok, state: chatbotDriver.getState() });
+});
+
+app.post('/api/chatbot/send', async (req, res) => {
+  const { text } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const result = await chatbotDriver.sendMessage(text, { user: currentUsername || 'Streamer', nickname: currentUsername || 'Streamer' }, { tiktokConn: tiktokConnection, force: true });
+  res.json({ success: result.sent, ...result, state: chatbotDriver.getState() });
+});
+
+app.delete('/api/chatbot/logs', (req, res) => {
+  res.json({ success: true, logs: chatbotDriver.clearLogs() });
+});
+
+// Interval Timers Scheduler APIs
+app.get('/api/intervals', (req, res) => {
+  res.json(intervalScheduler.getState());
+});
+
+app.put('/api/intervals/settings', (req, res) => {
+  res.json({ success: true, state: intervalScheduler.updateSettings(req.body || {}) });
+});
+
+app.post('/api/intervals', (req, res) => {
+  const timer = intervalScheduler.upsertTimer(req.body || {});
+  res.json({ success: true, timer, state: intervalScheduler.getState() });
+});
+
+app.delete('/api/intervals/:id', (req, res) => {
+  const ok = intervalScheduler.deleteTimer(req.params.id);
+  res.json({ success: ok, state: intervalScheduler.getState() });
+});
+
+app.post('/api/intervals/:id/trigger', (req, res) => {
+  const ok = intervalScheduler.triggerNow(req.params.id);
+  if (!ok) return res.status(404).json({ error: 'Timer not found' });
+  res.json({ success: true, state: intervalScheduler.getState() });
 });
 
 app.post('/api/overlay/screen/:id/test', (req, res) => {
@@ -1613,9 +2146,7 @@ app.post('/api/desktop/hotkeys', (req, res) => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(HOTKEYS_PATH, JSON.stringify(hotkeysConfig, null, 2), 'utf8');
   } catch {}
-  if (global.agivaElectronBridge) {
-    global.agivaElectronBridge.registerHotkeys(hotkeysConfig, handleHotkeyTriggered);
-  }
+  registerAllHotkeys();
   res.json({ success: true, hotkeys: hotkeysConfig });
 });
 
@@ -1630,9 +2161,143 @@ app.post(['/api/desktop/ttlogin', '/api/electron/tiktok-login'], (req, res) => {
   res.json({ success: false, mode: 'browser', error: 'Fitur Auto-Login Window memerlukan aplikasi dijalankan via Electron (npm run app).' });
 });
 
+// ─── Reusable Actions & Events Matrix + Media Library Endpoints (Phase 2) ────
+app.get('/api/actions', (req, res) => {
+  res.json(actionEngine.getAll());
+});
+
+app.post('/api/actions', (req, res) => {
+  try {
+    const action = actionEngine.upsertAction(req.body || {});
+    res.json({ success: true, action, data: actionEngine.getAll() });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.delete('/api/actions/:id', (req, res) => {
+  const ok = actionEngine.deleteAction(req.params.id);
+  res.json({ success: ok, data: actionEngine.getAll() });
+});
+
+app.post('/api/actions/:id/test', async (req, res) => {
+  const ok = await actionEngine.executeAction(req.params.id, {
+    user: req.body?.user || 'StreamerTest',
+    nickname: req.body?.nickname || req.body?.user || 'StreamerTest',
+    giftName: req.body?.giftName || 'Galaxy',
+    coins: req.body?.coins || 1000,
+    repeatCount: req.body?.repeatCount || 1,
+    amount: req.body?.amount || 50000,
+    comment: req.body?.comment || 'Tes Action!',
+    source: 'action_test'
+  });
+  if (!ok) return res.status(404).json({ error: 'Action not found or Master Switch OFF' });
+  res.json({ success: true });
+});
+
+app.post('/api/actions/import', (req, res) => {
+  try {
+    const data = actionEngine.importBundle(req.body || {});
+    res.json({ success: true, data });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/events-matrix', (req, res) => {
+  try {
+    const eventRule = actionEngine.upsertEvent(req.body || {});
+    res.json({ success: true, eventRule, data: actionEngine.getAll() });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.delete('/api/events-matrix/:id', (req, res) => {
+  const ok = actionEngine.deleteEvent(req.params.id);
+  res.json({ success: ok, data: actionEngine.getAll() });
+});
+
+app.get('/api/media', (req, res) => {
+  try {
+    if (!fs.existsSync(paths.MEDIA_DIR)) return res.json([]);
+    const allowed = new Set(['.gif', '.png', '.jpg', '.jpeg', '.webp', '.mp4', '.webm']);
+    const files = fs.readdirSync(paths.MEDIA_DIR)
+      .filter(f => allowed.has(path.extname(f).toLowerCase()))
+      .map(f => {
+        const stat = fs.statSync(path.join(paths.MEDIA_DIR, f));
+        return { filename: f, url: `/media/${encodeURIComponent(f)}`, size: stat.size, mtime: stat.mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    res.json(files);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/media/upload', (req, res) => {
+  try {
+    const filename = req.body?.filename || req.body?.fileName;
+    const dataBase64 = req.body?.dataBase64 || req.body?.base64Data;
+    if (!filename || !dataBase64) return res.status(400).json({ error: 'filename dan dataBase64 diperlukan' });
+    const ext = path.extname(filename).toLowerCase();
+    if (!['.gif', '.png', '.jpg', '.jpeg', '.webp', '.mp4', '.webm'].includes(ext)) {
+      return res.status(400).json({ error: 'Format media harus .gif, .png, .jpg, .webp, .mp4, atau .webm' });
+    }
+    const safeBase = path.basename(filename, ext).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || `media_${Date.now()}`;
+    const finalName = `${safeBase}_${Date.now().toString(36)}${ext}`;
+    if (!fs.existsSync(paths.MEDIA_DIR)) fs.mkdirSync(paths.MEDIA_DIR, { recursive: true });
+    const rawBase64 = String(dataBase64).replace(/^data:[^;]+;base64,/, '');
+    const buf = Buffer.from(rawBase64, 'base64');
+    if (buf.length > 15 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Ukuran file media maksimal 15 MB' });
+    }
+    fs.writeFileSync(path.join(paths.MEDIA_DIR, finalName), buf);
+    res.json({ success: true, item: { filename: finalName, url: `/media/${encodeURIComponent(finalName)}`, size: buf.length } });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.delete('/api/media/:filename', (req, res) => {
+  try {
+    const safeName = path.basename(String(req.params.filename || ''));
+    const mediaRoot = path.resolve(paths.MEDIA_DIR);
+    const targetPath = path.resolve(mediaRoot, safeName);
+    if (!safeName || !targetPath.startsWith(mediaRoot + path.sep) || !fs.existsSync(targetPath)) {
+      return res.status(404).json({ error: 'Media tidak ditemukan' });
+    }
+    fs.unlinkSync(targetPath);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // ─── Batch C: OBS Studio WebSocket v5 Endpoints ──────────────────────────────
 app.get('/api/obs/status', (req, res) => {
   res.json(obsDriver.getStatus());
+});
+
+app.get('/api/obs/resources', (req, res) => {
+  const st = obsDriver.getStatus();
+  res.json({
+    isConnected: st.isConnected,
+    currentScene: st.currentScene,
+    scenes: st.scenes,
+    sceneItems: st.sceneItems,
+    inputs: st.inputs,
+    filters: st.filters
+  });
+});
+
+app.post('/api/obs/refresh', async (req, res) => {
+  try {
+    const resources = await obsDriver.refreshResources();
+    res.json({ success: true, ...resources });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 app.post('/api/obs/connect', async (req, res) => {
@@ -1651,13 +2316,19 @@ app.post('/api/obs/disconnect', (req, res) => {
 
 app.post('/api/obs/action', async (req, res) => {
   try {
-    const { type, sceneName, sourceName, filterName, inputName, durationSec = 5 } = req.body || {};
+    const { type, sceneName, sourceName, filterName, inputName, enabled = true, text = '', durationSec = 5 } = req.body || {};
     if (type === 'scene') {
       await obsDriver.switchSceneTemporary(sceneName, Number(durationSec) || 0, true);
+    } else if (type === 'source') {
+      await obsDriver.setSceneItemVisibilityTemporary(sceneName, sourceName, Boolean(enabled), Number(durationSec) || 0, true);
     } else if (type === 'filter') {
       await obsDriver.toggleFilterTemporary(sourceName, filterName, Number(durationSec) || 8, true);
     } else if (type === 'mute') {
       await obsDriver.toggleMuteTemporary(inputName, Number(durationSec) || 10, true);
+    } else if (type === 'text') {
+      await obsDriver.setInputText(inputName, text, true);
+    } else if (type === 'replay') {
+      await obsDriver.saveReplayBuffer(true);
     }
     res.json({ success: true, status: obsDriver.getStatus() });
   } catch (e) {
@@ -1775,7 +2446,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.3.1      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.0      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);
@@ -1803,4 +2474,23 @@ httpServer.listen(DASHBOARD_PORT, () => {
       }
     } catch {}
   }, 4000);
+});
+
+function flushPendingStores() {
+  try { intervalScheduler?.destroy(); } catch {}
+  try { widgetManager.flushSaveSync(); } catch {}
+  try { sessionStore.flushSaveSync(); } catch {}
+  try { actionEngine?.flushSaveSync(); } catch {}
+  try { pointsManager?.flushSaveSync(); } catch {}
+  try { chatbotDriver?.flushSaveSync(); } catch {}
+  try { intervalScheduler?.flushSaveSync(); } catch {}
+}
+process.on('beforeExit', flushPendingStores);
+process.on('SIGINT', () => {
+  flushPendingStores();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  flushPendingStores();
+  process.exit(0);
 });

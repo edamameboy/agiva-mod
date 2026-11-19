@@ -13,8 +13,15 @@ class ObsDriver {
     this.isConnected = false;
     this.scenes = [];
     this.currentScene = '';
+    this.sceneItems = {};
+    this.inputs = [];
+    this.filters = {};
     this.pendingRequests = new Map();
     this.revertTimer = null;
+    this.sourceRevertTimers = new Map();
+    this.manualDisconnect = false;
+    this.reconnectTimer = null;
+    this.reconnectAttempt = 0;
 
     this.config = {
       url: 'ws://127.0.0.1:4455',
@@ -52,17 +59,57 @@ class ObsDriver {
   getStatus() {
     return {
       isConnected: this.isConnected,
+      connected: this.isConnected,
       url: this.config.url,
       hasPassword: Boolean(this.config.password),
       autoConnect: this.config.autoConnect,
       currentScene: this.currentScene,
-      scenes: this.scenes
+      scenes: this.scenes,
+      sceneItems: this.sceneItems,
+      inputs: this.inputs,
+      filters: this.filters
     };
+  }
+
+  _teardownSocket() {
+    if (this.revertTimer) {
+      clearTimeout(this.revertTimer);
+      this.revertTimer = null;
+    }
+    for (const timer of this.sourceRevertTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.sourceRevertTimers.clear();
+    if (this.ws) {
+      try {
+        this.ws.removeAllListeners();
+        this.ws.close();
+      } catch {}
+      this.ws = null;
+    }
+    this.isConnected = false;
+  }
+
+  _scheduleReconnect() {
+    if (this.manualDisconnect || this.reconnectTimer || !this.config.url) return;
+    const delayMs = Math.min(30000, 3000 * Math.pow(2, this.reconnectAttempt));
+    this.reconnectAttempt++;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.manualDisconnect && !this.isConnected) {
+        this.connect().catch(() => {});
+      }
+    }, delayMs);
   }
 
   async connect(customConfig) {
     if (customConfig) this.saveConfig(customConfig);
-    this.disconnect();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this._teardownSocket();
+    this.manualDisconnect = false;
 
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -103,7 +150,9 @@ class ObsDriver {
             // OpCode 2 = Identified
             clearTimeout(timeout);
             this.isConnected = true;
-            await this.refreshScenes().catch(() => {});
+            this.reconnectAttempt = 0;
+            this._hasConnectedOnce = true;
+            await this.refreshResources().catch(() => this.refreshScenes().catch(() => {}));
             this.broadcast({ type: 'obs_status', status: this.getStatus() });
             if (!settled) {
               settled = true;
@@ -131,11 +180,15 @@ class ObsDriver {
 
       ws.on('close', () => {
         clearTimeout(timeout);
+        const wasConnected = this.isConnected;
         this.isConnected = false;
         this.broadcast({ type: 'obs_status', status: this.getStatus() });
         if (!settled) {
           settled = true;
           reject(new Error('OBS WebSocket closed (cek password atau port 4455)'));
+        }
+        if (!this.manualDisconnect && this.config.url && (wasConnected || this._hasConnectedOnce || this.config.autoConnect)) {
+          this._scheduleReconnect();
         }
       });
 
@@ -151,18 +204,12 @@ class ObsDriver {
   }
 
   disconnect() {
-    if (this.revertTimer) {
-      clearTimeout(this.revertTimer);
-      this.revertTimer = null;
+    this.manualDisconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
-    if (this.ws) {
-      try {
-        this.ws.removeAllListeners();
-        this.ws.close();
-      } catch {}
-      this.ws = null;
-    }
-    this.isConnected = false;
+    this._teardownSocket();
     this.broadcast({ type: 'obs_status', status: this.getStatus() });
   }
 
@@ -190,6 +237,123 @@ class ObsDriver {
     this.currentScene = data.currentProgramSceneName || '';
     this.scenes = (data.scenes || []).map(s => s.sceneName);
     return this.scenes;
+  }
+
+  async refreshResources() {
+    if (!this.isConnected) {
+      return { scenes: this.scenes, sceneItems: this.sceneItems, inputs: this.inputs, filters: this.filters };
+    }
+    await this.refreshScenes();
+    const nextSceneItems = {};
+    const nextFilters = {};
+
+    for (const sceneName of this.scenes.slice(0, 25)) {
+      try {
+        const res = await this.sendRequest('GetSceneItemList', { sceneName });
+        nextSceneItems[sceneName] = (res.sceneItems || []).map(it => ({
+          sceneItemId: it.sceneItemId,
+          sourceName: it.sourceName,
+          inputKind: it.inputKind || '',
+          sceneItemEnabled: Boolean(it.sceneItemEnabled)
+        }));
+      } catch {}
+      try {
+        const fRes = await this.sendRequest('GetSourceFilterList', { sourceName: sceneName });
+        if (Array.isArray(fRes.filters) && fRes.filters.length > 0) {
+          nextFilters[sceneName] = fRes.filters.map(f => ({
+            filterName: f.filterName,
+            filterKind: f.filterKind,
+            filterEnabled: Boolean(f.filterEnabled)
+          }));
+        }
+      } catch {}
+    }
+
+    let nextInputs = [];
+    try {
+      const inpRes = await this.sendRequest('GetInputList');
+      nextInputs = (inpRes.inputs || []).map(i => ({
+        inputName: i.inputName,
+        inputKind: i.inputKind || ''
+      }));
+      for (const inp of nextInputs.slice(0, 40)) {
+        try {
+          const fRes = await this.sendRequest('GetSourceFilterList', { sourceName: inp.inputName });
+          if (Array.isArray(fRes.filters) && fRes.filters.length > 0) {
+            nextFilters[inp.inputName] = fRes.filters.map(f => ({
+              filterName: f.filterName,
+              filterKind: f.filterKind,
+              filterEnabled: Boolean(f.filterEnabled)
+            }));
+          }
+        } catch {}
+      }
+    } catch {}
+
+    this.sceneItems = nextSceneItems;
+    this.inputs = nextInputs;
+    this.filters = nextFilters;
+    return { scenes: this.scenes, sceneItems: this.sceneItems, inputs: this.inputs, filters: this.filters };
+  }
+
+  async setSceneItemVisibilityTemporary(sceneName, sourceName, enabled = true, durationSec = 0, masterObsEnabled = true) {
+    if (!masterObsEnabled || !this.isConnected || !sourceName) return false;
+    const targetScene = sceneName || this.currentScene;
+    if (!targetScene) return false;
+
+    let sceneItemId = null;
+    const cachedList = this.sceneItems[targetScene] || [];
+    const found = cachedList.find(i => i.sourceName === sourceName) ||
+      cachedList.find(i => i.sourceName.toLowerCase() === String(sourceName).toLowerCase());
+    if (found) {
+      sceneItemId = found.sceneItemId;
+    } else {
+      const idRes = await this.sendRequest('GetSceneItemId', { sceneName: targetScene, sourceName });
+      sceneItemId = idRes?.sceneItemId;
+    }
+    if (sceneItemId === undefined || sceneItemId === null) return false;
+
+    const targetEnabled = Boolean(enabled);
+    await this.sendRequest('SetSceneItemEnabled', {
+      sceneName: targetScene,
+      sceneItemId,
+      sceneItemEnabled: targetEnabled
+    });
+
+    const timerKey = `${targetScene}::${sourceName}`;
+    if (this.sourceRevertTimers.has(timerKey)) {
+      clearTimeout(this.sourceRevertTimers.get(timerKey));
+      this.sourceRevertTimers.delete(timerKey);
+    }
+
+    if (durationSec > 0) {
+      const t = setTimeout(() => {
+        this.sourceRevertTimers.delete(timerKey);
+        this.sendRequest('SetSceneItemEnabled', {
+          sceneName: targetScene,
+          sceneItemId,
+          sceneItemEnabled: !targetEnabled
+        }).catch(() => {});
+      }, durationSec * 1000);
+      this.sourceRevertTimers.set(timerKey, t);
+    }
+    return true;
+  }
+
+  async setInputText(inputName, text, masterObsEnabled = true) {
+    if (!masterObsEnabled || !this.isConnected || !inputName) return false;
+    await this.sendRequest('SetInputSettings', {
+      inputName,
+      inputSettings: { text: String(text ?? '') },
+      overlay: true
+    });
+    return true;
+  }
+
+  async saveReplayBuffer(masterObsEnabled = true) {
+    if (!masterObsEnabled || !this.isConnected) return false;
+    await this.sendRequest('SaveReplayBuffer');
+    return true;
   }
 
   async switchSceneTemporary(sceneName, durationSec = 0, masterObsEnabled = true) {

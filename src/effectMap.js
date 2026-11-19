@@ -143,17 +143,17 @@ class EffectMap {
    * Check whether a viewer passes Role or Specific Users filter
    */
   checkUserPermission(userMeta = {}, rule = {}) {
-    const role = rule.allowedRole || 'everyone';
+    const role = rule.allowedRole || rule.requiredRole || 'everyone';
     if (role === 'everyone') return true;
 
     const uid = String(userMeta.uniqueId || userMeta.user || '').trim().toLowerCase().replace(/^@/, '');
 
     if (role === 'specific_users') {
-      const list = String(rule.allowedUsers || '')
-        .split(',')
-        .map(u => u.trim().toLowerCase().replace(/^@/, ''))
+      const rawUsers = rule.allowedUsers !== undefined ? rule.allowedUsers : (rule.specificUsers ?? '');
+      const list = (Array.isArray(rawUsers) ? rawUsers : String(rawUsers || '').split(','))
+        .map(u => String(u || '').trim().toLowerCase().replace(/^@/, ''))
         .filter(Boolean);
-      if (list.length === 0) return true;
+      if (list.length === 0) return false;
       return list.includes(uid);
     }
     if (role === 'follower') {
@@ -175,6 +175,7 @@ class EffectMap {
    * Support Gacha / Random Effect Pool or __random__ across active game
    */
   _pickEffectId(rule = {}) {
+    if (rule.effectId === '__none__') return '__none__';
     if (rule.randomPool) {
       const pool = Array.isArray(rule.randomPool)
         ? rule.randomPool
@@ -336,7 +337,19 @@ class EffectMap {
    * Resolve effect strictly from the active game first, enriching with game driver & multi-action chaining info
    */
   _resolveEffect(effectId, customParams = {}, triggerRule = {}) {
-    if (!effectId) return null;
+    const hasRuleMultiAction = Boolean(
+      triggerRule && (
+        triggerRule.actionId ||
+        triggerRule.soundId ||
+        triggerRule.ttsTemplate ||
+        triggerRule.spinWheel ||
+        triggerRule.obsScene ||
+        triggerRule.overlayMediaUrl ||
+        Number(triggerRule.timerAddSec)
+      )
+    );
+    const isNoGameEffect = effectId === '__none__' || (!effectId && hasRuleMultiAction);
+    if (!effectId && !isNoGameEffect) return null;
     const activeGame = this.getActiveGameConfig();
     const chainActions = {
       multiplyByRepeat: Boolean(triggerRule.multiplyByRepeat),
@@ -347,8 +360,27 @@ class EffectMap {
       timerAddSec: Number(triggerRule.timerAddSec) || 0,
       spinWheel: Boolean(triggerRule.spinWheel),
       obsScene: triggerRule.obsScene || '',
-      obsDurationSec: Number(triggerRule.obsDurationSec) || 5
+      obsDurationSec: Number(triggerRule.obsDurationSec) || 5,
+      actionId: triggerRule.actionId || '',
+      costPoints: Number(triggerRule.costPoints) || 0
     };
+
+    if (isNoGameEffect) {
+      return {
+        id: '__none__',
+        effectId: '__none__',
+        label: triggerRule.label || 'Multi-Action Only',
+        skipGameEffect: true,
+        duration: 0,
+        gameId: activeGame?.id || this.config.activeGameId || '',
+        driver: 'none',
+        inputMethod: '',
+        targetProcess: '',
+        rconConfig: null,
+        params: customParams || {},
+        chainActions
+      };
+    }
 
     if (activeGame && activeGame.effects?.[effectId]) {
       const eff = activeGame.effects[effectId];

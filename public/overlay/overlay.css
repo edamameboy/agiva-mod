@@ -1,12 +1,21 @@
 /* OBS Overlay CSS — transparent background, animated alerts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap');
 
+:root {
+  --ov-font: 'Inter', sans-serif;
+  --ov-scale: 1;
+  --ov-text: #f8fafc;
+  --ov-accent: #6366f1;
+  --ov-bg: rgba(11, 15, 25, 0.9);
+  --ov-radius: 16px;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   width: 100%; height: 100%;
   background: transparent !important;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ov-font);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -126,19 +135,51 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
   z-index: 50;
 }
+.screen-alert-stage.pos-top-right { align-items: flex-start; justify-content: flex-end; }
+.screen-alert-stage.pos-top-left { align-items: flex-start; justify-content: flex-start; }
+.screen-alert-stage.pos-bottom { align-items: flex-end; justify-content: center; }
+.screen-alert-stage.pos-fullscreen { padding: 0; }
+.screen-alert-stage.pos-fullscreen .screen-alert-card {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .screen-alert-card {
-  background: rgba(13, 17, 28, 0.92);
-  border: 2px solid rgba(99, 102, 241, 0.65);
-  border-radius: 18px;
+  background: var(--ov-bg);
+  border: 2px solid var(--ov-accent);
+  border-radius: var(--ov-radius);
   padding: 20px 28px;
   text-align: center;
-  color: #fff;
+  color: var(--ov-text);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65), 0 0 35px rgba(99, 102, 241, 0.35);
   animation: alertIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   max-width: 520px;
+  transform: scale(var(--ov-scale));
 }
+.screen-alert-card.anim-slide { animation: alertIn 0.35s ease-out; }
+.screen-alert-card.anim-fade { animation: alertFadeIn 0.35s ease-out; }
+.screen-alert-card.anim-bounce { animation: alertBounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.screen-alert-card.exit { animation: alertOut 0.3s ease forwards; }
+
+@keyframes alertFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes alertBounceIn {
+  0% { opacity: 0; transform: scale(0.6); }
+  65% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .screen-alert-card img,
 .screen-alert-card video {
   max-width: 340px;
@@ -152,13 +193,13 @@ html, body {
 .screen-alert-title {
   font-size: 22px;
   font-weight: 900;
-  color: #f8fafc;
+  color: var(--ov-text);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 .screen-alert-sub {
   font-size: 14px;
   font-weight: 700;
-  color: #a5b4fc;
+  color: var(--ov-accent);
   margin-top: 4px;
 }
 
@@ -174,14 +215,15 @@ html, body {
 }
 
 .w-card {
-  background: rgba(11, 15, 25, 0.9);
+  background: var(--ov-bg);
   border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
+  border-radius: var(--ov-radius);
   padding: 18px 24px;
-  color: #f8fafc;
+  color: var(--ov-text);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(12px);
   min-width: 320px;
+  transform: scale(var(--ov-scale));
 }
 .w-title {
   font-size: 11px;
@@ -368,4 +410,228 @@ html, body {
   color: #38bdf8;
   font-weight: 800;
   margin-right: 4px;
+}
+
+/* All Widgets Grid (?widget=all) */
+.w-all-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: 1100px;
+  align-items: start;
+}
+.w-all-card {
+  min-width: 0;
+  width: 100%;
+}
+
+/* ─── Phase 3: Graphic Theme Packs (data-pack) ───────────── */
+body[data-pack="cyberpunk"] .w-card,
+body[data-pack="cyberpunk"] .screen-alert-card,
+body[data-pack="cyberpunk"] .w-frame-box {
+  background: rgba(10, 10, 26, 0.92);
+  border: 2px solid #fcee0a;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.45), inset 0 0 18px rgba(255, 0, 128, 0.2);
+  clip-path: polygon(0 12px, 12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+body[data-pack="neon"] .w-card,
+body[data-pack="neon"] .screen-alert-card,
+body[data-pack="neon"] .w-frame-box {
+  background: rgba(8, 12, 24, 0.88);
+  border: 2px solid #22d3ee;
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.55), 0 0 10px rgba(168, 85, 247, 0.5);
+}
+body[data-pack="kawaii"] .w-card,
+body[data-pack="kawaii"] .screen-alert-card,
+body[data-pack="kawaii"] .w-frame-box {
+  background: rgba(255, 241, 248, 0.94);
+  color: #831843;
+  border: 3px solid #f472b6;
+  border-radius: 26px;
+  box-shadow: 0 10px 30px rgba(244, 114, 182, 0.35);
+}
+body[data-pack="kawaii"] .w-title,
+body[data-pack="kawaii"] .screen-alert-title { color: #9d174d; text-shadow: none; }
+body[data-pack="kawaii"] .w-list-item { background: rgba(251, 207, 232, 0.55); color: #831843; }
+body[data-pack="minimalist"] .w-card,
+body[data-pack="minimalist"] .screen-alert-card,
+body[data-pack="minimalist"] .w-frame-box {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}
+body[data-pack="pixel"] .w-card,
+body[data-pack="pixel"] .screen-alert-card,
+body[data-pack="pixel"] .w-frame-box {
+  border-radius: 0 !important;
+  border: 4px solid #ffffff;
+  box-shadow: 6px 6px 0px #000000;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── Phase 3: PRO Overlays & Mini-Games ─────────────────── */
+.w-feed-box {
+  width: 390px;
+  max-height: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+.w-feed-row {
+  background: rgba(30, 41, 59, 0.78);
+  padding: 7px 11px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  animation: alertIn 0.25s ease;
+}
+.w-feed-row.bot {
+  border-left: 3px solid #22c55e;
+  background: rgba(22, 101, 52, 0.45);
+}
+.w-slider-wrap {
+  width: 100%;
+  max-width: 720px;
+  overflow: hidden;
+}
+.w-slider-track {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  animation: ovMarquee 18s linear infinite;
+}
+.w-slider-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--ov-accent);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+@keyframes ovMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Gift Battle */
+.w-battle-bar {
+  display: flex;
+  width: 100%;
+  height: 26px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin: 10px 0;
+}
+.w-battle-left, .w-battle-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  transition: width 0.35s ease;
+}
+
+/* OBS Dock (?widget=dock) */
+.w-dock-panel {
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+  max-width: 440px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.w-dock-btns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.w-dock-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.w-dock-btn:hover { background: #334155; border-color: #6366f1; }
+
+/* FX Stage (Firework, Cannon, Like Fountain, Emojify) */
+.w-fx-stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.w-fx-particle {
+  position: fixed;
+  pointer-events: none;
+  font-size: 28px;
+  animation: fxFloatUp 2.6s ease-out forwards;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+@keyframes fxFloatUp {
+  0% { opacity: 0; transform: translateY(0) scale(0.6) rotate(0deg); }
+  15% { opacity: 1; transform: translateY(-40px) scale(1.1) rotate(8deg); }
+  100% { opacity: 0; transform: translateY(-420px) scale(0.85) rotate(-14deg); }
+}
+
+/* Webcam Frame (?widget=frame) */
+.w-frame-box {
+  width: min(92vw, 720px);
+  aspect-ratio: 16 / 9;
+  border: 4px solid var(--ov-accent);
+  border-radius: var(--ov-radius);
+  background: transparent !important;
+  position: relative;
+  box-shadow: 0 0 32px rgba(99, 102, 241, 0.4);
+}
+.w-frame-banner {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ov-bg);
+  border: 2px solid var(--ov-accent);
+  padding: 5px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Points Drop Banner */
+.points-drop-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #111827;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 3px solid #fef3c7;
+  font-weight: 900;
+  font-size: 15px;
+  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.5);
+  z-index: 80;
+  pointer-events: none;
+  animation: alertBounceIn 0.4s ease;
 }

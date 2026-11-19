@@ -5,9 +5,11 @@ const screenStage = document.getElementById('screen-alert-stage');
 const widgetStage = document.getElementById('widget-stage');
 
 const urlParams = new URLSearchParams(window.location.search);
-const activeWidget = (urlParams.get('widget') || '').toLowerCase(); // '' | 'timer' | 'wheel' | 'goal' | 'counter' | 'leaderboard' | 'poll' | 'giveaway' | 'hud'
+const rawWidgetParam = (urlParams.get('widget') || '').toLowerCase(); // '' | 'timer' | 'wheel' | 'goal' | 'counter' | 'winlose' | 'leaderboard' | 'poll' | 'giveaway' | 'all' | 'hud'
+const activeWidget = rawWidgetParam === 'winlose' ? 'counter' : rawWidgetParam;
 const activeScreen = Number(urlParams.get('screen') || 1);
-const goalTypeParam = (urlParams.get('type') || 'likes').toLowerCase();
+const goalTypeParam = (urlParams.get('type') || 'coins').toLowerCase();
+const lastTypeParam = (urlParams.get('type') || 'follower').toLowerCase();
 const muteAudioParam = urlParams.get('mute') === '1';
 
 const alertQueue = [];
@@ -19,6 +21,16 @@ let wheelRotationDeg = 0;
 let hudEvents = [];
 let hudLocked = false;
 let currentViewers = 0;
+let currentFollowers = 0;
+let overlayChatFeed = [];
+let overlayGiftFeed = [];
+let sliderMappings = [];
+let activePointsDrop = null;
+let masterPausedState = false;
+const coinJarCoins = [];
+let coinJarLoopRunning = false;
+const fxCanvasParticles = [];
+let fxCanvasLoopRunning = false;
 
 // ─── Audio & Free Indonesian TTS Queue ────────────────────
 const ttsQueue = [];
@@ -31,6 +43,10 @@ function enqueueTts(msg) {
   if (activeWidget && activeWidget !== 'hud') return;
   if (activeScreen !== 1) return;
 
+  const maxQueue = Math.max(1, Number(msg.maxQueueLength) || 10);
+  while (ttsQueue.length >= maxQueue) {
+    ttsQueue.shift();
+  }
   ttsQueue.push(msg);
   processTtsQueue();
 }
@@ -40,28 +56,23 @@ function processTtsQueue() {
   const item = ttsQueue.shift();
   isPlayingTts = true;
 
-  const audio = new Audio(item.audioUrl);
-  audio.volume = Math.max(0, Math.min(1, Number(item.volume ?? 0.9)));
-  audio.playbackRate = Math.max(0.5, Math.min(2.0, Number(item.rate ?? 1.0)));
-  activeAudioElements.add(audio);
+  const urls = Array.isArray(item.audioUrls) && item.audioUrls.length > 0
+    ? item.audioUrls
+    : (item.audioUrl ? [item.audioUrl] : []);
 
   const finish = () => {
-    activeAudioElements.delete(audio);
     isPlayingTts = false;
     setTimeout(processTtsQueue, 150);
   };
 
-  audio.onended = finish;
-  audio.onerror = () => {
-    // Fallback to browser Web Speech API if Google TTS stream fails/offline
-    activeAudioElements.delete(audio);
-    if ('speechSynthesis' in window) {
+  const fallbackSpeech = (textToSpeak) => {
+    if ('speechSynthesis' in window && textToSpeak) {
       try {
-        const u = new SpeechSynthesisUtterance(item.text);
-        u.lang = item.lang === 'en' ? 'en-US' : item.lang === 'ja' ? 'ja-JP' : 'id-ID';
+        const u = new SpeechSynthesisUtterance(textToSpeak);
+        u.lang = item.speechLang || (item.lang === 'en' ? 'en-US' : item.lang === 'ja' ? 'ja-JP' : 'id-ID');
         u.rate = Number(item.rate || 1.0);
         u.pitch = Number(item.pitch || 1.0);
-        u.volume = Number(item.volume ?? 0.9);
+        u.volume = Math.max(0, Math.min(1, Number(item.volume ?? 0.9)));
         u.onend = finish;
         u.onerror = finish;
         window.speechSynthesis.speak(u);
@@ -71,9 +82,47 @@ function processTtsQueue() {
     finish();
   };
 
-  audio.play().catch(() => {
-    audio.onerror();
-  });
+  if (urls.length === 0) {
+    fallbackSpeech(item.text);
+    return;
+  }
+
+  let chunkIdx = 0;
+  const playNextChunk = () => {
+    if (chunkIdx >= urls.length) {
+      finish();
+      return;
+    }
+    const url = urls[chunkIdx];
+    const audio = new Audio(url);
+    audio.volume = Math.max(0, Math.min(1, Number(item.volume ?? 0.9)));
+    audio.playbackRate = Math.max(0.5, Math.min(2.0, Number(item.rate ?? 1.0)));
+    activeAudioElements.add(audio);
+
+    let settled = false;
+    const onChunkDone = () => {
+      if (settled) return;
+      settled = true;
+      activeAudioElements.delete(audio);
+      chunkIdx++;
+      playNextChunk();
+    };
+    const onChunkError = () => {
+      if (settled) return;
+      settled = true;
+      activeAudioElements.delete(audio);
+      const remainingText = Array.isArray(item.chunks) && item.chunks.length > chunkIdx
+        ? item.chunks.slice(chunkIdx).join(' ')
+        : item.text;
+      fallbackSpeech(remainingText);
+    };
+
+    audio.onended = onChunkDone;
+    audio.onerror = onChunkError;
+    audio.play().catch(onChunkError);
+  };
+
+  playNextChunk();
 }
 
 function playSoundPayload(msg) {
@@ -111,23 +160,93 @@ function stopAllAudio() {
   }
 }
 
-// ─── Multi-Screen Media Alert ─────────────────────────────
+// ─── Dynamic Theme Customizer ─────────────────────────────
+function hexToRgba(hex, alpha = 0.9) {
+  const clean = String(hex || '#0b0f19').replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return `rgba(11, 15, 25, ${alpha})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, Number(alpha) ?? 0.9))})`;
+}
+
+function applyOverlayTheme(theme = {}) {
+  if (!theme || typeof theme !== 'object') return;
+  document.body.dataset.pack = theme.pack || 'default';
+  const rootStyle = document.documentElement.style;
+  const font = theme.fontFamily || 'Inter';
+  rootStyle.setProperty('--ov-font', `'${font}', 'Inter', sans-serif`);
+  rootStyle.setProperty('--ov-scale', String(Number(theme.fontSizeScale) || 1.0));
+  rootStyle.setProperty('--ov-text', theme.textColor || '#f8fafc');
+  rootStyle.setProperty('--ov-accent', theme.accentColor || '#6366f1');
+  rootStyle.setProperty('--ov-bg', hexToRgba(theme.bgColor || '#0b0f19', theme.bgOpacity ?? 0.9));
+  rootStyle.setProperty('--ov-radius', `${Number(theme.borderRadius ?? 16)}px`);
+
+  const loadableFonts = ['Space Grotesk', 'Exo 2', 'Poppins', 'Orbitron', 'Fredoka', 'Comic Neue', 'JetBrains Mono'];
+  if (loadableFonts.includes(font)) {
+    let link = document.getElementById('agiva-dyn-font');
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'agiva-dyn-font';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font).replace(/%20/g, '+')}:wght@600;700;800;900&display=swap`;
+    if (link.href !== href) link.href = href;
+  }
+
+  let customEl = document.getElementById('agiva-custom-css');
+  if (!customEl) {
+    customEl = document.createElement('style');
+    customEl.id = 'agiva-custom-css';
+    document.head.appendChild(customEl);
+  }
+  customEl.textContent = theme.customCss || '';
+}
+
+// ─── Multi-Screen Media Alert (Per-Screen Queue) ──────────
+const screenAlertQueue = [];
+let isShowingScreenAlert = false;
+
 function showScreenAlert(msg) {
   if (activeWidget) return;
   if (Number(msg.screen || 1) !== activeScreen) return;
   if (!screenStage) return;
 
+  const maxLen = Math.max(1, Number(msg.maxQueueLength) || 10);
+  while (screenAlertQueue.length >= maxLen) {
+    screenAlertQueue.shift();
+  }
+  screenAlertQueue.push(msg);
+  processScreenAlertQueue();
+}
+
+function processScreenAlertQueue() {
+  if (isShowingScreenAlert || screenAlertQueue.length === 0 || !screenStage) return;
+  const msg = screenAlertQueue.shift();
+  isShowingScreenAlert = true;
+
   if (msg.soundUrl && !muteAudioParam) {
     playSoundPayload({ file: msg.soundUrl, volume: 0.85, overlap: true, screen: activeScreen });
   }
 
+  screenStage.className = `screen-alert-stage pos-${msg.position || 'center'}`;
+
+  const anim = widgetsState?.theme?.animation || 'pop';
   const card = document.createElement('div');
-  card.className = 'screen-alert-card';
+  card.className = `screen-alert-card anim-${anim}`;
+  if (msg.color) {
+    card.style.borderColor = msg.color;
+  }
   let mediaHtml = '';
   if (msg.mediaUrl) {
-    const lower = msg.mediaUrl.toLowerCase();
-    if (lower.endsWith('.mp4') || lower.endsWith('.webm')) {
-      mediaHtml = `<video src="${esc(msg.mediaUrl)}" autoplay muted playsinline></video>`;
+    const cleanMedia = msg.mediaUrl.split('?')[0].split('#')[0].toLowerCase();
+    if (cleanMedia.endsWith('.mp4') || cleanMedia.endsWith('.webm')) {
+      mediaHtml = `<video src="${esc(msg.mediaUrl)}" autoplay ${muteAudioParam ? 'muted ' : ''}playsinline></video>`;
+    } else if (cleanMedia.endsWith('.mp3') || cleanMedia.endsWith('.wav') || cleanMedia.endsWith('.ogg') || cleanMedia.endsWith('.m4a')) {
+      if (!muteAudioParam) {
+        playSoundPayload({ file: msg.mediaUrl, volume: 0.85, overlap: true, screen: activeScreen });
+      }
     } else {
       mediaHtml = `<img src="${esc(msg.mediaUrl)}" alt="">`;
     }
@@ -139,10 +258,18 @@ function showScreenAlert(msg) {
   `;
   screenStage.innerHTML = '';
   screenStage.appendChild(card);
+  const vid = card.querySelector('video');
+  if (vid) vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
 
+  const dur = Math.max(800, Number(msg.durationMs) || 4000);
   setTimeout(() => {
-    if (card.parentNode) card.remove();
-  }, Number(msg.durationMs) || 4000);
+    card.classList.add('exit');
+    setTimeout(() => {
+      if (card.parentNode) card.remove();
+      isShowingScreenAlert = false;
+      processScreenAlertQueue();
+    }, 300);
+  }, dur);
 }
 
 // ─── Interactive Widget Renderers ─────────────────────────
@@ -161,6 +288,10 @@ function renderActiveWidget() {
 
   if (activeWidget === 'timer') {
     const t = widgetsState.timer || {};
+    if (t.hideWhenZero && Number(t.remainingSec) <= 0) {
+      widgetStage.innerHTML = '';
+      return;
+    }
     widgetStage.innerHTML = `
       <div class="w-card">
         <div class="w-title">${esc(t.title || '⏳ SUBATHON TIMER')}</div>
@@ -171,6 +302,10 @@ function renderActiveWidget() {
   } else if (activeWidget === 'goal') {
     const g = widgetsState.goals?.[goalTypeParam] || widgetsState.goals?.likes || { title: 'Target Goal', current: 0, target: 100 };
     const pct = Math.min(100, Math.round(((g.current || 0) / Math.max(1, g.target || 100)) * 100));
+    const remSec = g.deadlineAt > Date.now() ? Math.ceil((g.deadlineAt - Date.now()) / 1000) : 0;
+    const deadlineBadge = g.deadlineAt > 0
+      ? `<div id="w-goal-countdown" style="margin-top:6px;text-align:right;font-size:12px;font-weight:800;color:${remSec > 0 ? '#facc15' : '#ef4444'};">${remSec > 0 ? `⏳ Sisa ${fmtTime(remSec)}` : '⌛ WAKTU HABIS'}</div>`
+      : '';
     widgetStage.innerHTML = `
       <div class="w-card" style="min-width: 380px;">
         <div class="w-goal-header">
@@ -180,6 +315,7 @@ function renderActiveWidget() {
         <div class="w-goal-track">
           <div class="w-goal-fill" style="width: ${pct}%;"></div>
         </div>
+        ${deadlineBadge}
       </div>
     `;
   } else if (activeWidget === 'counter') {
@@ -265,8 +401,455 @@ function renderActiveWidget() {
         ${gw.winner ? `<div style="margin-top:10px;padding:8px;background:rgba(34,197,94,0.2);border:1px solid #22c55e;border-radius:8px;font-weight:800;color:#4ade80;">🎉 Pemenang: @${esc(gw.winner.user)}</div>` : ''}
       </div>
     `;
+  } else if (activeWidget === 'all') {
+    const t = widgetsState.timer || {};
+    const g = widgetsState.goals?.[goalTypeParam] || widgetsState.goals?.coins || { title: 'Target Goal', current: 0, target: 500 };
+    const pct = Math.min(100, Math.round(((g.current || 0) / Math.max(1, g.target || 100)) * 100));
+    const c = widgetsState.counter || { title: '⚔️ REKOR TANTANGAN', wins: 0, loses: 0 };
+    const lb = widgetsState.leaderboard || { topGifters: [] };
+    const gifters = (lb.topGifters || []).slice(0, 5);
+    const p = widgetsState.poll || {};
+    const gw = widgetsState.giveaway || {};
+
+    let pollHtml = '';
+    if (p.active) {
+      const totalVotes = (p.options || []).reduce((s, o) => s + (o.votes || 0), 0);
+      pollHtml = `
+        <div class="w-card w-all-card">
+          <div class="w-title">📊 LIVE VOTING</div>
+          <div style="font-size:13px;font-weight:800;text-align:center;margin-bottom:6px;">${esc(p.question)}</div>
+          <div class="w-list">
+            ${(p.options || []).map(o => {
+              const opct = totalVotes > 0 ? Math.round(((o.votes || 0) / totalVotes) * 100) : 0;
+              return `<div class="w-list-item w-poll-bar"><div class="w-poll-bar-fill" style="width:${opct}%;"></div><span>[${esc(o.key)}] ${esc(o.label)}</span><span>${o.votes || 0} (${opct}%)</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    let gwHtml = '';
+    if (gw.active) {
+      gwHtml = `
+        <div class="w-card w-all-card" style="text-align:center;">
+          <div class="w-title">${esc(gw.title || '🎁 GIVEAWAY')}</div>
+          <div style="font-size:12px;color:#cbd5e1;">Ketik <b style="color:#38bdf8;">${esc(gw.keyword || '!ikut')}</b> di chat</div>
+          <div style="font-size:24px;font-weight:900;color:#a855f7;margin-top:4px;">${(gw.participants || []).length} Peserta</div>
+        </div>
+      `;
+    }
+
+    widgetStage.innerHTML = `
+      <div class="w-all-grid">
+        <div class="w-card w-all-card">
+          <div class="w-title">${esc(t.title || '⏳ SUBATHON TIMER')}</div>
+          <div class="w-timer-digits" id="w-timer-digits" style="font-size:36px;">${fmtTime(t.remainingSec)}</div>
+          <div class="w-timer-badge" id="w-timer-badge">${t.isRunning ? '🟢 RUNNING' : '⏸️ PAUSED'}</div>
+        </div>
+        <div class="w-card w-all-card">
+          <div class="w-title">🎯 GOAL BAR</div>
+          <div class="w-goal-header" style="font-size:13px;">
+            <span>${esc(g.title)}</span>
+            <span>${Number(g.current || 0).toLocaleString('id-ID')} / ${Number(g.target || 100).toLocaleString('id-ID')} (${pct}%)</span>
+          </div>
+          <div class="w-goal-track"><div class="w-goal-fill" style="width:${pct}%;"></div></div>
+        </div>
+        <div class="w-card w-all-card">
+          <div class="w-title">${esc(c.title || '⚔️ WIN / LOSE')}</div>
+          <div class="w-counter-row">
+            <div class="w-counter-box"><div class="w-counter-num win" style="font-size:32px;">${c.wins || 0}</div><div class="w-counter-lbl">WIN</div></div>
+            <div style="font-size:18px;color:#475569;font-weight:900;">VS</div>
+            <div class="w-counter-box"><div class="w-counter-num lose" style="font-size:32px;">${c.loses || 0}</div><div class="w-counter-lbl">LOSE</div></div>
+          </div>
+        </div>
+        <div class="w-card w-all-card">
+          <div class="w-title">👑 TOP GIFTER</div>
+          <div class="w-list">
+            ${gifters.length === 0
+              ? '<div class="w-list-item" style="justify-content:center;color:#64748b;">Belum ada gifter</div>'
+              : gifters.map((gf, i) => `<div class="w-list-item"><span>#${i + 1} ${esc(gf.user)}</span><span style="color:#facc15;">${gf.coins} 💎</span></div>`).join('')}
+          </div>
+        </div>
+        ${pollHtml}
+        ${gwHtml}
+      </div>
+    `;
   } else if (activeWidget === 'hud') {
     renderFloatingHud();
+  } else if (activeWidget === 'last') {
+    const entry = widgetsState.lastX?.[lastTypeParam] || null;
+    const labels = {
+      follower: '👤 LAST FOLLOWER',
+      gifter: '🎁 LAST GIFTER',
+      subscriber: '⭐ LAST SUBSCRIBER',
+      share: '🔄 LAST SHARE',
+      like: '❤️ LAST LIKE',
+      chatter: '💬 LAST CHATTER'
+    };
+    const sub = entry
+      ? (entry.giftName ? `${entry.giftName} (${entry.coins}💎)` : entry.comment ? `"${entry.comment}"` : entry.count ? `${entry.count} likes` : 'Baru saja')
+      : 'Menunggu event...';
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:340px; text-align:center;">
+        <div class="w-title">${labels[lastTypeParam] || '✨ LAST EVENT'}</div>
+        <div style="font-size:22px;font-weight:900;">${entry ? `@${esc(entry.user)}` : '—'}</div>
+        <div style="font-size:13px;color:var(--ov-accent);font-weight:700;margin-top:4px;">${esc(sub)}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'chatbox') {
+    widgetStage.innerHTML = `
+      <div class="w-card w-feed-box">
+        <div class="w-title">💬 LIVE CHAT</div>
+        ${overlayChatFeed.length === 0
+          ? '<div class="w-feed-row" style="color:#64748b;text-align:center;">Menunggu chat masuk...</div>'
+          : overlayChatFeed.slice(0, 12).map(m => `
+            <div class="w-feed-row ${m.bot ? 'bot' : ''}">
+              <strong style="color:${m.bot ? '#4ade80' : 'var(--ov-accent)'};">@${esc(m.user)}:</strong> ${esc(m.text)}
+            </div>
+          `).join('')}
+      </div>
+    `;
+  } else if (activeWidget === 'giftfeed') {
+    widgetStage.innerHTML = `
+      <div class="w-card w-feed-box">
+        <div class="w-title">🎁 GIFT &amp; DONASI FEED</div>
+        ${overlayGiftFeed.length === 0
+          ? '<div class="w-feed-row" style="color:#64748b;text-align:center;">Belum ada gift atau donasi...</div>'
+          : overlayGiftFeed.slice(0, 12).map(g => `
+            <div class="w-feed-row">
+              <strong>${esc(g.user)}</strong> <span style="color:#facc15;">${esc(g.detail)}</span>
+            </div>
+          `).join('')}
+      </div>
+    `;
+  } else if (activeWidget === 'viewers') {
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:220px;text-align:center;">
+        <div class="w-title">👁️ VIEWERS LIVE</div>
+        <div style="font-size:38px;font-weight:900;color:#38bdf8;">${Number(currentViewers || 0).toLocaleString('id-ID')}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'followers') {
+    const fCount = currentFollowers || widgetsState.goals?.followers?.current || 0;
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:220px;text-align:center;">
+        <div class="w-title">👤 FOLLOWERS</div>
+        <div style="font-size:38px;font-weight:900;color:#22c55e;">${Number(fCount).toLocaleString('id-ID')}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'slider') {
+    const enabledMaps = (sliderMappings || []).filter(m => m.enabled);
+    const chips = enabledMaps.length > 0
+      ? enabledMaps.map(m => `<span class="w-slider-chip">🎁 ${esc(m.label || `Gift #${m.giftId}`)} → ⚡ ${esc(m.effectId === '__none__' ? 'Action' : m.effectId)}</span>`).join('')
+      : '<span class="w-slider-chip">🎁 Kirim Gift untuk Memicu Efek Live!</span>';
+    widgetStage.innerHTML = `
+      <div class="w-card w-slider-wrap">
+        <div class="w-title">🎯 INTERACTION SLIDER</div>
+        <div class="w-slider-track">${chips}${chips}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'dock') {
+    widgetStage.style.padding = '8px';
+    widgetStage.innerHTML = `
+      <div class="w-dock-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>🎮 AGIVA OBS DOCK</strong>
+          <span style="font-size:12px;color:#38bdf8;">👁️ ${currentViewers} · 👤 ${currentFollowers}</span>
+        </div>
+        <div class="w-dock-btns">
+          <button class="w-dock-btn" onclick="dockAction('toggle_all')">${masterPausedState ? '▶️ Resume All' : '⏸️ Pause All'}</button>
+          <button class="w-dock-btn" onclick="dockAction('clear_queue')">🧹 Clear Queue</button>
+          <button class="w-dock-btn" onclick="dockAction('skip_tts')">🔇 Skip TTS</button>
+          <button class="w-dock-btn" onclick="dockAction('spin_wheel')">🎡 Spin Wheel</button>
+          <button class="w-dock-btn" onclick="dockAction('points_drop')">🎁 Points Drop</button>
+          <button class="w-dock-btn" onclick="dockAction('win_add')">🏆 +1 Win</button>
+        </div>
+        <div style="font-size:11px;font-weight:800;color:#94a3b8;">RECENT FEED</div>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:260px;overflow-y:auto;">
+          ${overlayGiftFeed.slice(0, 6).map(g => `<div class="w-feed-row">🎁 <strong>${esc(g.user)}</strong>: ${esc(g.detail)}</div>`).join('')}
+          ${overlayChatFeed.slice(0, 6).map(c => `<div class="w-feed-row">💬 <strong>${esc(c.user)}</strong>: ${esc(c.text)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (activeWidget === 'topgift') {
+    const tg = widgetsState.records?.topGift;
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:320px;text-align:center;">
+        <div class="w-title">💎 TOP GIFT SESI INI</div>
+        <div style="font-size:22px;font-weight:900;">${tg ? esc(tg.user) : '—'}</div>
+        <div style="font-size:14px;color:#facc15;font-weight:800;margin-top:4px;">${tg ? `${esc(tg.giftName)} (${tg.coins} 💎)` : 'Belum ada gift'}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'topstreak') {
+    const ts = widgetsState.records?.topStreak;
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:320px;text-align:center;">
+        <div class="w-title">🔥 TOP COMBO STREAK</div>
+        <div style="font-size:22px;font-weight:900;">${ts ? esc(ts.user) : '—'}</div>
+        <div style="font-size:14px;color:#fb923c;font-weight:800;margin-top:4px;">${ts ? `${esc(ts.giftName)} x${ts.repeatCount} (${ts.coins} 💎)` : 'Belum ada streak'}</div>
+      </div>
+    `;
+  } else if (activeWidget === 'giftcounter') {
+    const slots = (widgetsState.giftCounters || []).filter(s => s.enabled);
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:340px;">
+        <div class="w-title">🎁 GIFT COUNTER</div>
+        <div class="w-list">
+          ${slots.length === 0
+            ? '<div class="w-list-item">Tidak ada slot aktif</div>'
+            : slots.map(s => `<div class="w-list-item"><span>${esc(s.label)}</span><span style="color:#facc15;">${s.count || 0}${s.target ? ` / ${s.target}` : ''}</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (activeWidget === 'giftbattle') {
+    const gb = widgetsState.giftBattle || {};
+    const lScore = Number(gb.left?.score) || 0;
+    const rScore = Number(gb.right?.score) || 0;
+    const total = lScore + rScore;
+    const lPct = total > 0 ? Math.round((lScore / total) * 100) : 50;
+    const rPct = 100 - lPct;
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:420px;">
+        <div class="w-title">${esc(gb.title || '⚔️ GIFT BATTLE')} (Target ${gb.target || 50})</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;">
+          <span style="color:${esc(gb.left?.color || '#3b82f6')};">${esc(gb.left?.label || 'LEFT')}: ${lScore}</span>
+          <span style="color:${esc(gb.right?.color || '#ef4444')};">${rScore} :${esc(gb.right?.label || 'RIGHT')}</span>
+        </div>
+        <div class="w-battle-bar">
+          <div class="w-battle-left" style="width:${lPct}%;background:${esc(gb.left?.color || '#3b82f6')};">${lPct}%</div>
+          <div class="w-battle-right" style="width:${rPct}%;background:${esc(gb.right?.color || '#ef4444')};">${rPct}%</div>
+        </div>
+        ${gb.winner ? `<div style="text-align:center;color:#facc15;font-weight:900;font-size:15px;">🏆 PEMENANG: ${esc(gb.winner.label)}!</div>` : ''}
+      </div>
+    `;
+  } else if (activeWidget === 'coinmatch') {
+    const cm = widgetsState.coinMatch || {};
+    const list = widgetsState.coinMatchLeaderboard || [];
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:360px;">
+        <div class="w-title">${esc(cm.title || '🏆 COIN MATCH')} · ⏳ ${fmtTime(cm.remainingSec)}</div>
+        <div class="w-list">
+          ${list.length === 0
+            ? '<div class="w-list-item" style="justify-content:center;color:#64748b;">Menunggu penawaran gift...</div>'
+            : list.slice(0, 5).map((e, i) => `<div class="w-list-item"><span>#${i + 1} ${esc(e.user)}</span><span style="color:#facc15;">${e.coins} 💎</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (activeWidget === 'likeathon') {
+    const lk = widgetsState.likeathon || {};
+    const list = widgetsState.likeathonLeaderboard || [];
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width:360px;">
+        <div class="w-title">${esc(lk.title || '🔥 LIKEATHON')} (-${lk.decayPercent || 10}% / ${lk.decayIntervalSec || 10}s)</div>
+        <div class="w-list">
+          ${list.length === 0
+            ? '<div class="w-list-item" style="justify-content:center;color:#64748b;">Tap layar untuk masuk leaderboard!</div>'
+            : list.slice(0, 5).map((e, i) => `<div class="w-list-item"><span>#${i + 1} ${esc(e.user)}</span><span style="color:#fb7185;">${e.likes} ❤️</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (activeWidget === 'coinjar') {
+    const cj = widgetsState.coinJar || { title: '🪙 COIN JAR', totalCoins: 0, capacityCoins: 500 };
+    if (!document.getElementById('w-coinjar-canvas')) {
+      widgetStage.innerHTML = `
+        <div class="w-card" style="text-align:center;min-width:310px;">
+          <div class="w-title" id="w-coinjar-title">${esc(cj.title || '🪙 COIN JAR')}</div>
+          <canvas id="w-coinjar-canvas" width="260" height="300" style="display:block;margin:0 auto;"></canvas>
+          <div id="w-coinjar-total" style="margin-top:6px;font-weight:900;color:#facc15;">${cj.totalCoins || 0} / ${cj.capacityCoins || 500} 💎</div>
+        </div>
+      `;
+      startCoinJarPhysicsLoop();
+    } else {
+      const totEl = document.getElementById('w-coinjar-total');
+      if (totEl) totEl.textContent = `${cj.totalCoins || 0} / ${cj.capacityCoins || 500} 💎`;
+    }
+  } else if (['firework', 'cannon', 'likefountain', 'emojify'].includes(activeWidget)) {
+    if (!document.getElementById('w-fx-stage')) {
+      widgetStage.style.padding = '0';
+      widgetStage.innerHTML = `<div class="w-fx-stage" id="w-fx-stage"><canvas id="w-fx-canvas" style="width:100%;height:100%;display:block;"></canvas></div>`;
+      startFxCanvasLoop();
+    }
+  } else if (activeWidget === 'frame') {
+    widgetStage.innerHTML = `
+      <div class="w-frame-box">
+        <div class="w-frame-banner">🎮 AGIVA LIVE STREAM</div>
+      </div>
+    `;
+  }
+}
+
+window.dockAction = async (kind) => {
+  try {
+    if (kind === 'toggle_all') {
+      masterPausedState = !masterPausedState;
+      await fetch('/api/master-switches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: !masterPausedState })
+      });
+      renderActiveWidget();
+    } else if (kind === 'clear_queue') {
+      await fetch('/api/queue', { method: 'DELETE' });
+    } else if (kind === 'skip_tts') {
+      await fetch('/api/tts/skip', { method: 'POST' });
+    } else if (kind === 'spin_wheel') {
+      await fetch('/api/widgets/wheel/spin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'OBS Dock' }) });
+    } else if (kind === 'points_drop') {
+      await fetch('/api/points/drop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start' }) });
+    } else if (kind === 'win_add') {
+      await fetch('/api/widgets/winlose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add_win' }) });
+    }
+  } catch {}
+};
+
+function renderPointsDropBanner() {
+  if (activeWidget && activeWidget !== 'all') return;
+  if (!activeWidget && activeScreen !== 1) return;
+  let el = document.getElementById('points-drop-banner');
+  if (!activePointsDrop || !activePointsDrop.active) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'points-drop-banner';
+    el.className = 'points-drop-banner';
+    document.body.appendChild(el);
+  }
+  el.textContent = `🎁 POINTS DROP! Ketik ${activePointsDrop.keyword} untuk +${activePointsDrop.amount} ⭐ (${activePointsDrop.winners?.length || 0}/${activePointsDrop.maxWinners || 5})`;
+}
+
+function startCoinJarPhysicsLoop() {
+  if (coinJarLoopRunning) return;
+  coinJarLoopRunning = true;
+  const step = () => {
+    const canvas = document.getElementById('w-coinjar-canvas');
+    if (!canvas) { coinJarLoopRunning = false; return; }
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Liquid fill background inside jar
+    const cj = widgetsState?.coinJar || { totalCoins: 0, capacityCoins: 500 };
+    const ratio = Math.min(1, (Number(cj.totalCoins) || 0) / Math.max(1, Number(cj.capacityCoins) || 500));
+    const fillH = Math.round((h - 48) * ratio);
+    if (fillH > 0) {
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+      ctx.fillRect(34, h - 18 - fillH, w - 68, fillH);
+    }
+
+    // Update falling coins
+    for (const c of coinJarCoins) {
+      c.vy += 0.45;
+      c.x += c.vx;
+      c.y += c.vy;
+      if (c.x < 44) { c.x = 44; c.vx *= -0.6; }
+      if (c.x > w - 44) { c.x = w - 44; c.vx *= -0.6; }
+      const floorY = h - 26 - Math.min(fillH * 0.4, 90);
+      if (c.y >= floorY) {
+        c.y = floorY;
+        c.vy *= -0.35;
+        c.vx *= 0.85;
+      }
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      ctx.fillStyle = c.color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#92400e';
+      ctx.stroke();
+    }
+    if (coinJarCoins.length > 90) coinJarCoins.splice(0, coinJarCoins.length - 90);
+
+    // Draw Glass Jar Outline
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(30, 32, w - 60, h - 46);
+    ctx.strokeRect(58, 12, w - 116, 20);
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function startFxCanvasLoop() {
+  if (fxCanvasLoopRunning) return;
+  fxCanvasLoopRunning = true;
+  const step = () => {
+    const canvas = document.getElementById('w-fx-canvas');
+    if (!canvas) { fxCanvasLoopRunning = false; return; }
+    if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = fxCanvasParticles.length - 1; i >= 0; i--) {
+      const p = fxCanvasParticles[i];
+      p.vy += p.g ?? 0.14;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.015;
+      if (p.life <= 0) {
+        fxCanvasParticles.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function spawnGiftFirework() {
+  const w = window.innerWidth || 800;
+  const h = window.innerHeight || 600;
+  const cx = w * (0.25 + Math.random() * 0.5);
+  const cy = h * (0.2 + Math.random() * 0.4);
+  const cols = ['#facc15', '#38bdf8', '#f472b6', '#4ade80', '#a855f7'];
+  for (let i = 0; i < 36; i++) {
+    const ang = (Math.PI * 2 * i) / 36;
+    const spd = 2 + Math.random() * 5;
+    fxCanvasParticles.push({ x: cx, y: cy, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, size: 4 + Math.random() * 4, color: cols[i % cols.length], life: 1, g: 0.08 });
+  }
+}
+
+function spawnGiftCannon() {
+  const w = window.innerWidth || 800;
+  const h = window.innerHeight || 600;
+  const fromLeft = Math.random() < 0.5;
+  const sx = fromLeft ? 20 : w - 20;
+  const cols = ['#f59e0b', '#ef4444', '#22c55e', '#3b82f6'];
+  for (let i = 0; i < 24; i++) {
+    fxCanvasParticles.push({
+      x: sx,
+      y: h - 30,
+      vx: (fromLeft ? 1 : -1) * (4 + Math.random() * 7),
+      vy: -(9 + Math.random() * 6),
+      size: 6,
+      color: cols[i % cols.length],
+      life: 1.2,
+      g: 0.22
+    });
+  }
+}
+
+function spawnDomParticleBurst(symbols = ['❤️']) {
+  const stage = document.getElementById('w-fx-stage');
+  if (!stage) return;
+  for (let i = 0; i < Math.min(8, symbols.length * 3); i++) {
+    const sp = document.createElement('div');
+    sp.className = 'w-fx-particle';
+    sp.textContent = symbols[i % symbols.length];
+    sp.style.left = `${10 + Math.random() * 80}%`;
+    sp.style.bottom = `${10 + Math.random() * 35}px`;
+    stage.appendChild(sp);
+    setTimeout(() => sp.remove(), 2600);
   }
 }
 
@@ -366,7 +949,32 @@ async function loadInitialWidgets() {
   try {
     const res = await fetch('/api/widgets');
     widgetsState = await res.json();
+    applyOverlayTheme(widgetsState?.theme);
+
+    if (activeWidget === 'slider') {
+      const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+      sliderMappings = cfg.giftMappings || [];
+    }
+    if (['dock', 'viewers', 'followers'].includes(activeWidget)) {
+      const st = await fetch('/api/status').then(r => r.json()).catch(() => ({}));
+      currentViewers = st.roomStats?.viewers || currentViewers;
+      currentFollowers = st.roomStats?.followers || currentFollowers;
+      masterPausedState = st.masterSwitches?.all === false;
+    }
+
     renderActiveWidget();
+
+    if (activeWidget === 'goal') {
+      setInterval(() => {
+        const g = widgetsState?.goals?.[goalTypeParam] || widgetsState?.goals?.likes;
+        const cdEl = document.getElementById('w-goal-countdown');
+        if (cdEl && g?.deadlineAt > 0) {
+          const remSec = g.deadlineAt > Date.now() ? Math.ceil((g.deadlineAt - Date.now()) / 1000) : 0;
+          cdEl.textContent = remSec > 0 ? `⏳ Sisa ${fmtTime(remSec)}` : '⌛ WAKTU HABIS';
+          cdEl.style.color = remSec > 0 ? '#facc15' : '#ef4444';
+        }
+      }, 1000);
+    }
   } catch {}
 }
 
@@ -379,8 +987,19 @@ function connectWS() {
       const msg = JSON.parse(e.data);
       if (msg.type === 'event') {
         pushAlert(msg.event);
+        const ev = msg.event;
+        if (ev.type === 'chat' && ev.comment) {
+          overlayChatFeed.unshift({ user: ev.user, text: ev.comment, bot: false });
+          if (overlayChatFeed.length > 30) overlayChatFeed.pop();
+          if (activeWidget === 'chatbox' || activeWidget === 'dock') renderActiveWidget();
+        }
+        if (ev.type === 'gift' || ev.type === 'donation') {
+          const detail = ev.type === 'gift' ? `${ev.giftName} (${ev.coins}💎)` : `Rp ${Number(ev.amount || 0).toLocaleString('id-ID')}`;
+          overlayGiftFeed.unshift({ user: ev.user, detail });
+          if (overlayGiftFeed.length > 30) overlayGiftFeed.pop();
+          if (activeWidget === 'giftfeed' || activeWidget === 'dock') renderActiveWidget();
+        }
         if (activeWidget === 'hud') {
-          const ev = msg.event;
           const desc = ev.type === 'gift' ? `🎁 mengirim ${ev.giftName} (${ev.coins}💎)`
             : ev.type === 'chat' ? `💬 ${ev.comment}`
             : ev.type === 'donation' ? `💸 donasi Rp ${Number(ev.amount || 0).toLocaleString('id-ID')}: ${ev.comment || ''}`
@@ -391,8 +1010,47 @@ function connectWS() {
           renderFloatingHud();
         }
       }
+      if (msg.type === 'chatbot_message') {
+        overlayChatFeed.unshift({ user: msg.user || 'AgivaBot', text: msg.text, bot: true });
+        if (overlayChatFeed.length > 30) overlayChatFeed.pop();
+        if (activeWidget === 'chatbox' || activeWidget === 'dock') renderActiveWidget();
+      }
       if (msg.type === 'stats' && msg.roomStats) {
         currentViewers = msg.roomStats.viewers || 0;
+        currentFollowers = msg.roomStats.followers || currentFollowers;
+        if (['viewers', 'followers', 'dock'].includes(activeWidget)) renderActiveWidget();
+      }
+      if (msg.type === 'gift_fx') {
+        if (activeWidget === 'firework') spawnGiftFirework();
+        if (activeWidget === 'cannon') spawnGiftCannon();
+      }
+      if (msg.type === 'like_fx' && activeWidget === 'likefountain') {
+        spawnDomParticleBurst(['❤️', '💖', '🩷', '💕']);
+      }
+      if (msg.type === 'emoji_fx' && activeWidget === 'emojify') {
+        const syms = Array.isArray(msg.emojis) && msg.emojis.length > 0 ? msg.emojis : ['😄', '🔥', '✨'];
+        spawnDomParticleBurst(syms);
+      }
+      if (msg.type === 'coin_jar_drop') {
+        const count = Math.min(12, Math.max(1, Math.ceil((Number(msg.coins) || 1) / 10)));
+        for (let i = 0; i < count; i++) {
+          coinJarCoins.push({
+            x: 65 + Math.random() * 130,
+            y: 10 - i * 14,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 1,
+            r: 8 + Math.min(6, Math.floor((Number(msg.coins) || 1) / 50)),
+            color: (Number(msg.coins) || 1) >= 100 ? '#f472b6' : '#facc15'
+          });
+        }
+      }
+      if (msg.type === 'points_drop') {
+        activePointsDrop = msg.drop;
+        renderPointsDropBanner();
+      }
+      if (msg.type === 'master_switches' && msg.masterSwitches) {
+        masterPausedState = msg.masterSwitches.all === false;
+        if (activeWidget === 'dock') renderActiveWidget();
       }
       if (msg.type === 'effect') pushEffectAlert(msg);
       if (msg.type === 'tts_speak') enqueueTts(msg);
@@ -401,15 +1059,28 @@ function connectWS() {
       if (msg.type === 'screen_alert') showScreenAlert(msg);
       if (msg.type === 'widgets_update') {
         widgetsState = msg.state;
+        applyOverlayTheme(widgetsState?.theme);
         renderActiveWidget();
       }
       if (msg.type === 'timer_tick' && widgetsState?.timer) {
+        const wasZero = Number(widgetsState.timer.remainingSec) <= 0;
         widgetsState.timer.remainingSec = msg.remainingSec;
         widgetsState.timer.isRunning = msg.isRunning;
-        const dig = document.getElementById('w-timer-digits');
-        const bdg = document.getElementById('w-timer-badge');
-        if (dig) dig.textContent = fmtTime(msg.remainingSec);
-        if (bdg) bdg.textContent = msg.isRunning ? '🟢 RUNNING' : '⏸️ PAUSED';
+        if (widgetsState.timer.hideWhenZero && activeWidget === 'timer' && (Number(msg.remainingSec) <= 0 || wasZero)) {
+          renderActiveWidget();
+        } else {
+          const dig = document.getElementById('w-timer-digits');
+          const bdg = document.getElementById('w-timer-badge');
+          if (dig) dig.textContent = fmtTime(msg.remainingSec);
+          if (bdg) bdg.textContent = msg.isRunning ? '🟢 RUNNING' : '⏸️ PAUSED';
+        }
+      }
+      if (msg.type === 'timer_ended' && widgetsState?.timer) {
+        widgetsState.timer.remainingSec = 0;
+        widgetsState.timer.isRunning = false;
+        if (widgetsState.timer.hideWhenZero && activeWidget === 'timer') {
+          renderActiveWidget();
+        }
       }
       if (msg.type === 'wheel_spin') {
         animateWheelSpin(msg);
@@ -465,7 +1136,7 @@ function pushAlert(ev) {
 
 function pushEffectAlert(msg) {
   if (activeWidget || activeScreen !== 1) return;
-  if (!msg.effectId || msg.effectId === 'hud_notify') return;
+  if (!msg.effectId || msg.effectId === 'hud_notify' || msg.effectId === '__none__') return;
   alertQueue.push({
     icon: '⚡',
     type: 'effect',

@@ -9,6 +9,8 @@ class DonationSocketProvider {
   constructor(onDonationCallback) {
     this.onDonation = onDonationCallback || (() => {});
     this.sockets = {};
+    this.reconnectTimers = {};
+    this.reconnectAttempts = {};
     this.config = {
       idrPerCoin: 250, // Rp 250 = 1 Coin equivalent
       autoTriggerCoinTiers: true, // Allow IDR donations to fallback to Coin Tiers if no IDR tier matched
@@ -49,15 +51,20 @@ class DonationSocketProvider {
   saveConfig(updates = {}) {
     if (updates.idrPerCoin !== undefined) this.config.idrPerCoin = Math.max(1, Number(updates.idrPerCoin) || 250);
     if (updates.autoTriggerCoinTiers !== undefined) this.config.autoTriggerCoinTiers = Boolean(updates.autoTriggerCoinTiers);
-    if (updates.platforms) {
-      for (const [k, v] of Object.entries(updates.platforms)) {
-        if (this.config.platforms[k]) {
-          this.config.platforms[k] = {
-            ...this.config.platforms[k],
-            enabled: v.enabled !== undefined ? Boolean(v.enabled) : this.config.platforms[k].enabled,
-            streamKey: v.streamKey !== undefined ? String(v.streamKey).trim() : this.config.platforms[k].streamKey
-          };
-        }
+    const mergedPlatforms = {
+      ...(updates.platforms || {}),
+      ...(updates.saweria ? { saweria: updates.saweria } : {}),
+      ...(updates.sociabuzz ? { sociabuzz: updates.sociabuzz } : {}),
+      ...(updates.trakteer ? { trakteer: updates.trakteer } : {}),
+      ...(updates.bagibagi ? { bagibagi: updates.bagibagi } : {})
+    };
+    for (const [k, v] of Object.entries(mergedPlatforms)) {
+      if (this.config.platforms[k] && v && typeof v === 'object') {
+        this.config.platforms[k] = {
+          ...this.config.platforms[k],
+          enabled: v.enabled !== undefined ? Boolean(v.enabled) : this.config.platforms[k].enabled,
+          streamKey: v.streamKey !== undefined ? String(v.streamKey).trim() : this.config.platforms[k].streamKey
+        };
       }
     }
     try {
@@ -70,7 +77,14 @@ class DonationSocketProvider {
   }
 
   getStatus() {
-    return this.config;
+    const saw = this.config.platforms.saweria || { enabled: false, streamKey: '', status: 'disconnected' };
+    return {
+      ...this.config,
+      saweria: {
+        ...saw,
+        connected: saw.status === 'connected'
+      }
+    };
   }
 
   convertIdrToCoins(amountIdr) {
@@ -79,6 +93,13 @@ class DonationSocketProvider {
   }
 
   reconnectActiveStreams() {
+    // Clear pending reconnect timers
+    for (const [k, timer] of Object.entries(this.reconnectTimers)) {
+      clearTimeout(timer);
+      delete this.reconnectTimers[k];
+    }
+    this.reconnectAttempts = {};
+
     // Close existing sockets
     for (const [k, ws] of Object.entries(this.sockets)) {
       try { ws.removeAllListeners(); ws.close(); } catch {}
@@ -102,6 +123,20 @@ class DonationSocketProvider {
     }
   }
 
+  _scheduleSaweriaReconnect(streamKey) {
+    const saw = this.config.platforms.saweria;
+    if (!saw?.enabled || saw.streamKey !== streamKey || this.reconnectTimers.saweria) return;
+    const attempt = this.reconnectAttempts.saweria || 0;
+    const delayMs = Math.min(30000, 3000 * Math.pow(2, attempt));
+    this.reconnectAttempts.saweria = attempt + 1;
+    this.reconnectTimers.saweria = setTimeout(() => {
+      delete this.reconnectTimers.saweria;
+      if (this.config.platforms.saweria.enabled && this.config.platforms.saweria.streamKey === streamKey) {
+        this._connectSaweriaStream(streamKey);
+      }
+    }, delayMs);
+  }
+
   _connectSaweriaStream(streamKey) {
     try {
       const wsUrl = `wss://events.saweria.co/stream?streamKey=${encodeURIComponent(streamKey)}`;
@@ -110,11 +145,14 @@ class DonationSocketProvider {
       this.config.platforms.saweria.status = 'connecting';
 
       ws.on('open', () => {
+        if (this.sockets.saweria !== ws) return;
         this.config.platforms.saweria.status = 'connected';
+        this.reconnectAttempts.saweria = 0;
         console.log('[DonationSocket] Connected to Saweria real-time stream (No Ngrok required)');
       });
 
       ws.on('message', (raw) => {
+        if (this.sockets.saweria !== ws) return;
         try {
           const msg = JSON.parse(raw.toString());
           const d = msg.data || msg;
@@ -130,14 +168,19 @@ class DonationSocketProvider {
       });
 
       ws.on('close', () => {
+        if (this.sockets.saweria !== ws) return;
         this.config.platforms.saweria.status = 'disconnected';
+        this._scheduleSaweriaReconnect(streamKey);
       });
 
       ws.on('error', () => {
+        if (this.sockets.saweria !== ws) return;
         this.config.platforms.saweria.status = 'error';
+        this._scheduleSaweriaReconnect(streamKey);
       });
     } catch {
       this.config.platforms.saweria.status = 'error';
+      this._scheduleSaweriaReconnect(streamKey);
     }
   }
 }

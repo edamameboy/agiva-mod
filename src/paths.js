@@ -77,6 +77,10 @@ const SOUNDS_DIR = (WRITABLE_ROOT === BUNDLED_ROOT)
   ? path.join(BUNDLED_ROOT, 'public/sounds')
   : path.join(WRITABLE_ROOT, 'sounds');
 
+const MEDIA_DIR = (WRITABLE_ROOT === BUNDLED_ROOT)
+  ? path.join(BUNDLED_ROOT, 'public/media')
+  : path.join(WRITABLE_ROOT, 'media');
+
 const EFFECTS_CONFIG_PATH = path.join(WRITABLE_ROOT, 'effects-config.json');
 const GIFTS_DATA_PATH = path.join(WRITABLE_ROOT, 'gifts-data.json');
 const HOTKEYS_PATH = path.join(DATA_DIR, 'hotkeys.json');
@@ -85,9 +89,14 @@ const COMPAT_CONFIG_PATH = path.join(DATA_DIR, 'compat-ports.json');
 const OBS_CONFIG_PATH = path.join(DATA_DIR, 'obs-config.json');
 const DONATION_CONFIG_PATH = path.join(DATA_DIR, 'donation-config.json');
 const WIDGETS_CONFIG_PATH = path.join(DATA_DIR, 'widgets-config.json');
+const ACTIONS_CONFIG_PATH = path.join(DATA_DIR, 'actions-config.json');
+const POINTS_CONFIG_PATH = path.join(DATA_DIR, 'points-db.json');
+const CHATBOT_CONFIG_PATH = path.join(DATA_DIR, 'chatbot-config.json');
+const INTERVALS_CONFIG_PATH = path.join(DATA_DIR, 'intervals-config.json');
 
 // Bundled reference paths (read-only fallbacks / seeds)
 const BUNDLED_SOUNDS_DIR = path.join(BUNDLED_ROOT, 'public/sounds');
+const BUNDLED_MEDIA_DIR = path.join(BUNDLED_ROOT, 'public/media');
 const BUNDLED_GAMES_DIR = path.join(BUNDLED_ROOT, 'games');
 const BUNDLED_EFFECTS_CONFIG = path.join(BUNDLED_ROOT, 'effects-config.json');
 const BUNDLED_GIFTS_DATA = path.join(BUNDLED_ROOT, 'gifts-data.json');
@@ -119,6 +128,7 @@ if (WRITABLE_ROOT !== BUNDLED_ROOT) {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
     if (!fs.existsSync(SOUNDS_DIR)) fs.mkdirSync(SOUNDS_DIR, { recursive: true });
+    if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
     // Seed effects-config.json if missing
     if (!fs.existsSync(EFFECTS_CONFIG_PATH) && fs.existsSync(BUNDLED_EFFECTS_CONFIG)) {
@@ -129,8 +139,8 @@ if (WRITABLE_ROOT !== BUNDLED_ROOT) {
       fs.copyFileSync(BUNDLED_GIFTS_DATA, GIFTS_DATA_PATH);
     }
     // Seed games directory if missing
-    if (!fs.existsSync(GAMES_DIR) && fs.existsSync(BUNDLED_GAMES_DIR)) {
-      copyDirIfMissing(BUNDLED_GAMES_DIR, GAMES_DIR);
+    if (!fs.existsSync(currentGamesDir) && fs.existsSync(BUNDLED_GAMES_DIR)) {
+      copyDirIfMissing(BUNDLED_GAMES_DIR, currentGamesDir);
     }
     // Seed bundled data/*.json templates
     if (fs.existsSync(BUNDLED_DATA_DIR)) {
@@ -173,7 +183,9 @@ module.exports = {
   setGamesDir,
   copyDirIfMissing,
   SOUNDS_DIR,
+  MEDIA_DIR,
   BUNDLED_SOUNDS_DIR,
+  BUNDLED_MEDIA_DIR,
   BUNDLED_GAMES_DIR,
   EFFECTS_CONFIG_PATH,
   GIFTS_DATA_PATH,
@@ -182,5 +194,9 @@ module.exports = {
   COMPAT_CONFIG_PATH,
   OBS_CONFIG_PATH,
   DONATION_CONFIG_PATH,
-  WIDGETS_CONFIG_PATH
+  WIDGETS_CONFIG_PATH,
+  ACTIONS_CONFIG_PATH,
+  POINTS_CONFIG_PATH,
+  CHATBOT_CONFIG_PATH,
+  INTERVALS_CONFIG_PATH
 };

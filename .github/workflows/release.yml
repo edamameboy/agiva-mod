@@ -37,7 +37,6 @@ jobs:
         with:
           files: |
             dist/*-portable.exe
-            dist/*.exe
           generate_release_notes: true
           draft: false
           prerelease: false

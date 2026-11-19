@@ -59,6 +59,19 @@ let currentEffectFilter = 'all';
 let ttsSoundConfig = null;
 let widgetState = null;
 let compatPortsStatus = null;
+let actionsData = { version: 1, actions: [], events: [] };
+let ttsVoices = [];
+let obsResources = { connected: false, currentScene: '', scenes: [], sceneItems: {}, inputs: [], filters: {} };
+let mediaFiles = [];
+let activeMediaPickCallback = null;
+let wheelEditorDirty = false;
+let widgetsFormHydrated = false;
+let pointsState = null;
+let chatbotState = null;
+let intervalsState = null;
+let loyaltyFormHydrated = false;
+let chatbotFormHydrated = false;
+let miniGamesHydrated = false;
 
 // ─── Server Message Handler ───────────────────────────────
 function handleServerMsg(msg) {
@@ -67,10 +80,45 @@ function handleServerMsg(msg) {
       appState = { ...appState, ...msg };
       if (msg.masterSwitches) renderMasterSwitches(msg.masterSwitches);
       if (msg.ttsSoundConfig) { ttsSoundConfig = msg.ttsSoundConfig; renderTtsTab(); }
-      if (msg.widgetState) { widgetState = msg.widgetState; renderWidgetsTab(); }
+      if (msg.widgetState) { widgetState = msg.widgetState; renderWidgetsTab(!widgetsFormHydrated); }
       if (msg.compatPorts) { compatPortsStatus = msg.compatPorts; renderCompatPorts(); }
+      if (msg.actionsData) { actionsData = msg.actionsData; renderActionsAndMatrix(); }
+      if (msg.ttsVoices) { ttsVoices = msg.ttsVoices; renderTtsTab(); }
+      if (msg.obsStatus) renderObsStatus(msg.obsStatus);
       renderConnectionState();
       renderStats();
+      break;
+    case 'points_update':
+      pointsState = msg.state;
+      renderLoyaltyTab(false);
+      break;
+    case 'points_drop':
+      if (pointsState) {
+        pointsState.activeDrop = msg.drop;
+        renderLoyaltyTab(false);
+      }
+      break;
+    case 'chatbot_update':
+      chatbotState = msg.state;
+      renderChatbotSection(false);
+      break;
+    case 'chatbot_message':
+      if (chatbotState) {
+        if (!Array.isArray(chatbotState.logs)) chatbotState.logs = [];
+        chatbotState.logs.unshift({ id: msg.id, time: msg.time, text: msg.text, status: msg.status });
+        if (chatbotState.logs.length > 50) chatbotState.logs.length = 50;
+        renderChatbotSection(false);
+      }
+      break;
+    case 'intervals_update':
+      intervalsState = msg.state;
+      renderIntervalsSection();
+      break;
+    case 'gift_battle_winner':
+      toast(`⚔️ Pemenang Gift Battle: ${msg.winner?.label || '-'}!`, 'success');
+      break;
+    case 'coin_match_ended':
+      toast(`🏆 Coin Match selesai!`, 'success');
       break;
     case 'stats':
       appState.roomStats = msg.roomStats;
@@ -88,21 +136,34 @@ function handleServerMsg(msg) {
       break;
     case 'tts_skip':
     case 'audio_stop':
+    case 'audio_stop_all':
       stopDashboardTts();
       break;
+    case 'sound_play':
     case 'soundboard_play':
       handleDashboardSoundPlay(msg.payload || msg);
       break;
     case 'widget_update':
     case 'widgets_update':
       widgetState = msg.state || msg.payload?.fullState || widgetState;
-      renderWidgetsTab();
+      renderWidgetsTab(false);
       break;
     case 'timer_tick':
       if (widgetState && widgetState.timer) {
         widgetState.timer.remainingSec = msg.remainingSec;
         widgetState.timer.isRunning = msg.isRunning;
-        renderWidgetsTab();
+        updateTimerPreviewOnly(msg.remainingSec, msg.isRunning);
+      }
+      break;
+    case 'timer_ended':
+      toast('⏱️ Subathon Timer selesai (00:00:00)!', 'info');
+      break;
+    case 'actions_updated':
+      if (msg.actionsData) {
+        actionsData = msg.actionsData;
+        renderActionsAndMatrix();
+        renderConfigurator();
+        renderWidgetsTab(false);
       }
       break;
     case 'compat_ports':
@@ -186,6 +247,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
       configurator: 'Preset & Trigger Configurator',
       tts: 'TTS Bahasa Indonesia & Soundboard',
       widgets: 'Stream Widgets & Multi-Screen Overlay',
+      loyalty: 'Points, Chatbot & Interval Timers',
       integrations: 'Port Bridge, OBS, Donasi & Analytics',
       effects: 'Effects Library',
       gifts: 'TikTok Gifts Data',
@@ -193,9 +255,10 @@ document.querySelectorAll('.nav-item').forEach(item => {
       settings: 'Settings & Drivers'
     }[tab] || tab;
 
-    if (tab === 'configurator') renderConfigurator();
-    if (tab === 'tts') renderTtsTab();
-    if (tab === 'widgets') renderWidgetsTab();
+    if (tab === 'configurator') { renderConfigurator(); renderActionsAndMatrix(); }
+    if (tab === 'tts') { renderTtsTab(); refreshTtsLogs(); }
+    if (tab === 'widgets') renderWidgetsTab(false);
+    if (tab === 'loyalty') { renderLoyaltyTab(false); renderChatbotSection(false); renderIntervalsSection(); }
     if (tab === 'integrations') renderIntegrationsTab();
     if (tab === 'effects') renderEffectsLib(currentEffectFilter);
     if (tab === 'events') renderEventsTable();
@@ -306,20 +369,30 @@ function addFeedItem(ev) {
   const icons = {
     gift: '🎁',
     follow: '👤',
+    subscribe: '⭐',
     member: '👋',
     like: '❤️',
     share: '🔄',
     repost: '🔁',
+    emote: '😄',
+    envelope: '🧧',
+    question: '❓',
+    battle: '⚔️',
     chat: '💬',
     donation: '💸'
   };
   const details = {
     gift: `${ev.giftName} (${ev.coins}💎)`,
     follow: 'followed the stream!',
+    subscribe: 'subscribed to streamer!',
     member: 'joined the stream',
     like: `sent ${ev.count} likes`,
     share: 'shared the stream!',
     repost: 'reposted the stream!',
+    emote: `sent emote ${ev.emoteId || ''}`.trim(),
+    envelope: `sent angpao (${ev.coins || 0}💎)`,
+    question: `"${ev.question || ''}"`,
+    battle: 'PK Battle dimulai!',
     chat: `"${ev.comment || ''}"`,
     donation: `Rp ${Number(ev.amount || 0).toLocaleString('id-ID')} (${ev.platform || 'Donasi'})`
   };
@@ -927,6 +1000,7 @@ function getFirstEffectId() {
 function buildEffectSelect(selected, name) {
   const opts = getEffectOptions();
   return `<select class="tier-effect-select" name="${esc(name)}">
+    <option value="__none__" ${selected === '__none__' ? 'selected' : ''}>🚫 Nonaktif / Tanpa Efek Game (Hanya Multi-Action)</option>
     <option value="__random__" ${selected === '__random__' ? 'selected' : ''}>🎲 ACAK / GACHA (Semua Efek Game)</option>
     ${opts.map(o => `<option value="${esc(o.id)}" ${o.id === selected ? 'selected' : ''}>${esc(o.label)} (${esc(o.id)})</option>`).join('')}
   </select>`;
@@ -934,20 +1008,28 @@ function buildEffectSelect(selected, name) {
 
 function buildChainCell(rowObj = {}) {
   const sounds = ttsSoundConfig?.soundboard?.items || [];
+  const actions = actionsData?.actions || [];
   const soundId = rowObj.soundId || '';
+  const actionId = rowObj.actionId || '';
   const spinWheel = Boolean(rowObj.spinWheel);
-  const screen = Number(rowObj.overlayScreen) || 1;
+  const screen = rowObj.overlayScreen !== undefined ? Number(rowObj.overlayScreen) : 1;
   return `
     <div class="chain-mini-wrap">
       <select class="tier-label-input" data-field="soundId" title="Putar Soundboard" style="max-width:120px">
         <option value="">🔇 Tanpa Sound</option>
         ${sounds.map(s => `<option value="${esc(s.id)}" ${s.id === soundId ? 'selected' : ''}>🎵 ${esc(s.name)}</option>`).join('')}
       </select>
-      <select class="tier-label-input" data-field="overlayScreen" title="Target Layar Overlay" style="max-width:85px">
+      <select class="tier-label-input" data-field="actionId" title="Jalankan Multi-Step Action" style="max-width:130px">
+        <option value="">⚡ Tanpa Action</option>
+        ${actions.map(a => `<option value="${esc(a.id)}" ${a.id === actionId ? 'selected' : ''}>⚡ ${esc(a.name)}</option>`).join('')}
+      </select>
+      <select class="tier-label-input" data-field="overlayScreen" title="Target Layar Overlay" style="max-width:105px">
+        <option value="0" ${screen === 0 ? 'selected' : ''}>🖥️ Tanpa Screen</option>
         <option value="1" ${screen === 1 ? 'selected' : ''}>Screen 1</option>
         <option value="2" ${screen === 2 ? 'selected' : ''}>Screen 2</option>
         <option value="3" ${screen === 3 ? 'selected' : ''}>Screen 3</option>
         <option value="4" ${screen === 4 ? 'selected' : ''}>Screen 4</option>
+        <option value="5" ${screen === 5 ? 'selected' : ''}>Screen 5</option>
       </select>
       <label class="checkbox-label" style="margin:0;font-size:11px" title="Ikut memutar Spin Wheel">
         <input type="checkbox" data-field="spinWheel" ${spinWheel ? 'checked' : ''}> 🎡 Spin
@@ -956,14 +1038,16 @@ function buildChainCell(rowObj = {}) {
   `;
 }
 
-function buildRoleCell(cmdObj = {}) {
-  const role = cmdObj.requiredRole || 'everyone';
-  const specUsers = Array.isArray(cmdObj.specificUsers)
-    ? cmdObj.specificUsers.join(', ')
-    : (cmdObj.specificUsers || '');
+function buildRoleCell(ruleObj = {}) {
+  const role = ruleObj.allowedRole || ruleObj.requiredRole || 'everyone';
+  const specUsers = ruleObj.allowedUsers !== undefined
+    ? ruleObj.allowedUsers
+    : (Array.isArray(ruleObj.specificUsers)
+      ? ruleObj.specificUsers.join(', ')
+      : (ruleObj.specificUsers || ''));
   return `
     <div class="chain-mini-wrap">
-      <select class="tier-label-input" data-field="requiredRole" style="max-width:135px">
+      <select class="tier-label-input" data-field="allowedRole" style="max-width:135px">
         <option value="everyone" ${role === 'everyone' ? 'selected' : ''}>Everyone (Semua)</option>
         <option value="follower" ${role === 'follower' ? 'selected' : ''}>Follower</option>
         <option value="subscriber" ${role === 'subscriber' ? 'selected' : ''}>Subscriber</option>
@@ -971,71 +1055,113 @@ function buildRoleCell(cmdObj = {}) {
         <option value="min_gifter" ${role === 'min_gifter' ? 'selected' : ''}>Min. Gifter</option>
         <option value="specific_users" ${role === 'specific_users' ? 'selected' : ''}>Specific Users</option>
       </select>
-      <input class="tier-label-input" data-field="specificUsers" value="${esc(specUsers)}" placeholder="@user1, @user2" title="Whitelist Specific Users (pisahkan koma)" style="max-width:130px">
+      <input class="tier-label-input" data-field="allowedUsers" value="${esc(specUsers)}" placeholder="@user1, @user2" title="Whitelist Specific Users (pisahkan koma)" style="max-width:130px">
     </div>
   `;
 }
+
+let activeGiftPickerRow = null;
 
 function buildGiftSelect(selected) {
   const selectedGift = giftsData.find(g => String(g.id) === String(selected));
   const displayText = selectedGift
-    ? `${esc(selectedGift.name)} (${selectedGift.coins}💎)`
-    : (selected ? `Gift ID: ${esc(selected)}` : '-- Pilih Gift --');
+    ? `${selectedGift.name} (${selectedGift.coins}💎)`
+    : (selected ? `Gift ID: ${selected}` : '-- Pilih Gift --');
+  const thumbHtml = selectedGift?.image
+    ? `<img src="${esc(selectedGift.image)}" alt="" class="gift-picker-thumb" loading="lazy">`
+    : '<span class="gift-picker-emoji">🎁</span>';
 
   return `
-    <div class="custom-select-wrap" onclick="toggleGiftSelect(this, event)">
-      <input type="text" class="custom-select-input" placeholder="Cari gift..." value="${displayText}" oninput="filterGiftSelect(this)">
-      <input type="hidden" class="custom-select-value" data-field="giftId" value="${selected || ''}">
-      <div class="custom-select-list">
-        ${giftsData.map(g => `<div class="custom-select-item" onclick="selectGift(this, '${g.id}', '${esc(g.name).replace(/'/g, "\\'")}', ${g.coins}, event)">
-          <img src="${esc(g.image)}" alt="">
-          <span>${esc(g.name)} (${g.coins}💎) - ID: ${g.id}</span>
-        </div>`).join('')}
-      </div>
+    <div class="gift-picker-cell">
+      <input type="hidden" data-field="giftId" value="${esc(selected ?? '')}">
+      <button type="button" class="gift-picker-btn" onclick="openGiftPicker(this)">
+        ${thumbHtml}
+        <span class="gift-picker-text">${esc(displayText)}</span>
+        <span class="gift-picker-caret">▾</span>
+      </button>
     </div>
   `;
 }
 
-window.toggleGiftSelect = function(wrap, ev) {
-  if (ev && ev.target.classList.contains('custom-select-input') && wrap.classList.contains('open')) return;
-  document.querySelectorAll('.custom-select-wrap').forEach(el => {
-    if (el !== wrap) el.classList.remove('open');
-  });
-  wrap.classList.toggle('open');
-};
+function getGiftCatalogForPicker() {
+  if (Array.isArray(giftsData) && giftsData.length > 0) return giftsData;
+  return [
+    { id: 5655, name: 'Rose', coins: 1, image: '' },
+    { id: 5487, name: 'Finger Heart', coins: 5, image: '' },
+    { id: 5879, name: 'Doughnut', coins: 30, image: '' },
+    { id: 8913, name: 'RosaNebula', coins: 99, image: '' },
+    { id: 19447, name: 'Galaxy', coins: 1000, image: '' }
+  ];
+}
 
-window.filterGiftSelect = function(input) {
-  const wrap = input.closest('.custom-select-wrap');
-  if (!wrap.classList.contains('open')) wrap.classList.add('open');
-  const term = input.value.toLowerCase();
-  const items = wrap.querySelectorAll('.custom-select-item');
-  items.forEach(item => {
-    const text = item.textContent.toLowerCase();
-    item.style.display = text.includes(term) ? '' : 'none';
-  });
-};
+function renderGiftPickerGrid() {
+  const grid = document.getElementById('gift-picker-grid');
+  if (!grid) return;
+  const term = (document.getElementById('gift-picker-search')?.value || '').trim().toLowerCase();
+  const sortMode = document.getElementById('gift-picker-sort')?.value || 'coins-asc';
+  const currentId = activeGiftPickerRow?.querySelector('input[data-field="giftId"]')?.value || '';
 
-window.selectGift = function(el, id, name, coins, ev) {
-  if (ev) ev.stopPropagation();
-  const wrap = el.closest('.custom-select-wrap');
-  const input = wrap.querySelector('.custom-select-input');
-  const hidden = wrap.querySelector('.custom-select-value');
-
-  input.value = `${name} (${coins}💎)`;
-  hidden.value = id;
-  wrap.classList.remove('open');
-
-  const items = wrap.querySelectorAll('.custom-select-item');
-  items.forEach(item => { item.style.display = ''; });
-};
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.custom-select-wrap')) {
-    document.querySelectorAll('.custom-select-wrap').forEach(el => el.classList.remove('open'));
+  let list = [...getGiftCatalogForPicker()];
+  if (term) {
+    list = list.filter(g =>
+      String(g.name || '').toLowerCase().includes(term) ||
+      String(g.id || '').includes(term) ||
+      String(g.coins || '').includes(term)
+    );
   }
+  if (sortMode === 'coins-asc') list.sort((a, b) => (a.coins || 0) - (b.coins || 0));
+  else if (sortMode === 'coins-desc') list.sort((a, b) => (b.coins || 0) - (a.coins || 0));
+  else if (sortMode === 'name') list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="feed-empty" style="grid-column:1/-1;">Gift tidak ditemukan. Coba kata kunci lain atau update katalog gift.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(g => `
+    <button type="button" class="gift-picker-item ${String(g.id) === String(currentId) ? 'selected' : ''}" data-gift-id="${esc(g.id)}">
+      ${g.image ? `<img src="${esc(g.image)}" alt="${esc(g.name)}" loading="lazy">` : '<span style="font-size:28px;">🎁</span>'}
+      <span class="gift-picker-item-name">${esc(g.name)}</span>
+      <span class="gift-picker-item-meta">${g.coins}💎 · ID ${g.id}</span>
+    </button>
+  `).join('');
+}
+
+window.openGiftPicker = function(btnEl) {
+  activeGiftPickerRow = btnEl?.closest('tr') || null;
+  const searchEl = document.getElementById('gift-picker-search');
+  if (searchEl) searchEl.value = '';
+  renderGiftPickerGrid();
+  openModal('modal-gift-picker');
+  setTimeout(() => searchEl?.focus(), 40);
+};
+
+document.getElementById('gift-picker-search')?.addEventListener('input', renderGiftPickerGrid);
+document.getElementById('gift-picker-sort')?.addEventListener('change', renderGiftPickerGrid);
+document.getElementById('gift-picker-grid')?.addEventListener('click', (e) => {
+  const itemBtn = e.target.closest('.gift-picker-item');
+  if (!itemBtn || !activeGiftPickerRow) return;
+  const id = itemBtn.dataset.giftId;
+  const gift = getGiftCatalogForPicker().find(g => String(g.id) === String(id));
+  if (!gift) return;
+
+  const hidden = activeGiftPickerRow.querySelector('input[data-field="giftId"]');
+  const pickerBtn = activeGiftPickerRow.querySelector('.gift-picker-btn');
+  if (hidden) hidden.value = gift.id;
+  if (pickerBtn) {
+    const thumbHtml = gift.image
+      ? `<img src="${esc(gift.image)}" alt="" class="gift-picker-thumb" loading="lazy">`
+      : '<span class="gift-picker-emoji">🎁</span>';
+    pickerBtn.innerHTML = `
+      ${thumbHtml}
+      <span class="gift-picker-text">${esc(gift.name)} (${gift.coins}💎)</span>
+      <span class="gift-picker-caret">▾</span>
+    `;
+  }
+  closeModal('modal-gift-picker');
 });
 
-// 1. Specific Gift Table
+// 1. Specific Gift Table (9 columns matching index.html thead)
 function renderGiftTable() {
   const tbody = document.getElementById('gift-rows');
   if (!tbody) return;
@@ -1047,8 +1173,9 @@ function renderGiftTable() {
       <td><input class="tier-label-input" value="${esc(tier.label)}" data-field="label"></td>
       <td>${buildGiftSelect(tier.giftId)}</td>
       <td>${buildEffectSelect(tier.effectId, 'effectId')}</td>
-      <td><label class="checkbox-label" style="margin:0"><input type="checkbox" data-field="multiplyByRepeat" ${tier.multiplyByRepeat ? 'checked' : ''}> xCombo</label></td>
+      <td>${buildRoleCell(tier)}</td>
       <td>${buildChainCell(tier)}</td>
+      <td><label class="checkbox-label" style="margin:0"><input type="checkbox" data-field="multiplyByRepeat" ${tier.multiplyByRepeat ? 'checked' : ''}> xCombo</label></td>
       <td><label class="toggle-switch"><input type="checkbox" data-field="enabled" ${tier.enabled ? 'checked' : ''}><span class="toggle-slider"></span></label></td>
       <td><button type="button" class="btn-sm success" onclick="testRowEffect(this, 'gift')">▶ Test</button></td>
       <td><button type="button" class="btn-sm danger" onclick="deleteTier(${i})">✕</button></td>
@@ -1078,23 +1205,40 @@ function renderCoinTierTable() {
   });
 }
 
-// 3. Chat Command Table
+// 3. Chat Command Table (9 columns matching index.html thead)
 function renderChatCmdTable() {
   const tbody = document.getElementById('chatcmd-rows');
   if (!tbody) return;
   tbody.innerHTML = '';
   if (!config.chatCommands) config.chatCommands = [];
   config.chatCommands.forEach((cmd, i) => {
+    const role = cmd.allowedRole || cmd.requiredRole || 'everyone';
+    const specUsers = cmd.allowedUsers !== undefined
+      ? cmd.allowedUsers
+      : (Array.isArray(cmd.specificUsers)
+        ? cmd.specificUsers.join(', ')
+        : (cmd.specificUsers || ''));
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><input class="tier-label-input" data-field="command" value="${esc(cmd.command || '!aksi')}" placeholder="!lompat" style="max-width:110px"></td>
-      <td>${buildRoleCell(cmd)}</td>
+      <td>
+        <select class="tier-label-input" data-field="allowedRole" style="max-width:135px">
+          <option value="everyone" ${role === 'everyone' ? 'selected' : ''}>Everyone (Semua)</option>
+          <option value="follower" ${role === 'follower' ? 'selected' : ''}>Follower</option>
+          <option value="subscriber" ${role === 'subscriber' ? 'selected' : ''}>Subscriber</option>
+          <option value="moderator" ${role === 'moderator' ? 'selected' : ''}>Moderator</option>
+          <option value="min_gifter" ${role === 'min_gifter' ? 'selected' : ''}>Min. Gifter</option>
+          <option value="specific_users" ${role === 'specific_users' ? 'selected' : ''}>Specific Users</option>
+        </select>
+      </td>
       <td>
         <div class="chain-mini-wrap">
-          <input class="tier-num-input" type="number" data-field="cooldown" value="${cmd.cooldown ?? 10}" min="0" style="width:62px" title="Global Cooldown (detik)">
-          <input class="tier-num-input" type="number" data-field="userCooldown" value="${cmd.userCooldown ?? 30}" min="0" style="width:62px" title="Cooldown Per-User (detik)">
+          <input class="tier-label-input" data-field="allowedUsers" value="${esc(specUsers)}" placeholder="@user1, @user2" title="Whitelist Specific Users (pisahkan koma)" style="max-width:130px">
+          <input class="tier-num-input" type="number" data-field="minGifterLevel" value="${cmd.minGifterLevel ?? 1}" min="0" title="Min. Gifter Level" style="width:54px">
         </div>
       </td>
+      <td><input class="tier-num-input" type="number" data-field="cooldown" value="${cmd.cooldown ?? 10}" min="0" style="width:68px" title="Global Cooldown (detik)"></td>
+      <td><input class="tier-num-input" type="number" data-field="userCooldown" value="${cmd.userCooldown ?? 30}" min="0" style="width:68px" title="Cooldown Per-User (detik)"></td>
       <td>${buildEffectSelect(cmd.effectId, 'cmd_eff_' + i)}</td>
       <td><label class="toggle-switch"><input type="checkbox" data-field="enabled" ${cmd.enabled ? 'checked' : ''}><span class="toggle-slider"></span></label></td>
       <td><button type="button" class="btn-sm success" onclick="testRowEffect(this, 'chat')">▶ Test</button></td>
@@ -1177,7 +1321,7 @@ function renderLikeTable() {
   });
 }
 
-// Test current row's selected effect dynamically
+// Test current row's selected effect dynamically (including Multi-Action Chain)
 window.testRowEffect = (btnEl, source) => {
   if (btnEl) {
     btnEl.disabled = true;
@@ -1186,7 +1330,16 @@ window.testRowEffect = (btnEl, source) => {
   const tr = btnEl?.closest('tr');
   const sel = tr?.querySelector('.tier-effect-select');
   const effectId = sel ? sel.value : getFirstEffectId();
-  window.testEffect(effectId, source);
+  const rawScreen = tr?.querySelector('select[data-field="overlayScreen"]')?.value;
+  const parsedScreen = parseInt(rawScreen, 10);
+  const chainActions = {
+    label: tr?.querySelector('input[data-field="label"]')?.value.trim() || '',
+    soundId: tr?.querySelector('select[data-field="soundId"]')?.value || '',
+    actionId: tr?.querySelector('select[data-field="actionId"]')?.value || '',
+    overlayScreen: Number.isNaN(parsedScreen) ? 0 : parsedScreen,
+    spinWheel: Boolean(tr?.querySelector('input[data-field="spinWheel"]')?.checked)
+  };
+  window.testEffect(effectId, source, chainActions);
 };
 
 // Row Deletions & Additions
@@ -1256,9 +1409,14 @@ function collectGiftTableData() {
     const labelInput = tr.querySelector('input[data-field="label"]');
     const giftIdInput = tr.querySelector('input[data-field="giftId"]');
     const effectSelect = tr.querySelector('.tier-effect-select');
+    const allowedRole = tr.querySelector('select[data-field="allowedRole"]')?.value || 'everyone';
+    const allowedUsers = tr.querySelector('input[data-field="allowedUsers"]')?.value.trim() || '';
     const multiplyByRepeat = tr.querySelector('input[data-field="multiplyByRepeat"]')?.checked ?? false;
     const soundId = tr.querySelector('select[data-field="soundId"]')?.value || '';
-    const overlayScreen = parseInt(tr.querySelector('select[data-field="overlayScreen"]')?.value) || 1;
+    const actionId = tr.querySelector('select[data-field="actionId"]')?.value || '';
+    const rawScreen = tr.querySelector('select[data-field="overlayScreen"]')?.value;
+    const parsedScreen = parseInt(rawScreen, 10);
+    const overlayScreen = Number.isNaN(parsedScreen) ? 0 : parsedScreen;
     const spinWheel = tr.querySelector('input[data-field="spinWheel"]')?.checked ?? false;
     const enabled = tr.querySelector('input[data-field="enabled"]')?.checked ?? true;
     const rawGiftId = giftIdInput ? giftIdInput.value : '';
@@ -1267,8 +1425,11 @@ function collectGiftTableData() {
       label: labelInput ? labelInput.value : `Tier ${i + 1}`,
       giftId: rawGiftId && !isNaN(rawGiftId) ? Number(rawGiftId) : rawGiftId,
       effectId: effectSelect ? effectSelect.value : getFirstEffectId(),
+      allowedRole,
+      allowedUsers,
       multiplyByRepeat,
       soundId,
+      actionId,
       overlayScreen,
       spinWheel,
       enabled
@@ -1284,10 +1445,13 @@ function collectCoinTierData() {
     const maxCoins = parseInt(tr.querySelector('input[data-field="maxCoins"]')?.value) || 99;
     const effectId = tr.querySelector('.tier-effect-select')?.value || getFirstEffectId();
     const soundId = tr.querySelector('select[data-field="soundId"]')?.value || '';
-    const overlayScreen = parseInt(tr.querySelector('select[data-field="overlayScreen"]')?.value) || 1;
+    const actionId = tr.querySelector('select[data-field="actionId"]')?.value || '';
+    const rawScreen = tr.querySelector('select[data-field="overlayScreen"]')?.value;
+    const parsedScreen = parseInt(rawScreen, 10);
+    const overlayScreen = Number.isNaN(parsedScreen) ? 0 : parsedScreen;
     const spinWheel = tr.querySelector('input[data-field="spinWheel"]')?.checked ?? false;
     const enabled = tr.querySelector('input[data-field="enabled"]')?.checked ?? true;
-    config.coinTiers.push({ id: `coin_${i + 1}`, minCoins, maxCoins, effectId, soundId, overlayScreen, spinWheel, enabled });
+    config.coinTiers.push({ id: `coin_${i + 1}`, minCoins, maxCoins, effectId, soundId, actionId, overlayScreen, spinWheel, enabled });
   });
 }
 
@@ -1296,14 +1460,25 @@ function collectChatCmdData() {
   config.chatCommands = [];
   rows.forEach(tr => {
     const command = tr.querySelector('input[data-field="command"]')?.value.trim() || '!aksi';
-    const requiredRole = tr.querySelector('select[data-field="requiredRole"]')?.value || 'everyone';
-    const rawSpec = tr.querySelector('input[data-field="specificUsers"]')?.value || '';
-    const specificUsers = rawSpec.split(',').map(s => s.trim()).filter(Boolean);
+    const allowedRole = tr.querySelector('select[data-field="allowedRole"]')?.value || 'everyone';
+    const allowedUsers = tr.querySelector('input[data-field="allowedUsers"]')?.value.trim() || '';
+    const specificUsers = allowedUsers.split(',').map(s => s.trim()).filter(Boolean);
+    const minGifterLevel = parseInt(tr.querySelector('input[data-field="minGifterLevel"]')?.value) || 1;
     const cooldown = parseInt(tr.querySelector('input[data-field="cooldown"]')?.value) || 0;
     const userCooldown = parseInt(tr.querySelector('input[data-field="userCooldown"]')?.value) || 0;
     const effectId = tr.querySelector('.tier-effect-select')?.value || getFirstEffectId();
     const enabled = tr.querySelector('input[data-field="enabled"]')?.checked ?? true;
-    config.chatCommands.push({ command, requiredRole, specificUsers, cooldown, userCooldown, effectId, enabled });
+    config.chatCommands.push({
+      command,
+      allowedRole,
+      allowedUsers,
+      specificUsers,
+      minGifterLevel,
+      cooldown,
+      userCooldown,
+      effectId,
+      enabled
+    });
   });
 }
 
@@ -1350,13 +1525,17 @@ function collectLikeTable() {
 }
 
 let isTestingEffect = false;
-window.testEffect = async (effectId, source = 'test') => {
+window.testEffect = async (effectId, source = 'test', chainActions = null) => {
   if (isTestingEffect) return;
   isTestingEffect = true;
   try {
-    const res = await api('POST', '/api/test-effect', { effectId, user: 'dashboard-test', source });
+    const res = await api('POST', '/api/test-effect', { effectId, user: 'dashboard-test', source, chainActions });
     if (res.success) {
-      toast(`Testing: ${effectId} [${(res.driver || 'ws-mod').toUpperCase()}]`, 'success');
+      if (res.skipGameEffect) {
+        toast(res.chainExecuted ? 'Testing Multi-Action (Tanpa Efek Game)!' : 'Efek Nonaktif — pilih Action/Sound/Wheel terlebih dahulu!', res.chainExecuted ? 'success' : 'info');
+      } else {
+        toast(`Testing: ${res.effectId || effectId} [${(res.driver || 'ws-mod').toUpperCase()}]${res.chainExecuted ? ' + Multi-Action' : ''}`, 'success');
+      }
     } else {
       toast(res.error || 'Failed to test effect', 'error');
     }
@@ -1441,11 +1620,20 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 // ─── Events Table ─────────────────────────────────────────
+function isEventTypeVisible(type) {
+  const chk = document.getElementById(`filter-${type}`);
+  return chk ? chk.checked : true;
+}
+
+['gift', 'follow', 'subscribe', 'member', 'like', 'share', 'emote', 'chat', 'donation'].forEach(t => {
+  document.getElementById(`filter-${t}`)?.addEventListener('change', renderEventsTable);
+});
+
 function renderEventsTable() {
   const tbody = document.getElementById('events-body');
   if (!tbody) return;
   tbody.innerHTML = '';
-  events.slice(0, 100).forEach(ev => {
+  events.filter(ev => isEventTypeVisible(ev.type)).slice(0, 100).forEach(ev => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-family:var(--font-mono);font-size:11px">${new Date(ev.time).toLocaleTimeString()}</td>
@@ -1460,6 +1648,7 @@ function renderEventsTable() {
 function addEventRow(ev) {
   events.unshift(ev);
   if (events.length > 500) events.pop();
+  if (!isEventTypeVisible(ev.type)) return;
   const tbody = document.getElementById('events-body');
   if (!tbody) return;
   const tr = document.createElement('tr');
@@ -1479,6 +1668,10 @@ function formatEventDetail(ev) {
   if (ev.type === 'like') return `${ev.count} likes`;
   if (ev.type === 'chat') return `"${esc(ev.comment || '')}"`;
   if (ev.type === 'donation') return `Rp ${Number(ev.amount || 0).toLocaleString('id-ID')} (${esc(ev.platform || 'Donasi')})`;
+  if (ev.type === 'subscribe') return 'Subscribed!';
+  if (ev.type === 'emote') return `Emote ${esc(ev.emoteId || '')}`;
+  if (ev.type === 'envelope') return `Angpao ${ev.coins || 0}💎`;
+  if (ev.type === 'battle') return 'PK Battle!';
   return '—';
 }
 
@@ -1633,6 +1826,19 @@ document.getElementById('btn-save-queue')?.addEventListener('click', async () =>
 });
 
 // ─── Batch A: Free Indonesian TTS & Soundboard ────────────
+const BUILT_IN_SOUNDS = new Set([
+  'horn_basuri',
+  'siren_police',
+  'coin_jackpot',
+  'explosion_boom',
+  'jump_boing',
+  'alert_danger',
+  'victory_fanfare',
+  'laser_zap'
+]);
+
+const dashTtsQueue = [];
+let isPlayingDashTts = false;
 let currentDashboardTtsAudio = null;
 
 function handleDashboardTtsSpeak(payload) {
@@ -1640,23 +1846,92 @@ function handleDashboardTtsSpeak(payload) {
   const playLocal = document.getElementById('tts-play-in-dashboard')?.checked ?? true;
   if (!playLocal) return;
 
-  stopDashboardTts();
-  const audio = new Audio(payload.audioUrl);
-  audio.volume = Math.max(0, Math.min(1, (payload.volume || 100) / 100));
-  audio.playbackRate = Math.max(0.5, Math.min(2.0, payload.speed || 1.0));
-  currentDashboardTtsAudio = audio;
-  audio.onerror = () => {
-    if ('speechSynthesis' in window) {
-      const u = new SpeechSynthesisUtterance(payload.text);
-      u.lang = payload.lang || 'id-ID';
-      u.rate = payload.speed || 1.0;
-      window.speechSynthesis.speak(u);
-    }
+  const maxQueue = Math.max(1, Number(payload.maxQueueLength) || 10);
+  while (dashTtsQueue.length >= maxQueue) {
+    dashTtsQueue.shift();
+  }
+  dashTtsQueue.push(payload);
+  processDashboardTtsQueue();
+}
+
+function processDashboardTtsQueue() {
+  if (isPlayingDashTts || dashTtsQueue.length === 0) return;
+  const payload = dashTtsQueue.shift();
+  isPlayingDashTts = true;
+
+  const urls = Array.isArray(payload.audioUrls) && payload.audioUrls.length > 0
+    ? payload.audioUrls
+    : (payload.audioUrl ? [payload.audioUrl] : []);
+  const rawVol = Number(payload.volume ?? 0.9);
+  const normVol = Math.max(0, Math.min(1, rawVol > 1 ? rawVol / 100 : rawVol));
+  const playbackRate = Math.max(0.5, Math.min(2.0, Number(payload.rate ?? payload.speed ?? 1.0)));
+
+  const finish = () => {
+    currentDashboardTtsAudio = null;
+    isPlayingDashTts = false;
+    setTimeout(processDashboardTtsQueue, 120);
   };
-  audio.play().catch(() => {});
+
+  const fallbackSpeech = (textToSpeak) => {
+    if ('speechSynthesis' in window && textToSpeak) {
+      try {
+        const u = new SpeechSynthesisUtterance(textToSpeak);
+        u.lang = payload.speechLang || payload.lang || 'id-ID';
+        u.rate = playbackRate;
+        u.pitch = Number(payload.pitch || 1.0);
+        u.volume = normVol;
+        u.onend = finish;
+        u.onerror = finish;
+        window.speechSynthesis.speak(u);
+        return;
+      } catch {}
+    }
+    finish();
+  };
+
+  if (urls.length === 0) {
+    fallbackSpeech(payload.text);
+    return;
+  }
+
+  let chunkIdx = 0;
+  const playNextChunk = () => {
+    if (chunkIdx >= urls.length) {
+      finish();
+      return;
+    }
+    const audio = new Audio(urls[chunkIdx]);
+    audio.volume = normVol;
+    audio.playbackRate = playbackRate;
+    currentDashboardTtsAudio = audio;
+
+    let settled = false;
+    const onDone = () => {
+      if (settled) return;
+      settled = true;
+      chunkIdx++;
+      playNextChunk();
+    };
+    const onErr = () => {
+      if (settled) return;
+      settled = true;
+      const remainingText = Array.isArray(payload.chunks) && payload.chunks.length > chunkIdx
+        ? payload.chunks.slice(chunkIdx).join(' ')
+        : payload.text;
+      fallbackSpeech(remainingText);
+    };
+
+    audio.onended = onDone;
+    audio.onerror = onErr;
+    audio.play().catch(onErr);
+  };
+
+  playNextChunk();
 }
 
 function stopDashboardTts() {
+  dashTtsQueue.length = 0;
+  isPlayingDashTts = false;
   if (currentDashboardTtsAudio) {
     try { currentDashboardTtsAudio.pause(); } catch {}
     currentDashboardTtsAudio = null;
@@ -1667,11 +1942,13 @@ function stopDashboardTts() {
 }
 
 function handleDashboardSoundPlay(payload) {
-  if (!payload || !payload.url) return;
+  const src = payload?.file || payload?.url;
+  if (!src) return;
   const playLocal = document.getElementById('tts-play-in-dashboard')?.checked ?? true;
   if (!playLocal) return;
-  const audio = new Audio(payload.url);
-  audio.volume = Math.max(0, Math.min(1, (payload.volume || 100) / 100));
+  const rawVol = Number(payload.volume ?? 0.85);
+  const audio = new Audio(src);
+  audio.volume = Math.max(0, Math.min(1, rawVol > 1 ? rawVol / 100 : rawVol));
   audio.play().catch(() => {});
 }
 
@@ -1680,27 +1957,57 @@ function renderTtsTab() {
   const tts = ttsSoundConfig.tts || {};
   const sb = ttsSoundConfig.soundboard || {};
 
-  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = Boolean(v); };
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) el.value = v;
+  };
+  const setChk = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) el.checked = Boolean(v);
+  };
+
+  // Populate Edge Neural Voice options from backend catalog
+  const voiceSel = document.getElementById('tts-edge-voice-select');
+  if (voiceSel) {
+    const curVoice = tts.edgeVoice || '';
+    const voicesList = Array.isArray(ttsVoices) ? ttsVoices : [];
+    const expectedHtml = `<option value="">✨ Otomatis Ikuti Bahasa Utama</option>` +
+      voicesList.map(v => `<option value="${esc(v.id)}">${esc(v.name)} (${esc(v.lang)} · ${esc(v.gender || 'Neutral')})</option>`).join('');
+    if (voiceSel.innerHTML !== expectedHtml) {
+      voiceSel.innerHTML = expectedHtml;
+    }
+    if (document.activeElement !== voiceSel) voiceSel.value = curVoice;
+  }
+
+  const rawVol = Number(tts.volume ?? 0.9);
+  const volPct = rawVol <= 1 ? Math.round(rawVol * 100) : Math.round(rawVol);
+  const rateVal = tts.rate ?? tts.speed ?? 1.0;
+  const usersStr = tts.allowedUsers || (Array.isArray(tts.specificUsers) ? tts.specificUsers.join(', ') : '');
+  const cdSec = tts.cooldownSec ?? tts.userCooldownSec ?? 3;
+  const minLevel = tts.minGifterLevel ?? tts.minGifterCoins ?? 1;
+  const readChatEnabled = tts.readChat !== false && tts.chatMode !== 'off';
 
   setVal('tts-enabled-select', tts.enabled !== false ? 'true' : 'false');
+  setVal('tts-engine-select', tts.engine || 'auto');
   setVal('tts-lang-select', tts.lang || 'id-ID');
-  setVal('tts-volume-range', tts.volume ?? 100);
-  setVal('tts-speed-range', tts.speed ?? 1.0);
+  setChk('tts-random-voice', tts.randomVoice);
+  setVal('tts-max-queue', tts.maxQueueLength || 10);
+  setVal('tts-volume-range', volPct);
+  setVal('tts-speed-range', rateVal);
   const volLabel = document.getElementById('tts-vol-val');
-  if (volLabel) volLabel.textContent = tts.volume ?? 100;
+  if (volLabel) volLabel.textContent = volPct;
   const spdLabel = document.getElementById('tts-speed-val');
-  if (spdLabel) spdLabel.textContent = tts.speed ?? 1.0;
+  if (spdLabel) spdLabel.textContent = rateVal;
 
   setVal('tts-role-select', tts.allowedRole || 'everyone');
-  setVal('tts-prefix-input', tts.commentTriggerMode === 'prefix' ? (tts.commentPrefix || '!tts') : '');
-  setVal('tts-specific-users', (tts.specificUsers || []).join(', '));
-  setVal('tts-min-coins', tts.minGifterCoins ?? 0);
-  setVal('tts-cooldown-sec', tts.userCooldownSec ?? 8);
-  setChk('tts-read-chat', tts.readChat !== false);
+  setVal('tts-prefix-input', tts.chatMode === 'all' ? '' : (tts.chatCommand || tts.commentPrefix || '!tts'));
+  setVal('tts-specific-users', usersStr);
+  setVal('tts-min-coins', minLevel);
+  setVal('tts-cooldown-sec', cdSec);
+  setChk('tts-read-chat', readChatEnabled);
   setChk('tts-read-gift', tts.readGifts !== false);
   setChk('tts-read-donation', tts.readDonations !== false);
-  setVal('tts-template-gift', tts.giftTemplate || 'Terima kasih {user} atas {gift} sebanyak {repeat} kali');
+  setVal('tts-template-gift', tts.giftTemplate || 'Terima kasih {nickname} atas {repeatcount} {giftname}!');
   setVal('tts-badwords', (tts.badwords || []).join(', '));
 
   const grid = document.getElementById('soundboard-grid');
@@ -1713,13 +2020,45 @@ function renderTtsTab() {
         <div class="sound-card-title">${esc(item.name)}</div>
         <div class="sound-card-actions">
           <button type="button" class="btn-sm success" style="flex:1" onclick="playSoundItem('${esc(item.id)}')">▶ Play</button>
-          ${!item.id.startsWith('sfx_') ? `<button type="button" class="btn-sm danger" onclick="deleteSoundItem('${esc(item.id)}')">✕</button>` : ''}
+          ${!BUILT_IN_SOUNDS.has(item.id) ? `<button type="button" class="btn-sm danger" onclick="deleteSoundItem('${esc(item.id)}')">✕</button>` : ''}
         </div>
       `;
       grid.appendChild(div);
     });
   }
 }
+
+async function refreshTtsLogs() {
+  const listEl = document.getElementById('tts-logs-list');
+  if (!listEl) return;
+  try {
+    const logs = await api('GET', '/api/tts/logs');
+    if (!Array.isArray(logs) || logs.length === 0) {
+      listEl.innerHTML = '<div class="form-hint">Belum ada riwayat TTS pada sesi ini.</div>';
+      return;
+    }
+    listEl.innerHTML = logs.slice(0, 50).map(l => `
+      <div class="tts-log-item">
+        <div class="tts-log-info">
+          <div class="action-card-title">
+            <span>@${esc(l.user || 'Anon')}</span>
+            <span class="badge-pill">${esc((l.engine || 'auto').toUpperCase())}</span>
+            <span class="action-card-meta">${esc(l.voice || l.lang || '-')} · ${new Date(l.time || Date.now()).toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size:12px;">"${esc(l.text || '')}"</div>
+        </div>
+        <span class="badge-pill" style="background:${l.status === 'failed' ? '#ff7675' : '#55efc4'}">${esc(l.status || 'ok')}</span>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+document.getElementById('btn-tts-logs-refresh')?.addEventListener('click', refreshTtsLogs);
+document.getElementById('btn-tts-logs-clear')?.addEventListener('click', async () => {
+  await api('DELETE', '/api/tts/logs');
+  await refreshTtsLogs();
+  toast('Riwayat log TTS dihapus.', 'info');
+});
 
 document.getElementById('tts-volume-range')?.addEventListener('input', (e) => {
   const el = document.getElementById('tts-vol-val');
@@ -1731,25 +2070,37 @@ document.getElementById('tts-speed-range')?.addEventListener('input', (e) => {
 });
 
 document.getElementById('btn-tts-save')?.addEventListener('click', async () => {
+  const readChat = document.getElementById('tts-read-chat')?.checked ?? true;
   const prefixRaw = document.getElementById('tts-prefix-input')?.value.trim() || '';
   const specUsers = (document.getElementById('tts-specific-users')?.value || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   const badwords = (document.getElementById('tts-badwords')?.value || '')
     .split(',').map(s => s.trim()).filter(Boolean);
+  const volPct = Number(document.getElementById('tts-volume-range')?.value ?? 90);
+  const rateVal = Number(document.getElementById('tts-speed-range')?.value ?? 1.0);
+  const minLevel = Number(document.getElementById('tts-min-coins')?.value ?? 1);
+  const cdSec = Number(document.getElementById('tts-cooldown-sec')?.value ?? 3);
 
   const payload = {
     tts: {
       enabled: document.getElementById('tts-enabled-select')?.value === 'true',
+      engine: document.getElementById('tts-engine-select')?.value || 'auto',
       lang: document.getElementById('tts-lang-select')?.value || 'id-ID',
-      volume: Number(document.getElementById('tts-volume-range')?.value ?? 100),
-      speed: Number(document.getElementById('tts-speed-range')?.value ?? 1.0),
+      edgeVoice: document.getElementById('tts-edge-voice-select')?.value || '',
+      randomVoice: document.getElementById('tts-random-voice')?.checked ?? false,
+      maxQueueLength: Math.max(1, Math.min(100, Number(document.getElementById('tts-max-queue')?.value ?? 10))),
+      volume: Math.min(1, Math.max(0, volPct / 100)),
+      rate: rateVal,
+      speed: rateVal,
       allowedRole: document.getElementById('tts-role-select')?.value || 'everyone',
+      allowedUsers: specUsers.join(', '),
       specificUsers: specUsers,
-      minGifterCoins: Number(document.getElementById('tts-min-coins')?.value || 0),
-      userCooldownSec: Number(document.getElementById('tts-cooldown-sec')?.value || 8),
-      commentTriggerMode: prefixRaw ? 'prefix' : 'all',
-      commentPrefix: prefixRaw || '!tts',
-      readChat: document.getElementById('tts-read-chat')?.checked ?? true,
+      minGifterLevel: minLevel,
+      cooldownSec: cdSec,
+      userCooldownSec: cdSec,
+      readChat,
+      chatMode: !readChat ? 'off' : (prefixRaw ? 'command' : 'all'),
+      chatCommand: prefixRaw || '!tts',
       readGifts: document.getElementById('tts-read-gift')?.checked ?? true,
       readDonations: document.getElementById('tts-read-donation')?.checked ?? true,
       giftTemplate: document.getElementById('tts-template-gift')?.value || '',
@@ -1759,15 +2110,18 @@ document.getElementById('btn-tts-save')?.addEventListener('click', async () => {
   const res = await api('PUT', '/api/tts-sound/config', payload);
   if (res.success) {
     ttsSoundConfig = res.config;
-    toast('Pengaturan TTS Bahasa Indonesia disimpan!', 'success');
+    toast('Pengaturan TTS diperbarui!', 'success');
   }
 });
 
 document.getElementById('btn-tts-test')?.addEventListener('click', async () => {
   const text = document.getElementById('tts-test-input')?.value.trim() || 'Halo streamer Agiva!';
   const lang = document.getElementById('tts-lang-select')?.value || 'id-ID';
-  await api('POST', '/api/tts/speak', { text, lang, user: 'Dashboard-Test' });
-  toast('Memutar suara TTS Bahasa Indonesia...', 'success');
+  const voice = document.getElementById('tts-edge-voice-select')?.value || '';
+  const engine = document.getElementById('tts-engine-select')?.value || 'auto';
+  await api('POST', '/api/tts/speak', { text, lang, voice, engine, user: 'Dashboard-Test' });
+  toast('Memutar suara TTS...', 'success');
+  setTimeout(refreshTtsLogs, 500);
 });
 
 document.getElementById('btn-tts-skip')?.addEventListener('click', async () => {
@@ -1797,9 +2151,8 @@ document.getElementById('soundboard-upload-input')?.addEventListener('change', a
   reader.onload = async () => {
     const res = await api('POST', '/api/soundboard/upload', {
       name: file.name.replace(/\.[^.]+$/, ''),
-      fileName: file.name,
-      base64Data: reader.result,
-      volume: 100
+      filename: file.name,
+      dataBase64: reader.result
     });
     if (res.success) {
       ttsSoundConfig = await api('GET', '/api/tts-sound/config');
@@ -1823,16 +2176,129 @@ document.querySelectorAll('[data-copy-overlay]').forEach(btn => {
   });
 });
 
-function renderWidgetsTab() {
-  if (!widgetState) return;
-  const timer = widgetState.timer || widgetState.subathonTimer || {};
-  const rem = Number(timer.remainingSec ?? timer.remainingSeconds ?? 0);
+function updateTimerPreviewOnly(remSec, isRun) {
+  const rem = Math.max(0, Number(remSec ?? 0));
   const h = String(Math.floor(rem / 3600)).padStart(2, '0');
   const m = String(Math.floor((rem % 3600) / 60)).padStart(2, '0');
   const s = String(rem % 60).padStart(2, '0');
-  const isRun = Boolean(timer.isRunning ?? timer.running);
   const timerPreview = document.getElementById('widget-timer-preview');
   if (timerPreview) timerPreview.textContent = `${h}:${m}:${s} ${isRun ? '🟢' : '⏸️'}`;
+}
+
+function setWidgetInputIfIdle(id, val, force = false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!force && document.activeElement === el) return;
+  el.value = val ?? '';
+}
+
+function setWidgetCheckIfIdle(id, val, force = false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!force && document.activeElement === el) return;
+  el.checked = Boolean(val);
+}
+
+function populateSelectOptionsPreservingValue(selectEl, optionsHtml, selectedValue, force = false) {
+  if (!selectEl) return;
+  if (selectEl.innerHTML !== optionsHtml) {
+    selectEl.innerHTML = optionsHtml;
+  }
+  if (force || document.activeElement !== selectEl) {
+    selectEl.value = selectedValue || '';
+  }
+}
+
+function buildWheelSegRowHtml(seg = {}, idx = 0) {
+  const effOpts = getEffectOptions();
+  const actList = actionsData?.actions || [];
+  const defColors = ['#ff6b35', '#ef4444', '#3b82f6', '#a855f7', '#10b981', '#eab308'];
+  const color = seg.color || defColors[idx % defColors.length];
+  return `
+    <div class="wheel-seg-row" data-seg-id="${esc(seg.id || `seg_${idx + 1}`)}">
+      <input type="color" class="wheel-seg-color" data-wfield="color" value="${esc(color)}" title="Warna Segmen">
+      <input type="text" class="form-input" data-wfield="label" value="${esc(seg.label || '')}" placeholder="Label Hadiah" style="flex:2; min-width:110px;">
+      <input type="number" class="form-input" data-wfield="weight" value="${Number(seg.weight) || 10}" min="1" max="100" title="Bobot Probabilitas (%)" style="width:68px;">
+      <select class="form-input" data-wfield="effectId" title="Efek Game" style="flex:1; min-width:105px;">
+        <option value="">-- Efek Game --</option>
+        ${effOpts.map(o => `<option value="${esc(o.id)}" ${o.id === seg.effectId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+      </select>
+      <select class="form-input" data-wfield="actionId" title="Action" style="flex:1; min-width:105px;">
+        <option value="">-- Action --</option>
+        ${actList.map(a => `<option value="${esc(a.id)}" ${a.id === seg.actionId ? 'selected' : ''}>⚡ ${esc(a.name)}</option>`).join('')}
+      </select>
+      <button type="button" class="btn-sm danger btn-wheel-del-seg" title="Hapus Segmen">✕</button>
+    </div>
+  `;
+}
+
+function renderWheelEditor(wheelObj, force = false) {
+  if (!wheelObj) return;
+  setWidgetInputIfIdle('wheel-title-input', wheelObj.title || '🎡 RODA GACHA STREAMER', force);
+  setWidgetCheckIfIdle('wheel-auto-trigger', wheelObj.autoTriggerEffect !== false, force);
+
+  const editor = document.getElementById('wheel-segments-editor');
+  if (!editor) return;
+  if (wheelEditorDirty && !force) return;
+
+  const segs = Array.isArray(wheelObj.segments) ? wheelObj.segments : [];
+  editor.innerHTML = segs.slice(0, 24).map((seg, idx) => buildWheelSegRowHtml(seg, idx)).join('');
+}
+
+function syncGoalFormFromState(force = false) {
+  if (!widgetState?.goals) return;
+  const type = document.getElementById('goal-type-select')?.value || 'coins';
+  const g = widgetState.goals[type] || widgetState.goals.coins || {};
+
+  const badge = document.getElementById('goal-current-progress');
+  if (badge) {
+    badge.textContent = `${Number(g.current || 0).toLocaleString('id-ID')} / ${Number(g.target || 0).toLocaleString('id-ID')}`;
+  }
+
+  const effOptsHtml = '<option value="">-- Tanpa Efek Otomatis --</option>' +
+    getEffectOptions().map(o => `<option value="${esc(o.id)}">${esc(o.label)} (${esc(o.id)})</option>`).join('');
+  populateSelectOptionsPreservingValue(document.getElementById('goal-reward-effect'), effOptsHtml, g.rewardEffectId || '', force);
+
+  if (force || !widgetsFormHydrated) {
+    setWidgetInputIfIdle('goal-coins-title', g.title || 'Target Goal', force);
+    setWidgetInputIfIdle('goal-coins-target', g.target ?? 100, force);
+    setWidgetCheckIfIdle('goal-auto-scale', g.autoScale !== false, force);
+    const remMins = g.deadlineAt > Date.now() ? Math.ceil((g.deadlineAt - Date.now()) / 60000) : 0;
+    setWidgetInputIfIdle('goal-countdown-mins', remMins, force);
+  }
+}
+
+function syncThemeFormFromState(force = false) {
+  const th = widgetState?.theme;
+  if (!th) return;
+  if (!force && widgetsFormHydrated) return;
+  setWidgetInputIfIdle('theme-pack-select', th.pack || 'default', force);
+  setWidgetInputIfIdle('theme-font-family', th.fontFamily || 'Inter', force);
+  setWidgetInputIfIdle('theme-font-scale', th.fontSizeScale ?? 1.0, force);
+  setWidgetInputIfIdle('theme-text-color', th.textColor || '#f8fafc', force);
+  setWidgetInputIfIdle('theme-accent-color', th.accentColor || '#6366f1', force);
+  setWidgetInputIfIdle('theme-bg-color', th.bgColor || '#0b0f19', force);
+  setWidgetInputIfIdle('theme-bg-opacity', th.bgOpacity ?? 0.9, force);
+  setWidgetInputIfIdle('theme-border-radius', th.borderRadius ?? 16, force);
+  setWidgetInputIfIdle('theme-animation', th.animation || 'pop', force);
+  setWidgetInputIfIdle('theme-custom-css', th.customCss || '', force);
+}
+
+function syncScreenFormFromState(force = false) {
+  const sid = document.getElementById('screen-config-select')?.value || '1';
+  const sc = widgetState?.screens?.[sid];
+  if (!sc) return;
+  if (!force && widgetsFormHydrated) return;
+  setWidgetInputIfIdle('screen-pos-select', sc.position || 'center', force);
+  setWidgetInputIfIdle('screen-duration-ms', sc.defaultDurationMs ?? 4000, force);
+  setWidgetInputIfIdle('screen-max-queue', sc.maxQueueLength ?? 10, force);
+}
+
+function renderWidgetsTab(forceForm = false) {
+  if (!widgetState) return;
+  const timer = widgetState.timer || widgetState.subathonTimer || {};
+  const isRun = Boolean(timer.isRunning ?? timer.running);
+  updateTimerPreviewOnly(timer.remainingSec ?? timer.remainingSeconds ?? 0, isRun);
 
   const wl = widgetState.counter || widgetState.winLose || { wins: 0, loses: 0 };
   const wlPrev = document.getElementById('winlose-preview');
@@ -1849,17 +2315,60 @@ function renderWidgetsTab() {
     gwWin.textContent = gw.winner ? `🎉 Pemenang Terakhir: @${gw.winner.nickname || gw.winner.user}` : '';
   }
 
-  const wheelObj = widgetState.wheel || widgetState.spinWheel;
-  const segInput = document.getElementById('wheel-segments-input');
-  if (segInput && !segInput.dataset.edited && wheelObj?.segments) {
-    segInput.value = wheelObj.segments
-      .map(seg => `${seg.label} | ${seg.effectId || ''} | ${seg.color || '#ff6b35'}`)
-      .join('\n');
+  // Action & Effect dropdowns inside Timer widget
+  const actOptsHtml = '<option value="">-- Tanpa Action --</option>' +
+    (actionsData?.actions || []).map(a => `<option value="${esc(a.id)}">⚡ ${esc(a.name)}</option>`).join('');
+  const effOptsHtml = '<option value="">-- Tanpa Efek Game --</option>' +
+    getEffectOptions().map(o => `<option value="${esc(o.id)}">${esc(o.label)} (${esc(o.id)})</option>`).join('');
+  populateSelectOptionsPreservingValue(document.getElementById('timer-end-action'), actOptsHtml, timer.endActionId || '', forceForm || !widgetsFormHydrated);
+  populateSelectOptionsPreservingValue(document.getElementById('timer-end-effect'), effOptsHtml, timer.endEffectId || '', forceForm || !widgetsFormHydrated);
+
+  if (forceForm || !widgetsFormHydrated) {
+    const auto = timer.autoAdd || {};
+    setWidgetInputIfIdle('timer-title-input', timer.title || 'SUBATHON TIMER', forceForm);
+    setWidgetInputIfIdle('timer-sec-per-coin', auto.secPerCoin ?? 2, forceForm);
+    setWidgetInputIfIdle('timer-sec-per-100likes', auto.secPer100Likes ?? 5, forceForm);
+    setWidgetInputIfIdle('timer-sec-per-follow', auto.secPerFollow ?? 10, forceForm);
+    setWidgetInputIfIdle('timer-sec-per-sub', auto.secPerSub ?? 60, forceForm);
+    setWidgetInputIfIdle('timer-sec-per-chat', auto.secPerChat ?? 0, forceForm);
+    setWidgetInputIfIdle('timer-sec-per-10kidr', auto.secPer10kIdr ?? 60, forceForm);
+    setWidgetInputIfIdle('timer-boost-mult', timer.boostMultiplier ?? 2, forceForm);
+    setWidgetCheckIfIdle('timer-boost-enabled', timer.boostEnabled, forceForm);
+    setWidgetCheckIfIdle('timer-random-enabled', timer.randomBonusEnabled, forceForm);
+    setWidgetCheckIfIdle('timer-hide-zero', timer.hideWhenZero, forceForm);
   }
+
+  renderWheelEditor(widgetState.wheel || widgetState.spinWheel, forceForm || !widgetsFormHydrated);
+  syncGoalFormFromState(forceForm);
+  syncThemeFormFromState(forceForm);
+  syncScreenFormFromState(forceForm);
+  if (typeof syncMiniGamesUi === 'function') syncMiniGamesUi(forceForm || !miniGamesHydrated);
+  widgetsFormHydrated = true;
 }
 
-document.getElementById('wheel-segments-input')?.addEventListener('input', (e) => {
-  e.target.dataset.edited = 'true';
+document.getElementById('wheel-segments-editor')?.addEventListener('input', () => {
+  wheelEditorDirty = true;
+});
+document.getElementById('wheel-segments-editor')?.addEventListener('change', () => {
+  wheelEditorDirty = true;
+});
+document.getElementById('wheel-segments-editor')?.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.btn-wheel-del-seg');
+  if (!delBtn) return;
+  const row = delBtn.closest('.wheel-seg-row');
+  if (row) {
+    row.remove();
+    wheelEditorDirty = true;
+  }
+});
+
+document.getElementById('btn-wheel-add-seg')?.addEventListener('click', () => {
+  const editor = document.getElementById('wheel-segments-editor');
+  if (!editor) return;
+  const count = editor.querySelectorAll('.wheel-seg-row').length;
+  if (count >= 24) return toast('Maksimal 24 segmen Spin Wheel!', 'error');
+  editor.insertAdjacentHTML('beforeend', buildWheelSegRowHtml({ label: `Hadiah ${count + 1}`, weight: 10 }, count));
+  wheelEditorDirty = true;
 });
 
 document.getElementById('btn-timer-start')?.addEventListener('click', () => api('POST', '/api/widgets/timer', { action: 'start' }));
@@ -1869,8 +2378,27 @@ document.getElementById('btn-timer-add300')?.addEventListener('click', () => api
 document.getElementById('btn-timer-reset')?.addEventListener('click', () => api('POST', '/api/widgets/timer', { action: 'reset', seconds: 3600 }));
 document.getElementById('btn-timer-save')?.addEventListener('click', async () => {
   const title = document.getElementById('timer-title-input')?.value || 'SUBATHON TIMER';
-  const secondsPerCoin = Number(document.getElementById('timer-sec-per-coin')?.value ?? 2);
-  await api('POST', '/api/widgets/timer', { action: 'config', title, secondsPerCoin });
+  const payload = {
+    action: 'config',
+    title,
+    boostEnabled: document.getElementById('timer-boost-enabled')?.checked ?? false,
+    boostMultiplier: Math.max(1, Number(document.getElementById('timer-boost-mult')?.value ?? 2)),
+    randomBonusEnabled: document.getElementById('timer-random-enabled')?.checked ?? false,
+    hideWhenZero: document.getElementById('timer-hide-zero')?.checked ?? false,
+    endActionId: document.getElementById('timer-end-action')?.value || '',
+    endEffectId: document.getElementById('timer-end-effect')?.value || '',
+    autoAdd: {
+      enabled: true,
+      secPerCoin: Number(document.getElementById('timer-sec-per-coin')?.value ?? 2),
+      secPer100Likes: Number(document.getElementById('timer-sec-per-100likes')?.value ?? 5),
+      secPerFollow: Number(document.getElementById('timer-sec-per-follow')?.value ?? 10),
+      secPerSub: Number(document.getElementById('timer-sec-per-sub')?.value ?? 60),
+      secPerChat: Number(document.getElementById('timer-sec-per-chat')?.value ?? 0),
+      secPer10kIdr: Number(document.getElementById('timer-sec-per-10kidr')?.value ?? 60)
+    }
+  };
+  const res = await api('POST', '/api/widgets/timer', payload);
+  if (res.timer && widgetState) widgetState.timer = res.timer;
   toast('Konfigurasi Subathon Timer disimpan!', 'success');
 });
 
@@ -1882,30 +2410,92 @@ document.getElementById('btn-wheel-spin')?.addEventListener('click', async () =>
 });
 
 document.getElementById('btn-wheel-save')?.addEventListener('click', async () => {
-  const raw = document.getElementById('wheel-segments-input')?.value || '';
-  const segments = raw.split('\n').map((line, idx) => {
-    const parts = line.split('|').map(p => p.trim());
-    if (!parts[0]) return null;
+  const editor = document.getElementById('wheel-segments-editor');
+  const rows = editor ? Array.from(editor.querySelectorAll('.wheel-seg-row')) : [];
+  const segments = rows.slice(0, 24).map((row, idx) => {
+    const label = row.querySelector('[data-wfield="label"]')?.value.trim();
+    if (!label) return null;
     return {
-      id: `seg_${idx + 1}`,
-      label: parts[0],
-      effectId: parts[1] || '',
-      color: parts[2] || ['#ff6b35', '#ef4444', '#3b82f6', '#a855f7', '#10b981', '#eab308'][idx % 6]
+      id: row.dataset.segId || `seg_${idx + 1}`,
+      label,
+      color: row.querySelector('[data-wfield="color"]')?.value || '#ff6b35',
+      weight: Math.max(1, Number(row.querySelector('[data-wfield="weight"]')?.value) || 10),
+      effectId: row.querySelector('[data-wfield="effectId"]')?.value || '',
+      actionId: row.querySelector('[data-wfield="actionId"]')?.value || ''
     };
   }).filter(Boolean);
-  await api('PUT', '/api/widgets/wheel', { segments });
+  const title = document.getElementById('wheel-title-input')?.value.trim() || '🎡 RODA GACHA STREAMER';
+  const autoTriggerEffect = document.getElementById('wheel-auto-trigger')?.checked ?? true;
+  const res = await api('PUT', '/api/widgets/wheel', { title, autoTriggerEffect, segments });
+  if (res.wheel && widgetState) widgetState.wheel = res.wheel;
+  wheelEditorDirty = false;
   toast(`Disimpan ${segments.length} segmen Spin Wheel!`, 'success');
 });
 
-document.getElementById('btn-goal-save')?.addEventListener('click', async () => {
-  const title = document.getElementById('goal-coins-title')?.value || 'Target Koin';
-  const target = Number(document.getElementById('goal-coins-target')?.value || 1000);
-  await api('POST', '/api/widgets/goals', { type: 'coins', title, target });
-  toast('Target Goal Bar diperbarui!', 'success');
+document.getElementById('goal-type-select')?.addEventListener('change', () => {
+  syncGoalFormFromState(true);
 });
+
+document.getElementById('btn-copy-selected-goal')?.addEventListener('click', () => {
+  const type = document.getElementById('goal-type-select')?.value || 'coins';
+  const fullUrl = `${location.origin}/overlay?widget=goal&type=${encodeURIComponent(type)}`;
+  navigator.clipboard?.writeText(fullUrl);
+  toast(`Disalin URL Goal "${type}": ${fullUrl}`, 'success');
+});
+
+document.getElementById('btn-goal-save')?.addEventListener('click', async () => {
+  const type = document.getElementById('goal-type-select')?.value || 'coins';
+  const title = document.getElementById('goal-coins-title')?.value || 'Target Goal';
+  const target = Number(document.getElementById('goal-coins-target')?.value || 100);
+  const autoScale = document.getElementById('goal-auto-scale')?.checked ?? true;
+  const rewardEffectId = document.getElementById('goal-reward-effect')?.value || '';
+  const countdownMinutes = Number(document.getElementById('goal-countdown-mins')?.value || 0);
+  const res = await api('POST', '/api/widgets/goals', { type, title, target, autoScale, rewardEffectId, countdownMinutes });
+  if (res.goal && widgetState?.goals) widgetState.goals[type] = res.goal;
+  syncGoalFormFromState(true);
+  toast(`Goal "${type}" diperbarui!`, 'success');
+});
+
 document.getElementById('btn-goal-reset')?.addEventListener('click', async () => {
-  await api('POST', '/api/widgets/goals', { type: 'coins', reset: true });
-  toast('Progress Goal di-reset ke 0!', 'info');
+  const type = document.getElementById('goal-type-select')?.value || 'coins';
+  const res = await api('POST', '/api/widgets/goals', { type, reset: true });
+  if (res.goal && widgetState?.goals) widgetState.goals[type] = res.goal;
+  syncGoalFormFromState(true);
+  toast(`Progress Goal "${type}" di-reset ke 0!`, 'info');
+});
+
+document.getElementById('btn-theme-save')?.addEventListener('click', async () => {
+  const payload = {
+    pack: document.getElementById('theme-pack-select')?.value || 'default',
+    fontFamily: document.getElementById('theme-font-family')?.value || 'Inter',
+    fontSizeScale: Number(document.getElementById('theme-font-scale')?.value ?? 1.0),
+    textColor: document.getElementById('theme-text-color')?.value || '#f8fafc',
+    accentColor: document.getElementById('theme-accent-color')?.value || '#6366f1',
+    bgColor: document.getElementById('theme-bg-color')?.value || '#0b0f19',
+    bgOpacity: Number(document.getElementById('theme-bg-opacity')?.value ?? 0.9),
+    borderRadius: Number(document.getElementById('theme-border-radius')?.value ?? 16),
+    animation: document.getElementById('theme-animation')?.value || 'pop',
+    customCss: document.getElementById('theme-custom-css')?.value || ''
+  };
+  const res = await api('POST', '/api/widgets/theme', payload);
+  if (res.theme && widgetState) widgetState.theme = res.theme;
+  toast('Tema Overlay Live diterapkan ke semua Browser Source!', 'success');
+});
+
+document.getElementById('screen-config-select')?.addEventListener('change', () => {
+  syncScreenFormFromState(true);
+});
+
+document.getElementById('btn-screen-save')?.addEventListener('click', async () => {
+  const id = document.getElementById('screen-config-select')?.value || '1';
+  const payload = {
+    position: document.getElementById('screen-pos-select')?.value || 'center',
+    defaultDurationMs: Math.max(500, Number(document.getElementById('screen-duration-ms')?.value ?? 4000)),
+    maxQueueLength: Math.max(1, Number(document.getElementById('screen-max-queue')?.value ?? 10))
+  };
+  const res = await api('POST', `/api/widgets/screen/${encodeURIComponent(id)}`, payload);
+  if (res.screen && widgetState?.screens) widgetState.screens[id] = res.screen;
+  toast(`Konfigurasi Screen ${id} disimpan!`, 'success');
 });
 
 document.getElementById('btn-win-plus')?.addEventListener('click', () => api('POST', '/api/widgets/winlose', { action: 'add_win' }));
@@ -1981,17 +2571,27 @@ document.getElementById('btn-save-compat-ports')?.addEventListener('click', asyn
   }
 });
 
+function updateSaweriaBadge(saw) {
+  const badge = document.getElementById('saweria-socket-badge');
+  if (!badge) return;
+  const st = String(saw?.status || (saw?.connected ? 'connected' : (saw?.enabled ? 'connecting' : 'disconnected'))).toUpperCase();
+  badge.textContent = st === 'DISCONNECTED' && !saw?.enabled ? 'OFF' : st;
+  badge.style.background = st === 'CONNECTED' ? '#55efc4' : (st === 'ERROR' ? '#ff7675' : '#dfe6e9');
+}
+
 document.getElementById('btn-save-donation-config')?.addEventListener('click', async () => {
   const idrPerCoin = Number(document.getElementById('donation-idr-per-coin')?.value || 250);
   const saweriaEnabled = document.getElementById('saweria-enabled-select')?.value === 'true';
   const streamKey = document.getElementById('saweria-stream-key')?.value.trim() || '';
   const res = await api('PUT', '/api/donations/config', {
     idrPerCoin,
-    saweria: { enabled: saweriaEnabled, streamKey }
+    platforms: {
+      saweria: { enabled: saweriaEnabled, streamKey }
+    }
   });
   if (res.success) {
-    const badge = document.getElementById('saweria-socket-badge');
-    if (badge) badge.textContent = res.status?.saweria?.connected ? 'CONNECTED' : (saweriaEnabled ? 'CONNECTING' : 'OFF');
+    const saw = res.status?.platforms?.saweria || res.status?.saweria;
+    updateSaweriaBadge(saw);
     toast('Konfigurasi Direct Donation & Kurs Koin disimpan!', 'success');
   }
 });
@@ -2011,24 +2611,95 @@ document.getElementById('btn-test-donation')?.addEventListener('click', async ()
 function renderObsStatus(st) {
   if (!st) return;
   const badge = document.getElementById('obs-status-badge');
+  const isConn = Boolean(st.isConnected ?? st.connected);
+  obsResources = {
+    connected: isConn,
+    currentScene: st.currentScene || '',
+    scenes: Array.isArray(st.scenes) ? st.scenes : [],
+    sceneItems: st.sceneItems && typeof st.sceneItems === 'object' ? st.sceneItems : {},
+    inputs: Array.isArray(st.inputs) ? st.inputs : [],
+    filters: st.filters && typeof st.filters === 'object' ? st.filters : {}
+  };
+
   if (badge) {
-    badge.textContent = st.connected ? 'CONNECTED' : 'DISCONNECTED';
-    badge.style.background = st.connected ? '#55efc4' : '#dfe6e9';
+    badge.textContent = isConn ? (st.currentScene ? `CONNECTED (${st.currentScene})` : 'CONNECTED') : 'DISCONNECTED';
+    badge.style.background = isConn ? '#55efc4' : '#dfe6e9';
   }
+  const urlEl = document.getElementById('obs-url-input');
+  if (urlEl && st.url && document.activeElement !== urlEl) {
+    urlEl.value = st.url;
+  }
+
+  const sumEl = document.getElementById('obs-resources-summary');
+  if (sumEl) {
+    if (!isConn) {
+      sumEl.textContent = 'OBS belum terhubung — hubungkan OBS Studio v28+ (WebSocket v5 :4455) untuk otomatis mendeteksi Scenes, Sources, Audio Inputs, dan Filters ke Action Builder.';
+    } else {
+      const sourceCount = Object.values(obsResources.sceneItems).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+      const filterCount = Object.values(obsResources.filters).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+      sumEl.innerHTML = `✅ <strong>OBS Terhubung</strong> · Scene aktif: <code>${esc(obsResources.currentScene || '-')}</code> · <strong>${obsResources.scenes.length}</strong> Scenes, <strong>${sourceCount}</strong> Sources, <strong>${obsResources.inputs.length}</strong> Inputs, <strong>${filterCount}</strong> Filters siap di Action Builder.`;
+    }
+  }
+
+  updateObsDatalists();
+}
+
+function updateObsDatalists() {
+  const fillDl = (id, vals) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    const uniq = [...new Set(vals.filter(Boolean))];
+    dl.innerHTML = uniq.map(v => `<option value="${esc(v)}"></option>`).join('');
+  };
+  fillDl('dl-obs-scenes', obsResources.scenes || []);
+  const allSources = [];
+  for (const list of Object.values(obsResources.sceneItems || {})) {
+    if (Array.isArray(list)) {
+      list.forEach(item => allSources.push(typeof item === 'string' ? item : item?.sourceName));
+    }
+  }
+  const allInputs = (obsResources.inputs || []).map(i => typeof i === 'string' ? i : i?.inputName);
+  fillDl('dl-obs-sources', [...allSources, ...allInputs]);
+  fillDl('dl-obs-inputs', allInputs);
+  const allFilters = [];
+  for (const list of Object.values(obsResources.filters || {})) {
+    if (Array.isArray(list)) {
+      list.forEach(f => allFilters.push(typeof f === 'string' ? f : f?.filterName));
+    }
+  }
+  fillDl('dl-obs-filters', allFilters);
 }
 
 document.getElementById('btn-obs-connect')?.addEventListener('click', async () => {
   const url = document.getElementById('obs-url-input')?.value.trim() || 'ws://127.0.0.1:4455';
   const password = document.getElementById('obs-password-input')?.value || '';
   const res = await api('POST', '/api/obs/connect', { enabled: true, url, password });
-  renderObsStatus(res.status);
-  toast(res.status?.connected ? 'Terhubung ke OBS Studio WebSocket!' : 'Mencoba menghubungkan ke OBS Studio...', 'info');
+  if (res.status) renderObsStatus(res.status);
+  const isConn = Boolean(res.status?.isConnected ?? res.status?.connected);
+  if (res.error) {
+    toast(res.error, 'error');
+  } else {
+    toast(isConn ? 'Terhubung ke OBS Studio WebSocket!' : 'Mencoba menghubungkan ke OBS Studio...', isConn ? 'success' : 'info');
+  }
 });
 
 document.getElementById('btn-obs-disconnect')?.addEventListener('click', async () => {
   const res = await api('POST', '/api/obs/disconnect');
   renderObsStatus(res.status);
   toast('Koneksi OBS Studio diputuskan.', 'info');
+});
+
+document.getElementById('btn-obs-refresh')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/obs/refresh');
+  if (res.status) renderObsStatus(res.status);
+  if (res.success === false && res.error) toast(res.error, 'error');
+  else toast('Daftar Scenes, Sources & Filters OBS diperbarui!', 'success');
+});
+
+document.getElementById('btn-obs-test-replay')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/obs/action', { type: 'replay' });
+  if (res.success === false || res.error) toast(res.error || 'Gagal Save Replay Buffer OBS (pastikan aktif di OBS)', 'error');
+  else toast('🎬 Perintah Save Replay Buffer dikirim ke OBS!', 'success');
 });
 
 async function toggleFloatingHud() {
@@ -2051,21 +2722,63 @@ document.getElementById('btn-open-tt-login')?.addEventListener('click', async ()
   }
 });
 
+function renderHotkeysInfo(hotkeys = {}) {
+  const hint = document.getElementById('hotkeys-info-hint');
+  if (hint) {
+    hint.innerHTML = `Global Hotkeys Aktif: <code>${esc(hotkeys.toggle_all || 'Alt+P')}</code> (Pause/Resume), <code>${esc(hotkeys.clear_queue || 'Alt+C')}</code> (Clear Queue), <code>${esc(hotkeys.skip_tts || 'Alt+S')}</code> (Skip Audio), <code>${esc(hotkeys.toggle_hud || 'Alt+H')}</code> (Toggle HUD), <code>${esc(hotkeys.toggle_hud_lock || 'Alt+L')}</code> (Lock HUD), <code>${esc(hotkeys.spin_wheel || 'Alt+W')}</code> (Spin Wheel), <code>${esc(hotkeys.win_add || 'Alt+1')}</code>/<code>${esc(hotkeys.lose_add || 'Alt+2')}</code> (+Win/+Lose).`;
+  }
+  const map = {
+    'hk-toggle-all': hotkeys.toggle_all,
+    'hk-clear-queue': hotkeys.clear_queue,
+    'hk-skip-tts': hotkeys.skip_tts,
+    'hk-toggle-hud': hotkeys.toggle_hud,
+    'hk-toggle-hud-lock': hotkeys.toggle_hud_lock,
+    'hk-spin-wheel': hotkeys.spin_wheel
+  };
+  for (const [id, val] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && val) el.value = val;
+  }
+}
+
+document.getElementById('btn-save-hotkeys')?.addEventListener('click', async () => {
+  const payload = {
+    toggle_all: document.getElementById('hk-toggle-all')?.value.trim() || 'Alt+P',
+    clear_queue: document.getElementById('hk-clear-queue')?.value.trim() || 'Alt+C',
+    skip_tts: document.getElementById('hk-skip-tts')?.value.trim() || 'Alt+S',
+    toggle_hud: document.getElementById('hk-toggle-hud')?.value.trim() || 'Alt+H',
+    toggle_hud_lock: document.getElementById('hk-toggle-hud-lock')?.value.trim() || 'Alt+L',
+    spin_wheel: document.getElementById('hk-spin-wheel')?.value.trim() || 'Alt+W'
+  };
+  const res = await api('POST', '/api/desktop/hotkeys', payload);
+  if (res.success) {
+    renderHotkeysInfo(res.hotkeys);
+    toast('Global Hotkeys diperbarui!', 'success');
+  }
+});
+
 async function renderIntegrationsTab() {
   try {
     compatPortsStatus = await api('GET', '/api/compat-ports');
     renderCompatPorts();
     const don = await api('GET', '/api/donations/config');
-    if (don?.config) {
+    const donCfg = don?.config || don;
+    if (donCfg) {
       const idrEl = document.getElementById('donation-idr-per-coin');
-      if (idrEl) idrEl.value = don.config.idrPerCoin || 250;
-      const sawEn = document.getElementById('saweria-enabled-select');
-      if (sawEn) sawEn.value = don.config.saweria?.enabled ? 'true' : 'false';
-      const sawKey = document.getElementById('saweria-stream-key');
-      if (sawKey && don.config.saweria?.streamKey) sawKey.value = don.config.saweria.streamKey;
+      if (idrEl) idrEl.value = donCfg.idrPerCoin || 250;
+      const saw = donCfg.platforms?.saweria || donCfg.saweria;
+      if (saw) {
+        const sawEn = document.getElementById('saweria-enabled-select');
+        if (sawEn) sawEn.value = saw.enabled ? 'true' : 'false';
+        const sawKey = document.getElementById('saweria-stream-key');
+        if (sawKey && saw.streamKey) sawKey.value = saw.streamKey;
+        updateSaweriaBadge(saw);
+      }
     }
     const obsSt = await api('GET', '/api/obs/status');
     renderObsStatus(obsSt);
+    const deskSt = await api('GET', '/api/desktop/status');
+    if (deskSt?.hotkeys) renderHotkeysInfo(deskSt.hotkeys);
     await refreshAnalytics();
   } catch {}
 }
@@ -2078,9 +2791,9 @@ async function refreshAnalytics() {
     const totals = cur.totals || {};
     const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setTxt('an-total-coins', (totals.coinsCount ?? totals.coins ?? 0).toLocaleString('id-ID'));
-    setTxt('an-total-idr', 'Rp ' + (totals.donationIdr ?? 0).toLocaleString('id-ID'));
+    setTxt('an-total-idr', 'Rp ' + (totals.donationsIdr ?? totals.donationIdr ?? 0).toLocaleString('id-ID'));
     setTxt('an-total-gifts', (totals.giftsCount ?? totals.gifts ?? 0).toLocaleString('id-ID'));
-    setTxt('an-peak-viewers', (cur.peakViewers ?? appState.roomStats?.viewers ?? 0).toLocaleString('id-ID'));
+    setTxt('an-peak-viewers', (cur.peakViewers ?? totals.peakViewers ?? appState.roomStats?.viewers ?? 0).toLocaleString('id-ID'));
 
     const topEl = document.getElementById('analytics-top-gifters');
     if (topEl) {
@@ -2170,7 +2883,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.3.1'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.0'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       const topbarBtn = document.getElementById('btn-topbar-update');
@@ -2282,12 +2995,30 @@ async function init() {
   if (status.ttsSoundConfig) ttsSoundConfig = status.ttsSoundConfig;
   if (status.widgetState) widgetState = status.widgetState;
   if (status.compatPorts) compatPortsStatus = status.compatPorts;
+  if (Array.isArray(status.ttsVoices) && status.ttsVoices.length > 0) {
+    ttsVoices = status.ttsVoices;
+  } else {
+    ttsVoices = await api('GET', '/api/tts/voices').catch(() => []);
+  }
+  if (status.actionsData) {
+    actionsData = status.actionsData;
+  } else {
+    actionsData = await api('GET', '/api/actions').catch(() => ({ version: 1, actions: [], events: [] }));
+  }
+  pointsState = status.pointsSummary || await api('GET', '/api/points').catch(() => null);
+  chatbotState = status.chatbotConfig || await api('GET', '/api/chatbot').catch(() => null);
+  intervalsState = status.intervalsData || await api('GET', '/api/intervals').catch(() => null);
   renderConnectionState();
   renderStats();
   renderMasterSwitches(appState.masterSwitches);
   renderTtsTab();
-  renderWidgetsTab();
+  renderWidgetsTab(true);
   renderCompatPorts();
+  renderActionsAndMatrix();
+  renderLoyaltyTab(true);
+  renderChatbotSection(true);
+  renderIntervalsSection();
+  if (status.obsStatus) renderObsStatus(status.obsStatus);
 
   // Populate App Info in Settings Card
   const verBadge = document.getElementById('app-version-badge');
@@ -2295,7 +3026,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.3.1'}`;
+  const curVerStr = `v${status.appVersion || '1.5.0'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -2355,6 +3086,9 @@ async function init() {
   config = await api('GET', '/api/config');
   const gamesData = await api('GET', '/api/games');
   renderGameSelector(gamesData);
+  renderConfigurator();
+  renderWidgetsTab(true);
+  refreshTtsLogs();
 
   giftsData = await api('GET', '/api/gifts');
 
@@ -2422,5 +3156,921 @@ async function init() {
     } catch {}
   }, 1500);
 }
+
+// ─── Phase 2: Actions Engine, Event Matrix & Media Library ─
+const STEP_TYPES = [
+  { id: 'game_effect', label: '🎮 Jalankan Efek Game' },
+  { id: 'delay', label: '⏳ Jeda Waktu (Delay ms)' },
+  { id: 'sound', label: '🎵 Putar Soundboard' },
+  { id: 'tts', label: '🗣️ Baca Teks TTS' },
+  { id: 'screen_alert', label: '🖼️ Tampilkan Screen Alert / GIF' },
+  { id: 'obs_scene', label: '🎥 OBS Ganti Scene' },
+  { id: 'obs_source', label: '👁️ OBS Show/Hide Source' },
+  { id: 'obs_filter', label: '✨ OBS Toggle Filter' },
+  { id: 'obs_mute', label: '🎙️ OBS Mute/Unmute Input' },
+  { id: 'obs_text', label: '📝 OBS Ubah Text Source' },
+  { id: 'obs_replay', label: '🎬 OBS Save Replay Buffer' },
+  { id: 'timer_add', label: '⏱️ Tambah/Kurang Subathon Timer' },
+  { id: 'spin_wheel', label: '🎡 Putar Spin Wheel' },
+  { id: 'custom_goal', label: '🎯 Tambah Progress Goal' },
+  { id: 'webhook', label: '🌐 Kirim Webhook Event' }
+];
+
+function formatRuleConditionSummary(ev) {
+  const parts = [];
+  if (ev.giftId) parts.push(`Gift:${ev.giftId}`);
+  if (ev.minCoins > 0) parts.push(`>=${ev.minCoins}💎`);
+  if (ev.maxCoins > 0) parts.push(`<=${ev.maxCoins}💎`);
+  if (ev.minAmount > 0) parts.push(`>=Rp${Number(ev.minAmount).toLocaleString('id-ID')}`);
+  if (ev.command) parts.push(`Cmd:${ev.command}`);
+  if (ev.allowedRole && ev.allowedRole !== 'everyone') parts.push(`Role:${ev.allowedRole}`);
+  if (ev.cooldownSec > 0) parts.push(`CD:${ev.cooldownSec}s`);
+  return parts.join(' · ') || 'Semua event ini';
+}
+
+function renderActionsAndMatrix() {
+  const actions = Array.isArray(actionsData?.actions) ? actionsData.actions : [];
+  const rules = Array.isArray(actionsData?.events) ? actionsData.events : [];
+
+  const actListEl = document.getElementById('actions-list');
+  if (actListEl) {
+    if (actions.length === 0) {
+      actListEl.innerHTML = '<div class="form-hint">Belum ada Action dibuat. Klik <strong>+ Buat Action Baru</strong> untuk membuat workflow multi-step.</div>';
+    } else {
+      actListEl.innerHTML = actions.map(a => `
+        <div class="action-card">
+          <div class="action-card-info">
+            <div class="action-card-title">
+              <span>⚡ ${esc(a.name)}</span>
+              <span class="badge-pill">${(a.steps || []).length} Steps</span>
+              ${a.priority === 'high' ? '<span class="badge-pill" style="background:#ffeaa7;">🔥 HIGH</span>' : ''}
+            </div>
+            <div class="action-card-meta">${esc(a.description || a.id)}</div>
+          </div>
+          <div class="action-card-actions">
+            <button type="button" class="btn-sm success" onclick="testActionById('${esc(a.id)}')">▶ Test</button>
+            <button type="button" class="btn-sm" onclick="openActionBuilder('${esc(a.id)}')">✏️ Edit</button>
+            <button type="button" class="btn-sm danger" onclick="deleteActionById('${esc(a.id)}')">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  const ruleListEl = document.getElementById('events-matrix-list');
+  if (ruleListEl) {
+    if (rules.length === 0) {
+      ruleListEl.innerHTML = '<div class="form-hint">Belum ada Event Rule Matrix. Klik <strong>+ Tambah Event Rule</strong> untuk menghubungkan event TikTok ke Action.</div>';
+    } else {
+      ruleListEl.innerHTML = rules.map(r => {
+        const names = (r.actionIds || []).map(aid => actions.find(a => a.id === aid)?.name || aid);
+        return `
+          <div class="event-rule-card">
+            <div class="event-rule-info">
+              <div class="action-card-title">
+                <span>${r.enabled ? '🟢' : '⚪'} ${esc(r.name || r.eventType)}</span>
+                <span class="badge-pill">${esc(String(r.eventType || '').toUpperCase())}</span>
+                <span class="action-card-meta">→ ${esc(names.join(', ') || '(Belum ada action)')}</span>
+              </div>
+              <div class="action-card-meta">${esc(formatRuleConditionSummary(r))}</div>
+            </div>
+            <div class="action-card-actions">
+              <button type="button" class="btn-sm" onclick="editEventRule('${esc(r.id)}')">✏️ Edit</button>
+              <button type="button" class="btn-sm danger" onclick="deleteEventRule('${esc(r.id)}')">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+}
+
+window.testActionById = async (id) => {
+  const res = await api('POST', `/api/actions/${encodeURIComponent(id)}/test`, { user: 'Streamer_Test' });
+  if (res.success) toast('Action dijalankan!', 'success');
+  else toast(res.error || 'Gagal menjalankan action', 'error');
+};
+
+window.deleteActionById = async (id) => {
+  const res = await api('DELETE', `/api/actions/${encodeURIComponent(id)}`);
+  if (res.success) {
+    actionsData = await api('GET', '/api/actions');
+    renderActionsAndMatrix();
+    renderConfigurator();
+    renderWidgetsTab(false);
+    toast('Action dihapus.', 'info');
+  }
+};
+
+function renderStepFieldsHtml(step = {}) {
+  const type = step.type || 'game_effect';
+  const effOpts = getEffectOptions();
+  const sounds = ttsSoundConfig?.soundboard?.items || [];
+  const voices = Array.isArray(ttsVoices) ? ttsVoices : [];
+  const goals = ['custom_1', 'custom_2', 'custom_3', 'coins', 'likes', 'followers', 'donations', 'shares', 'subscribers'];
+
+  switch (type) {
+    case 'game_effect':
+      return `
+        <select class="form-input" data-sfield="effectId" style="flex:2; min-width:160px;">
+          ${effOpts.map(o => `<option value="${esc(o.id)}" ${o.id === step.effectId ? 'selected' : ''}>${esc(o.label)} (${esc(o.id)})</option>`).join('')}
+        </select>
+        <label class="checkbox-label" style="margin:0;"><input type="checkbox" data-sfield="multiplyByRepeat" ${step.multiplyByRepeat ? 'checked' : ''}> xCombo</label>
+      `;
+    case 'delay':
+      return `<input type="number" class="form-input" data-sfield="ms" value="${Number(step.ms) || 500}" min="50" max="30000" placeholder="Durasi ms" style="max-width:140px;"> <span class="action-card-meta">ms</span>`;
+    case 'sound':
+      return `
+        <select class="form-input" data-sfield="soundId" style="flex:2;">
+          ${sounds.map(s => `<option value="${esc(s.id)}" ${s.id === step.soundId ? 'selected' : ''}>🎵 ${esc(s.name)}</option>`).join('')}
+        </select>
+        <input type="number" class="form-input" data-sfield="screen" value="${Number(step.screen) || 1}" min="1" max="5" title="Screen 1-5" style="max-width:75px;">
+      `;
+    case 'tts':
+      return `
+        <input type="text" class="form-input" data-sfield="template" value="${esc(step.template || 'Halo {nickname}, terima kasih!')}" placeholder="Teks / {nickname}, {comment}, {giftname}" style="flex:2; min-width:180px;">
+        <select class="form-input" data-sfield="voice" style="flex:1; min-width:130px;">
+          <option value="">Suara Default</option>
+          ${voices.map(v => `<option value="${esc(v.id)}" ${v.id === step.voice ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}
+        </select>
+      `;
+    case 'screen_alert':
+      return `
+        <input type="number" class="form-input" data-sfield="screen" value="${Number(step.screen) || 1}" min="1" max="5" title="Screen 1-5" style="max-width:65px;">
+        <input type="text" class="form-input" data-sfield="title" value="${esc(step.title || '{nickname}')}" placeholder="Judul Alert" style="flex:1; min-width:110px;">
+        <input type="text" class="form-input" data-sfield="subtitle" value="${esc(step.subtitle || '')}" placeholder="Subjudul" style="flex:1; min-width:110px;">
+        <input type="text" class="form-input" data-sfield="mediaUrl" value="${esc(step.mediaUrl || '')}" placeholder="URL /media/..." style="flex:1; min-width:120px;">
+        <button type="button" class="btn-sm btn-pick-step-media">🗂️</button>
+        <input type="number" class="form-input" data-sfield="durationMs" value="${Number(step.durationMs) || 4000}" min="500" max="30000" title="Durasi ms" style="max-width:85px;">
+      `;
+    case 'obs_scene':
+      return `
+        <input type="text" class="form-input" list="dl-obs-scenes" data-sfield="sceneName" value="${esc(step.sceneName || '')}" placeholder="Nama Scene OBS" style="flex:2;">
+        <input type="number" class="form-input" data-sfield="durationSec" value="${Number(step.durationSec) || 0}" min="0" placeholder="Revert (dtk, 0=permanen)" style="max-width:130px;">
+      `;
+    case 'obs_source':
+      return `
+        <input type="text" class="form-input" list="dl-obs-scenes" data-sfield="sceneName" value="${esc(step.sceneName || '')}" placeholder="Scene (kosong=aktif)" style="flex:1;">
+        <input type="text" class="form-input" list="dl-obs-sources" data-sfield="sourceName" value="${esc(step.sourceName || '')}" placeholder="Nama Source OBS" style="flex:1;">
+        <select class="form-input" data-sfield="enabled" style="max-width:110px;">
+          <option value="true" ${step.enabled !== false ? 'selected' : ''}>👁️ Tampilkan</option>
+          <option value="false" ${step.enabled === false ? 'selected' : ''}>🙈 Sembunyikan</option>
+        </select>
+        <input type="number" class="form-input" data-sfield="durationSec" value="${Number(step.durationSec) || 0}" min="0" placeholder="Revert (dtk)" style="max-width:95px;">
+      `;
+    case 'obs_filter':
+      return `
+        <input type="text" class="form-input" list="dl-obs-sources" data-sfield="sourceName" value="${esc(step.sourceName || '')}" placeholder="Source / Scene" style="flex:1;">
+        <input type="text" class="form-input" list="dl-obs-filters" data-sfield="filterName" value="${esc(step.filterName || '')}" placeholder="Nama Filter OBS" style="flex:1;">
+        <input type="number" class="form-input" data-sfield="durationSec" value="${Number(step.durationSec) || 8}" min="1" placeholder="Durasi dtk" style="max-width:95px;">
+      `;
+    case 'obs_mute':
+      return `
+        <input type="text" class="form-input" list="dl-obs-inputs" data-sfield="inputName" value="${esc(step.inputName || 'Mic/Aux')}" placeholder="Audio Input OBS" style="flex:2;">
+        <input type="number" class="form-input" data-sfield="durationSec" value="${Number(step.durationSec) || 10}" min="1" placeholder="Durasi dtk" style="max-width:110px;">
+      `;
+    case 'obs_text':
+      return `
+        <input type="text" class="form-input" list="dl-obs-inputs" data-sfield="inputName" value="${esc(step.inputName || '')}" placeholder="Nama Text GDI+/FreeType Input" style="flex:1;">
+        <input type="text" class="form-input" data-sfield="textTemplate" value="${esc(step.textTemplate || 'Top Gifter: {nickname}')}" placeholder="Teks Template ({nickname}, {giftname})" style="flex:2;">
+      `;
+    case 'obs_replay':
+      return `<span class="action-card-meta">Menyimpan klip terakhir dari OBS Replay Buffer (memerlukan Replay Buffer aktif di OBS Studio).</span>`;
+    case 'timer_add':
+      return `<input type="number" class="form-input" data-sfield="seconds" value="${Number(step.seconds) || 30}" placeholder="Detik (+/-)" style="max-width:140px;"> <span class="action-card-meta">detik ke Subathon Timer</span>`;
+    case 'spin_wheel':
+      return `<span class="action-card-meta">Memutar Spin Wheel / Roda Gacha di Overlay &amp; menjalankan efek pemenang.</span>`;
+    case 'custom_goal':
+      return `
+        <select class="form-input" data-sfield="goalType" style="flex:1;">
+          ${goals.map(g => `<option value="${g}" ${g === (step.goalType || 'custom_1') ? 'selected' : ''}>${g}</option>`).join('')}
+        </select>
+        <input type="number" class="form-input" data-sfield="delta" value="${Number(step.delta) || 1}" placeholder="Tambah Nilai" style="max-width:120px;">
+      `;
+    case 'webhook':
+      return `<input type="text" class="form-input" data-sfield="note" value="${esc(step.payload?.note || '')}" placeholder="Kirim event 'action' ke Outgoing Webhook URL" style="flex:1;">`;
+    default:
+      return '';
+  }
+}
+
+function appendActionStepRow(step = { type: 'game_effect' }) {
+  const container = document.getElementById('action-steps-container');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'action-step-row';
+  row.innerHTML = `
+    <select class="form-input" data-sfield="type" style="max-width:210px; margin-bottom:0;">
+      ${STEP_TYPES.map(t => `<option value="${t.id}" ${t.id === (step.type || 'game_effect') ? 'selected' : ''}>${t.label}</option>`).join('')}
+    </select>
+    <div class="action-step-fields">${renderStepFieldsHtml(step)}</div>
+    <button type="button" class="btn-sm danger btn-del-step" title="Hapus Step">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+window.openActionBuilder = (actionId = '') => {
+  const act = actionId ? (actionsData?.actions || []).find(a => a.id === actionId) : null;
+  document.getElementById('action-edit-id').value = act?.id || '';
+  document.getElementById('action-edit-name').value = act?.name || '';
+  document.getElementById('action-edit-desc').value = act?.description || '';
+  document.getElementById('action-edit-priority').value = act?.priority || 'normal';
+
+  const container = document.getElementById('action-steps-container');
+  if (container) {
+    container.innerHTML = '';
+    const steps = act?.steps?.length ? act.steps : [{ type: 'game_effect', effectId: getFirstEffectId() }];
+    steps.forEach(s => appendActionStepRow(s));
+  }
+  updateObsDatalists();
+  openModal('modal-action-builder');
+};
+
+document.getElementById('btn-new-action')?.addEventListener('click', () => window.openActionBuilder(''));
+document.getElementById('btn-action-add-step')?.addEventListener('click', () => appendActionStepRow({ type: 'delay', ms: 500 }));
+
+document.getElementById('action-steps-container')?.addEventListener('change', (e) => {
+  if (e.target.dataset.sfield === 'type') {
+    const row = e.target.closest('.action-step-row');
+    const fieldsEl = row?.querySelector('.action-step-fields');
+    if (fieldsEl) fieldsEl.innerHTML = renderStepFieldsHtml({ type: e.target.value });
+  }
+});
+
+document.getElementById('action-steps-container')?.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.btn-del-step');
+  if (delBtn) {
+    delBtn.closest('.action-step-row')?.remove();
+    return;
+  }
+  const pickBtn = e.target.closest('.btn-pick-step-media');
+  if (pickBtn) {
+    const input = pickBtn.closest('.action-step-fields')?.querySelector('[data-sfield="mediaUrl"]');
+    openMediaLibraryModal((url) => {
+      if (input) input.value = url;
+    });
+  }
+});
+
+document.getElementById('btn-action-save')?.addEventListener('click', async () => {
+  const name = document.getElementById('action-edit-name')?.value.trim();
+  if (!name) return toast('Nama Action wajib diisi!', 'error');
+  const id = document.getElementById('action-edit-id')?.value.trim() || undefined;
+  const description = document.getElementById('action-edit-desc')?.value.trim() || '';
+  const priority = document.getElementById('action-edit-priority')?.value || 'normal';
+
+  const rows = Array.from(document.querySelectorAll('#action-steps-container .action-step-row'));
+  const steps = rows.map(row => {
+    const type = row.querySelector('[data-sfield="type"]')?.value || 'delay';
+    const get = (f) => row.querySelector(`[data-sfield="${f}"]`);
+    switch (type) {
+      case 'game_effect':
+        return { type, effectId: get('effectId')?.value || '', multiplyByRepeat: Boolean(get('multiplyByRepeat')?.checked) };
+      case 'delay':
+        return { type, ms: Number(get('ms')?.value) || 500 };
+      case 'sound':
+        return { type, soundId: get('soundId')?.value || '', screen: Number(get('screen')?.value) || 1 };
+      case 'tts':
+        return { type, template: get('template')?.value || '', voice: get('voice')?.value || '' };
+      case 'screen_alert':
+        return {
+          type,
+          screen: Number(get('screen')?.value) || 1,
+          title: get('title')?.value || '',
+          subtitle: get('subtitle')?.value || '',
+          mediaUrl: get('mediaUrl')?.value || '',
+          durationMs: Number(get('durationMs')?.value) || 4000
+        };
+      case 'obs_scene':
+        return { type, sceneName: get('sceneName')?.value.trim() || '', durationSec: Number(get('durationSec')?.value) || 0 };
+      case 'obs_source':
+        return {
+          type,
+          sceneName: get('sceneName')?.value.trim() || '',
+          sourceName: get('sourceName')?.value.trim() || '',
+          enabled: get('enabled')?.value !== 'false',
+          durationSec: Number(get('durationSec')?.value) || 0
+        };
+      case 'obs_filter':
+        return { type, sourceName: get('sourceName')?.value.trim() || '', filterName: get('filterName')?.value.trim() || '', durationSec: Number(get('durationSec')?.value) || 8 };
+      case 'obs_mute':
+        return { type, inputName: get('inputName')?.value.trim() || '', durationSec: Number(get('durationSec')?.value) || 10 };
+      case 'obs_text':
+        return { type, inputName: get('inputName')?.value.trim() || '', textTemplate: get('textTemplate')?.value || '' };
+      case 'timer_add':
+        return { type, seconds: Number(get('seconds')?.value) || 0 };
+      case 'custom_goal':
+        return { type, goalType: get('goalType')?.value || 'custom_1', delta: Number(get('delta')?.value) || 1 };
+      case 'webhook':
+        return { type, payload: { note: get('note')?.value || '' } };
+      default:
+        return { type };
+    }
+  });
+
+  const res = await api('POST', '/api/actions', { id, name, description, priority, steps });
+  if (res.success && res.data) {
+    actionsData = res.data;
+    renderActionsAndMatrix();
+    renderConfigurator();
+    renderWidgetsTab(false);
+    closeModal('modal-action-builder');
+    toast(`Action "${name}" disimpan!`, 'success');
+  } else {
+    toast(res.error || 'Gagal menyimpan Action', 'error');
+  }
+});
+
+// Event Rules Matrix Editor
+function openEventRuleEditor(rule = null) {
+  const editor = document.getElementById('event-rule-editor');
+  if (!editor) return;
+  document.getElementById('rule-edit-id').value = rule?.id || '';
+  document.getElementById('rule-name').value = rule?.name || '';
+  document.getElementById('rule-event-type').value = rule?.eventType || 'gift';
+  document.getElementById('rule-gift-id').value = rule?.giftId || '';
+  document.getElementById('rule-min-coins').value = rule?.minCoins ?? 0;
+  document.getElementById('rule-min-amount').value = rule?.minAmount ?? 0;
+  document.getElementById('rule-command').value = rule?.command || '';
+  document.getElementById('rule-role').value = rule?.allowedRole || 'everyone';
+  document.getElementById('rule-cooldown').value = rule?.cooldownSec ?? 0;
+  document.getElementById('rule-allowed-users').value = rule?.allowedUsers || '';
+  document.getElementById('rule-enabled').checked = rule ? rule.enabled !== false : true;
+
+  const checksEl = document.getElementById('rule-actions-checks');
+  const selectedIds = new Set(Array.isArray(rule?.actionIds) ? rule.actionIds : []);
+  const actions = actionsData?.actions || [];
+  if (checksEl) {
+    checksEl.innerHTML = actions.length === 0
+      ? '<span class="action-card-meta">Buat Action terlebih dahulu di atas.</span>'
+      : actions.map(a => `<label class="checkbox-label" style="margin:0; font-size:12px;"><input type="checkbox" value="${esc(a.id)}" ${selectedIds.has(a.id) ? 'checked' : ''}> ⚡ ${esc(a.name)}</label>`).join('');
+  }
+  editor.style.display = 'flex';
+}
+
+document.getElementById('btn-add-event-rule')?.addEventListener('click', () => openEventRuleEditor(null));
+document.getElementById('btn-cancel-event-rule')?.addEventListener('click', () => {
+  const editor = document.getElementById('event-rule-editor');
+  if (editor) editor.style.display = 'none';
+});
+
+window.editEventRule = (id) => {
+  const rule = (actionsData?.events || []).find(r => r.id === id);
+  if (rule) openEventRuleEditor(rule);
+};
+
+window.deleteEventRule = async (id) => {
+  const res = await api('DELETE', `/api/events-matrix/${encodeURIComponent(id)}`);
+  if (res.success) {
+    actionsData = await api('GET', '/api/actions');
+    renderActionsAndMatrix();
+    toast('Event Rule dihapus.', 'info');
+  }
+};
+
+document.getElementById('btn-save-event-rule')?.addEventListener('click', async () => {
+  const actionIds = Array.from(document.querySelectorAll('#rule-actions-checks input:checked')).map(c => c.value);
+  const payload = {
+    id: document.getElementById('rule-edit-id')?.value.trim() || undefined,
+    name: document.getElementById('rule-name')?.value.trim() || undefined,
+    eventType: document.getElementById('rule-event-type')?.value || 'gift',
+    giftId: document.getElementById('rule-gift-id')?.value.trim() || '',
+    minCoins: Number(document.getElementById('rule-min-coins')?.value) || 0,
+    minAmount: Number(document.getElementById('rule-min-amount')?.value) || 0,
+    command: document.getElementById('rule-command')?.value.trim() || '',
+    allowedRole: document.getElementById('rule-role')?.value || 'everyone',
+    cooldownSec: Number(document.getElementById('rule-cooldown')?.value) || 0,
+    allowedUsers: document.getElementById('rule-allowed-users')?.value.trim() || '',
+    enabled: document.getElementById('rule-enabled')?.checked ?? true,
+    actionIds
+  };
+  const res = await api('POST', '/api/events-matrix', payload);
+  if (res.success && res.data) {
+    actionsData = res.data;
+    document.getElementById('event-rule-editor').style.display = 'none';
+    renderActionsAndMatrix();
+    toast('Event Rule Matrix disimpan!', 'success');
+  } else {
+    toast(res.error || 'Gagal menyimpan Event Rule', 'error');
+  }
+});
+
+// Export & Import Actions Bundle
+document.getElementById('btn-export-actions')?.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(actionsData || { version: 1, actions: [], events: [] }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `agiva-actions-bundle-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('btn-import-actions')?.addEventListener('click', () => {
+  document.getElementById('actions-import-file')?.click();
+});
+
+document.getElementById('actions-import-file')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const res = await api('POST', '/api/actions/import', parsed);
+    if (res.success && res.data) {
+      actionsData = res.data;
+      renderActionsAndMatrix();
+      renderConfigurator();
+      renderWidgetsTab(false);
+      toast('Bundle Actions & Event Matrix berhasil di-import!', 'success');
+    } else {
+      toast(res.error || 'Gagal import actions bundle', 'error');
+    }
+  } catch (err) {
+    toast('File JSON tidak valid: ' + err.message, 'error');
+  }
+  e.target.value = '';
+});
+
+// Media Library Modal
+async function refreshMediaLibrary() {
+  const grid = document.getElementById('media-library-grid');
+  if (!grid) return;
+  try {
+    mediaFiles = await api('GET', '/api/media');
+    if (!Array.isArray(mediaFiles) || mediaFiles.length === 0) {
+      grid.innerHTML = '<div class="form-hint">Belum ada file di Media Library. Klik <strong>+ Upload Media</strong> di kanan atas.</div>';
+      return;
+    }
+    grid.innerHTML = mediaFiles.map(item => {
+      const ext = (item.filename.split('.').pop() || '').toLowerCase();
+      const isImg = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+      const isVid = ['mp4', 'webm'].includes(ext);
+      const preview = isImg
+        ? `<img class="media-thumb" src="${esc(item.url)}" alt="" loading="lazy">`
+        : `<div class="media-thumb">${isVid ? '🎬' : '🔊'}</div>`;
+      return `
+        <div class="media-card">
+          ${preview}
+          <div class="media-name" title="${esc(item.filename)}">${esc(item.filename)}</div>
+          <div class="action-card-meta">${Math.max(1, Math.round((item.size || 0) / 1024))} KB</div>
+          <div class="input-row">
+            ${activeMediaPickCallback
+              ? `<button type="button" class="btn-sm success" style="flex:1" onclick="pickMediaUrl('${esc(item.url)}')">✔ Pilih</button>`
+              : `<button type="button" class="btn-sm" style="flex:1" onclick="copyMediaUrl('${esc(item.url)}')">📋 Copy</button>`}
+            <button type="button" class="btn-sm danger" onclick="deleteMediaFile('${esc(item.filename)}')">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch {}
+}
+
+function openMediaLibraryModal(pickCb = null) {
+  activeMediaPickCallback = pickCb;
+  const hint = document.getElementById('media-library-hint');
+  if (hint) {
+    hint.textContent = pickCb
+      ? 'Klik "✔ Pilih" pada gambar/GIF/video/audio untuk langsung memasangnya ke step Screen Alert.'
+      : 'Upload file media sekali (maks 10MB) lalu salin URL /media/... atau pilih langsung ke Screen Alert di Action Builder.';
+  }
+  openModal('modal-media-library');
+  refreshMediaLibrary();
+}
+
+window.pickMediaUrl = (url) => {
+  if (typeof activeMediaPickCallback === 'function') {
+    activeMediaPickCallback(url);
+  }
+  activeMediaPickCallback = null;
+  closeModal('modal-media-library');
+};
+
+window.copyMediaUrl = (url) => {
+  const full = `${location.origin}${url}`;
+  navigator.clipboard?.writeText(full);
+  toast(`URL disalin: ${url}`, 'success');
+};
+
+window.deleteMediaFile = async (filename) => {
+  const res = await api('DELETE', `/api/media/${encodeURIComponent(filename)}`);
+  if (res.success) {
+    await refreshMediaLibrary();
+    toast('File media dihapus.', 'info');
+  }
+};
+
+document.getElementById('btn-open-media-library')?.addEventListener('click', () => openMediaLibraryModal(null));
+document.getElementById('btn-open-media-from-tts')?.addEventListener('click', () => openMediaLibraryModal(null));
+
+document.getElementById('media-upload-input')?.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const res = await api('POST', '/api/media/upload', { filename: file.name, dataBase64: reader.result });
+    if (res.success) {
+      await refreshMediaLibrary();
+      toast(`Media "${res.item.filename}" di-upload!`, 'success');
+    } else {
+      toast(res.error || 'Gagal upload media', 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// ─── Phase 3: Mini-Games, Points Economy, Chatbot & Interval Timers ─
+document.getElementById('btn-copy-lastx')?.addEventListener('click', () => {
+  const type = document.getElementById('lastx-type-select')?.value || 'follower';
+  const fullUrl = `${location.origin}/overlay?widget=last&type=${encodeURIComponent(type)}`;
+  navigator.clipboard?.writeText(fullUrl);
+  toast(`Disalin URL Last "${type}": ${fullUrl}`, 'success');
+});
+
+function syncMiniGamesUi(force = false) {
+  if (!widgetState) return;
+  const gb = widgetState.giftBattle || {};
+  const gbBadge = document.getElementById('gb-status-badge');
+  if (gbBadge) {
+    const l = gb.left?.score || 0;
+    const r = gb.right?.score || 0;
+    gbBadge.textContent = gb.active ? `LIVE (${l} vs ${r})` : (gb.winner ? `🏆 ${gb.winner.label}` : `IDLE (${l} vs ${r})`);
+  }
+  if (force || !miniGamesHydrated) {
+    setWidgetInputIfIdle('gb-title', gb.title || '⚔️ GIFT BATTLE', force);
+    setWidgetInputIfIdle('gb-target', gb.target || 50, force);
+    setWidgetInputIfIdle('gb-left-label', gb.left?.label || 'TEAM A (Rose)', force);
+    setWidgetInputIfIdle('gb-left-gift', gb.left?.giftId || 5655, force);
+    setWidgetInputIfIdle('gb-right-label', gb.right?.label || 'TEAM B (Doughnut)', force);
+    setWidgetInputIfIdle('gb-right-gift', gb.right?.giftId || 5879, force);
+  }
+
+  const cm = widgetState.coinMatch || {};
+  const cmBadge = document.getElementById('cm-status-badge');
+  if (cmBadge) {
+    cmBadge.textContent = cm.active ? `LIVE (${cm.remainingSec}s)` : `IDLE (${cm.durationSec || 120}s)`;
+  }
+  if (force || !miniGamesHydrated) {
+    setWidgetInputIfIdle('cm-duration', cm.durationSec || 120, force);
+  }
+
+  const lk = widgetState.likeathon || {};
+  const lkBadge = document.getElementById('lk-status-badge');
+  if (lkBadge) {
+    lkBadge.textContent = lk.active ? `LIVE (-${lk.decayPercent}%/${lk.decayIntervalSec}s)` : 'IDLE';
+  }
+  if (force || !miniGamesHydrated) {
+    setWidgetInputIfIdle('lk-decay-pct', lk.decayPercent ?? 10, force);
+    setWidgetInputIfIdle('lk-decay-sec', lk.decayIntervalSec ?? 10, force);
+  }
+
+  if (force || !miniGamesHydrated) {
+    const slots = widgetState.giftCounters || [];
+    [1, 2, 3].forEach((n, idx) => {
+      const s = slots[idx] || {};
+      setWidgetCheckIfIdle(`gc-${n}-en`, s.enabled, force);
+      setWidgetInputIfIdle(`gc-${n}-label`, s.label || '', force);
+      setWidgetInputIfIdle(`gc-${n}-gift`, s.giftId || '', force);
+      setWidgetInputIfIdle(`gc-${n}-target`, s.target ?? 0, force);
+    });
+    const cj = widgetState.coinJar || {};
+    setWidgetInputIfIdle('cj-capacity', cj.capacityCoins || 500, force);
+  }
+  miniGamesHydrated = true;
+}
+
+function readGiftBattlePayload(action) {
+  return {
+    action,
+    title: document.getElementById('gb-title')?.value || '⚔️ GIFT BATTLE',
+    target: Number(document.getElementById('gb-target')?.value) || 50,
+    left: {
+      label: document.getElementById('gb-left-label')?.value || 'TEAM A',
+      giftId: document.getElementById('gb-left-gift')?.value || 5655
+    },
+    right: {
+      label: document.getElementById('gb-right-label')?.value || 'TEAM B',
+      giftId: document.getElementById('gb-right-gift')?.value || 5879
+    }
+  };
+}
+document.getElementById('btn-gb-start')?.addEventListener('click', () => api('POST', '/api/widgets/gift-battle', readGiftBattlePayload('start')));
+document.getElementById('btn-gb-stop')?.addEventListener('click', () => api('POST', '/api/widgets/gift-battle', { action: 'stop' }));
+document.getElementById('btn-gb-reset')?.addEventListener('click', () => api('POST', '/api/widgets/gift-battle', { action: 'reset' }));
+
+document.getElementById('btn-cm-start')?.addEventListener('click', () => api('POST', '/api/widgets/coin-match', { action: 'start', durationSec: Number(document.getElementById('cm-duration')?.value) || 120 }));
+document.getElementById('btn-cm-end')?.addEventListener('click', () => api('POST', '/api/widgets/coin-match', { action: 'end' }));
+document.getElementById('btn-cm-winners')?.addEventListener('click', () => api('POST', '/api/widgets/coin-match', { action: 'show_winners' }));
+document.getElementById('btn-cm-reset')?.addEventListener('click', () => api('POST', '/api/widgets/coin-match', { action: 'reset' }));
+
+document.getElementById('btn-lk-start')?.addEventListener('click', () => api('POST', '/api/widgets/likeathon', {
+  action: 'start',
+  decayPercent: Number(document.getElementById('lk-decay-pct')?.value) || 10,
+  decayIntervalSec: Number(document.getElementById('lk-decay-sec')?.value) || 10
+}));
+document.getElementById('btn-lk-stop')?.addEventListener('click', () => api('POST', '/api/widgets/likeathon', { action: 'stop' }));
+document.getElementById('btn-lk-reset')?.addEventListener('click', () => api('POST', '/api/widgets/likeathon', { action: 'reset' }));
+
+document.getElementById('btn-gc-save')?.addEventListener('click', async () => {
+  const slots = [1, 2, 3].map(n => ({
+    id: `slot_${n}`,
+    enabled: Boolean(document.getElementById(`gc-${n}-en`)?.checked),
+    label: document.getElementById(`gc-${n}-label`)?.value || `Slot ${n}`,
+    giftId: document.getElementById(`gc-${n}-gift`)?.value || '',
+    target: Number(document.getElementById(`gc-${n}-target`)?.value) || 0
+  }));
+  await api('POST', '/api/widgets/gift-counters', { slots });
+  toast('Gift Counters disimpan!', 'success');
+});
+
+document.getElementById('btn-cj-save')?.addEventListener('click', async () => {
+  const capacityCoins = Number(document.getElementById('cj-capacity')?.value) || 500;
+  await api('POST', '/api/widgets/coin-jar', { action: 'config', capacityCoins, enabled: true });
+  toast('Kapasitas Coin Jar diperbarui!', 'success');
+});
+document.getElementById('btn-cj-reset')?.addEventListener('click', () => api('POST', '/api/widgets/coin-jar', { action: 'reset' }));
+document.getElementById('btn-records-reset')?.addEventListener('click', async () => {
+  await api('POST', '/api/widgets/records/reset');
+  toast('Top Gift, Top Streak & Last X di-reset!', 'info');
+});
+
+// Loyalty Points Rendering & Controls
+function renderLoyaltyTab(force = false) {
+  if (!pointsState) return;
+  const cfg = pointsState.config || {};
+  if (force || !loyaltyFormHydrated) {
+    setWidgetCheckIfIdle('pts-enabled', cfg.enabled !== false, force);
+    setWidgetInputIfIdle('pts-currency-name', cfg.currencyName || 'Agiva Points', force);
+    setWidgetInputIfIdle('pts-currency-symbol', cfg.currencySymbol || '⭐', force);
+    setWidgetInputIfIdle('pts-per-coin', cfg.pointsPerCoin ?? 10, force);
+    setWidgetInputIfIdle('pts-per-likes', cfg.pointsPer100Likes ?? 5, force);
+    setWidgetInputIfIdle('pts-per-follow', cfg.pointsPerFollow ?? 25, force);
+    setWidgetInputIfIdle('pts-per-share', cfg.pointsPerShare ?? 15, force);
+    setWidgetInputIfIdle('pts-per-sub', cfg.pointsPerSub ?? 200, force);
+    setWidgetInputIfIdle('pts-per-chat', cfg.pointsPerChat ?? 2, force);
+    setWidgetInputIfIdle('pts-sub-bonus', cfg.subBonusPercent ?? 50, force);
+    setWidgetInputIfIdle('pts-spin-cost', cfg.spinCostPoints ?? 50, force);
+    setWidgetInputIfIdle('pts-tts-cost', cfg.ttsCostPoints ?? 0, force);
+    loyaltyFormHydrated = true;
+  }
+
+  const dropBadge = document.getElementById('pts-drop-badge');
+  if (dropBadge) {
+    const d = pointsState.activeDrop;
+    dropBadge.textContent = d?.active ? `🎁 DROP ${d.keyword} (${d.winners?.length || 0}/${d.maxWinners || 5})` : 'DROP IDLE';
+  }
+  const chBadge = document.getElementById('pts-challenge-badge');
+  if (chBadge) {
+    chBadge.textContent = pointsState.challenge?.active ? '🏁 CHALLENGE AKTIF' : 'NORMAL';
+  }
+
+  const lbEl = document.getElementById('pts-leaderboard-list');
+  if (lbEl) {
+    const lb = pointsState.leaderboard || [];
+    const sym = cfg.currencySymbol || '⭐';
+    lbEl.innerHTML = lb.length === 0
+      ? '<div class="form-hint">Belum ada penonton tercatat.</div>'
+      : lb.slice(0, 15).map((u, i) => `
+        <div class="loyalty-row">
+          <span><strong>#${i + 1} @${esc(u.user)}</strong> · Lv.${u.level || 1}${u.isSub ? ' ⭐SUB' : ''}</span>
+          <strong>${Number(u.points || 0).toLocaleString('id-ID')} ${esc(sym)}</strong>
+        </div>
+      `).join('');
+  }
+
+  const txEl = document.getElementById('pts-transactions-list');
+  if (txEl) {
+    const txs = pointsState.transactions || [];
+    txEl.innerHTML = txs.length === 0
+      ? '<div class="form-hint">Belum ada transaksi poin.</div>'
+      : txs.slice(0, 20).map(tx => `
+        <div class="loyalty-row">
+          <span>@${esc(tx.user)} <span class="action-card-meta">(${esc(tx.reason || tx.type)})</span></span>
+          <strong style="color:${tx.delta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${tx.delta >= 0 ? '+' : ''}${tx.delta}</strong>
+        </div>
+      `).join('');
+  }
+}
+
+document.getElementById('btn-pts-save')?.addEventListener('click', async () => {
+  const payload = {
+    enabled: Boolean(document.getElementById('pts-enabled')?.checked),
+    currencyName: document.getElementById('pts-currency-name')?.value || 'Agiva Points',
+    currencySymbol: document.getElementById('pts-currency-symbol')?.value || '⭐',
+    pointsPerCoin: Number(document.getElementById('pts-per-coin')?.value) || 0,
+    pointsPer100Likes: Number(document.getElementById('pts-per-likes')?.value) || 0,
+    pointsPerFollow: Number(document.getElementById('pts-per-follow')?.value) || 0,
+    pointsPerShare: Number(document.getElementById('pts-per-share')?.value) || 0,
+    pointsPerSub: Number(document.getElementById('pts-per-sub')?.value) || 0,
+    pointsPerChat: Number(document.getElementById('pts-per-chat')?.value) || 0,
+    subBonusPercent: Number(document.getElementById('pts-sub-bonus')?.value) || 0,
+    spinCostPoints: Number(document.getElementById('pts-spin-cost')?.value) || 0,
+    ttsCostPoints: Number(document.getElementById('pts-tts-cost')?.value) || 0
+  };
+  const res = await api('PUT', '/api/points/config', payload);
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(true); }
+  toast('Aturan Loyalty Points disimpan!', 'success');
+});
+
+document.getElementById('btn-pts-drop-start')?.addEventListener('click', async () => {
+  const keyword = document.getElementById('pts-drop-keyword')?.value.trim() || '!get';
+  const amount = Number(document.getElementById('pts-drop-amount')?.value) || 50;
+  const res = await api('POST', '/api/points/drop', { action: 'start', keyword, amount });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast(`🎁 Points Drop "${keyword}" (+${amount}) dimulai!`, 'success');
+});
+document.getElementById('btn-pts-drop-stop')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/points/drop', { action: 'stop' });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast('Points Drop dihentikan.', 'info');
+});
+document.getElementById('btn-pts-challenge-start')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/points/challenge', { action: 'start' });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast('🏁 Challenge Mode dimulai (poin sementara direset ke 0)!', 'success');
+});
+document.getElementById('btn-pts-challenge-merge')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/points/challenge', { action: 'end', mode: 'merge' });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast('✅ Poin Challenge digabungkan ke saldo awal!', 'success');
+});
+document.getElementById('btn-pts-challenge-discard')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/points/challenge', { action: 'end', mode: 'discard' });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast('↩️ Poin dikembalikan seperti sebelum Challenge.', 'info');
+});
+document.getElementById('btn-pts-halving')?.addEventListener('click', async () => {
+  const percent = Number(document.getElementById('pts-halving-pct')?.value) || 50;
+  const res = await api('POST', '/api/points/halving', { percent });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast(`✂️ Halving -${percent}% diterapkan (${res.affected || 0} user)!`, 'info');
+});
+document.getElementById('btn-pts-adjust')?.addEventListener('click', async () => {
+  const user = document.getElementById('pts-adj-user')?.value.trim();
+  const delta = Number(document.getElementById('pts-adj-delta')?.value) || 0;
+  if (!user || delta === 0) return toast('Masukkan username & jumlah +/- poin!', 'error');
+  const res = await api('POST', '/api/points/adjust', { user, delta });
+  if (res.state) { pointsState = res.state; renderLoyaltyTab(false); }
+  toast(`Saldo @${user} diubah (${delta > 0 ? '+' : ''}${delta})!`, 'success');
+});
+
+// Active Chatbot Rendering & Controls
+function renderChatbotSection(force = false) {
+  if (!chatbotState) return;
+  const cfg = chatbotState.config || {};
+  if (force || !chatbotFormHydrated) {
+    setWidgetCheckIfIdle('bot-enabled', cfg.enabled !== false, force);
+    setWidgetCheckIfIdle('bot-send-tiktok', cfg.sendToTikTok, force);
+    setWidgetInputIfIdle('bot-rate-limit', cfg.maxMessagesPer15Sec ?? 3, force);
+    setWidgetCheckIfIdle('bot-welcome-enabled', cfg.welcomeEnabled, force);
+    setWidgetInputIfIdle('bot-welcome-tpl', cfg.welcomeTemplate || '', force);
+    setWidgetCheckIfIdle('bot-gift-enabled', cfg.thankGiftEnabled, force);
+    setWidgetInputIfIdle('bot-gift-tpl', cfg.thankGiftTemplate || '', force);
+    setWidgetCheckIfIdle('bot-follow-enabled', cfg.followReplyEnabled, force);
+    setWidgetInputIfIdle('bot-follow-tpl', cfg.followTemplate || '', force);
+    chatbotFormHydrated = true;
+  }
+
+  const cmdsEl = document.getElementById('bot-cmds-list');
+  if (cmdsEl) {
+    const cmds = cfg.customCommands || [];
+    cmdsEl.innerHTML = cmds.length === 0
+      ? '<div class="form-hint">Belum ada custom command chatbot.</div>'
+      : cmds.map(c => `
+        <div class="loyalty-row">
+          <span><code>${esc(c.trigger)}</code> → ${esc(c.response)} ${c.costPoints > 0 ? `(${c.costPoints}⭐)` : ''}</span>
+          <button type="button" class="btn-sm danger" onclick="deleteChatbotCmd('${esc(c.id)}')">✕</button>
+        </div>
+      `).join('');
+  }
+
+  const logsEl = document.getElementById('bot-logs-list');
+  if (logsEl) {
+    const logs = chatbotState.logs || [];
+    logsEl.innerHTML = logs.length === 0
+      ? '<div class="form-hint">Belum ada log pesan chatbot.</div>'
+      : logs.slice(0, 15).map(l => `
+        <div class="loyalty-row">
+          <span>${esc(l.text)}</span>
+          <span class="badge-pill">${esc(l.status || 'ok')}</span>
+        </div>
+      `).join('');
+  }
+}
+
+window.deleteChatbotCmd = async (id) => {
+  const res = await api('DELETE', `/api/chatbot/command/${encodeURIComponent(id)}`);
+  if (res.state) { chatbotState = res.state; renderChatbotSection(false); }
+};
+
+document.getElementById('btn-bot-save')?.addEventListener('click', async () => {
+  const payload = {
+    enabled: Boolean(document.getElementById('bot-enabled')?.checked),
+    sendToTikTok: Boolean(document.getElementById('bot-send-tiktok')?.checked),
+    maxMessagesPer15Sec: Number(document.getElementById('bot-rate-limit')?.value) || 3,
+    welcomeEnabled: Boolean(document.getElementById('bot-welcome-enabled')?.checked),
+    welcomeTemplate: document.getElementById('bot-welcome-tpl')?.value || '',
+    thankGiftEnabled: Boolean(document.getElementById('bot-gift-enabled')?.checked),
+    thankGiftTemplate: document.getElementById('bot-gift-tpl')?.value || '',
+    followReplyEnabled: Boolean(document.getElementById('bot-follow-enabled')?.checked),
+    followTemplate: document.getElementById('bot-follow-tpl')?.value || ''
+  };
+  const res = await api('PUT', '/api/chatbot/config', payload);
+  if (res.state) { chatbotState = res.state; renderChatbotSection(true); }
+  toast('Pengaturan Active Chatbot disimpan!', 'success');
+});
+
+document.getElementById('btn-bot-cmd-add')?.addEventListener('click', async () => {
+  const trigger = document.getElementById('bot-cmd-trigger')?.value.trim();
+  const response = document.getElementById('bot-cmd-response')?.value.trim();
+  if (!trigger || !response) return toast('Isi trigger & balasan command!', 'error');
+  const res = await api('POST', '/api/chatbot/command', {
+    trigger,
+    response,
+    costPoints: Number(document.getElementById('bot-cmd-cost')?.value) || 0,
+    cooldownSec: Number(document.getElementById('bot-cmd-cd')?.value) || 5
+  });
+  if (res.state) {
+    chatbotState = res.state;
+    document.getElementById('bot-cmd-trigger').value = '';
+    document.getElementById('bot-cmd-response').value = '';
+    renderChatbotSection(false);
+    toast(`Command "${trigger}" ditambahkan!`, 'success');
+  }
+});
+
+document.getElementById('btn-bot-send')?.addEventListener('click', async () => {
+  const text = document.getElementById('bot-test-msg')?.value.trim();
+  if (!text) return;
+  const res = await api('POST', '/api/chatbot/send', { text });
+  if (res.state) { chatbotState = res.state; renderChatbotSection(false); }
+  document.getElementById('bot-test-msg').value = '';
+  toast('Pesan chatbot dikirim ke Chat Overlay / TikTok!', 'success');
+});
+
+document.getElementById('btn-bot-logs-clear')?.addEventListener('click', async () => {
+  await api('DELETE', '/api/chatbot/logs');
+  if (chatbotState) chatbotState.logs = [];
+  renderChatbotSection(false);
+});
+
+// Interval Timers Rendering & Controls
+function renderIntervalsSection() {
+  if (!intervalsState) return;
+  setWidgetCheckIfIdle('iv-only-live', intervalsState.onlyWhenLive !== false, false);
+
+  const actSel = document.getElementById('iv-action-id');
+  if (actSel) {
+    const cur = actSel.value;
+    actSel.innerHTML = '<option value="">-- Pilih Action --</option>' +
+      (actionsData?.actions || []).map(a => `<option value="${esc(a.id)}">⚡ ${esc(a.name)}</option>`).join('');
+    if (cur) actSel.value = cur;
+  }
+
+  const listEl = document.getElementById('intervals-list');
+  if (listEl) {
+    const timers = intervalsState.timers || [];
+    listEl.innerHTML = timers.length === 0
+      ? '<div class="form-hint">Belum ada Interval Timer.</div>'
+      : timers.map(t => `
+        <div class="loyalty-row">
+          <span><strong>⏰ ${esc(t.name)}</strong> · tiap ${t.intervalMinutes} menit (${esc(t.mode)})</span>
+          <div class="input-row" style="margin:0;">
+            <button type="button" class="btn-sm success" onclick="triggerIntervalNow('${esc(t.id)}')">▶ Jalankan</button>
+            <button type="button" class="btn-sm danger" onclick="deleteIntervalTimer('${esc(t.id)}')">✕</button>
+          </div>
+        </div>
+      `).join('');
+  }
+}
+
+window.triggerIntervalNow = async (id) => {
+  await api('POST', `/api/intervals/${encodeURIComponent(id)}/trigger`);
+  toast('Interval timer dijalankan manual!', 'success');
+};
+window.deleteIntervalTimer = async (id) => {
+  const res = await api('DELETE', `/api/intervals/${encodeURIComponent(id)}`);
+  if (res.state) { intervalsState = res.state; renderIntervalsSection(); }
+};
+
+document.getElementById('iv-only-live')?.addEventListener('change', async (e) => {
+  const res = await api('PUT', '/api/intervals/settings', { onlyWhenLive: Boolean(e.target.checked) });
+  if (res.state) intervalsState = res.state;
+});
+
+document.getElementById('btn-iv-add')?.addEventListener('click', async () => {
+  const name = document.getElementById('iv-name')?.value.trim() || 'Interval Timer';
+  const intervalMinutes = Number(document.getElementById('iv-minutes')?.value) || 5;
+  const mode = document.getElementById('iv-mode')?.value || 'chat';
+  const actionId = document.getElementById('iv-action-id')?.value || '';
+  const chatMessage = document.getElementById('iv-chat-msg')?.value.trim() || '';
+  const dropAmount = Number(document.getElementById('iv-drop-amt')?.value) || 50;
+  const res = await api('POST', '/api/intervals', { name, intervalMinutes, mode, actionId, chatMessage, dropAmount, enabled: true });
+  if (res.state) {
+    intervalsState = res.state;
+    document.getElementById('iv-name').value = '';
+    renderIntervalsSection();
+    toast(`Interval "${name}" ditambahkan!`, 'success');
+  }
+});
 
 init();

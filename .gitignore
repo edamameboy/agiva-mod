@@ -30,3 +30,10 @@ mod-src/obj/
 *.user
 *.suo
 .vs/
+
+# Runtime & user-uploaded media / databases
+public/media/
+data/actions-config.json
+data/points-db.json
+data/chatbot-config.json
+data/intervals-config.json

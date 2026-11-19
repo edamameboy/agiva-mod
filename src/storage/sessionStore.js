@@ -15,6 +15,7 @@ class SessionStore {
       date: today,
       startedAt: Date.now(),
       updatedAt: Date.now(),
+      peakViewers: 0,
       totals: {
         coins: 0,
         giftsCount: 0,
@@ -31,6 +32,9 @@ class SessionStore {
       donators: {},  // user -> { user, amountIdr, count }
       giftHistory: [] // last 500 gift/donation events
     };
+    this._saveTimer = null;
+    this._dirty = false;
+    this._isWriting = false;
     this.loadToday();
   }
 
@@ -41,19 +45,62 @@ class SessionStore {
         this.data = {
           ...this.data,
           ...saved,
+          peakViewers: Number(saved.peakViewers) || 0,
           totals: { ...this.data.totals, ...(saved.totals || {}) }
         };
       }
     } catch {}
   }
 
-  saveAtomic() {
+  scheduleSave() {
+    this._dirty = true;
+    if (this._saveTimer) return;
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._flushSaveAsync();
+    }, 3000);
+  }
+
+  async _flushSaveAsync() {
+    if (!this._dirty || this._isWriting) return;
+    this._isWriting = true;
+    this._dirty = false;
+    try {
+      this.data.updatedAt = Date.now();
+      const tmp = this.sessionFile + '.tmp';
+      await fs.promises.writeFile(tmp, JSON.stringify(this.data, null, 2), 'utf8');
+      await fs.promises.rename(tmp, this.sessionFile);
+    } catch {} finally {
+      this._isWriting = false;
+      if (this._dirty) this.scheduleSave();
+    }
+  }
+
+  flushSaveSync(force = false) {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    if (!this._dirty && !force) return;
+    this._dirty = false;
     try {
       this.data.updatedAt = Date.now();
       const tmp = this.sessionFile + '.tmp';
       fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2), 'utf8');
       fs.renameSync(tmp, this.sessionFile);
     } catch {}
+  }
+
+  saveAtomic() {
+    this.scheduleSave();
+  }
+
+  recordViewers(viewers = 0) {
+    const v = Number(viewers) || 0;
+    if (v > (this.data.peakViewers || 0)) {
+      this.data.peakViewers = v;
+      this.scheduleSave();
+    }
   }
 
   recordGift({ user, giftName, giftId, coins = 0, repeatCount = 1 }) {
@@ -108,31 +155,41 @@ class SessionStore {
     const l = this.data.likers[user] || { user, likes: 0 };
     l.likes += c;
     this.data.likers[user] = l;
+    this.scheduleSave();
   }
 
   recordFollow() {
     this.data.totals.followsCount += 1;
+    this.scheduleSave();
   }
 
   recordShare() {
     this.data.totals.sharesCount += 1;
+    this.scheduleSave();
   }
 
   recordChat() {
     this.data.totals.chatsCount += 1;
+    this.scheduleSave();
   }
 
   recordEffectTriggered() {
     this.data.totals.effectsTriggered += 1;
+    this.scheduleSave();
   }
 
   getSummary() {
     const topGifters = Object.values(this.data.gifters).sort((a, b) => b.coins - a.coins).slice(0, 20);
     const topLikers = Object.values(this.data.likers).sort((a, b) => b.likes - a.likes).slice(0, 20);
     const topDonators = Object.values(this.data.donators).sort((a, b) => b.amountIdr - a.amountIdr).slice(0, 20);
+    const peakViewers = this.data.peakViewers || 0;
     return {
       date: this.data.date,
-      totals: this.data.totals,
+      peakViewers,
+      totals: {
+        ...this.data.totals,
+        peakViewers
+      },
       topGifters,
       topLikers,
       topDonators,
@@ -141,6 +198,7 @@ class SessionStore {
   }
 
   resetSession() {
+    this.data.peakViewers = 0;
     this.data.totals = {
       coins: 0, giftsCount: 0, likesCount: 0, followsCount: 0,
       sharesCount: 0, chatsCount: 0, donationsIdr: 0, donationsCount: 0, effectsTriggered: 0
@@ -149,7 +207,7 @@ class SessionStore {
     this.data.likers = {};
     this.data.donators = {};
     this.data.giftHistory = [];
-    this.saveAtomic();
+    this.flushSaveSync(true);
     return this.getSummary();
   }
 

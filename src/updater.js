@@ -135,7 +135,7 @@ async function checkForUpdates({ force = false } = {}) {
         const portable = result.assets.find(a => a.name.toLowerCase().includes('portable'));
         if (portable) result.portableDownloadUrl = portable.downloadUrl;
 
-        const setup = result.assets.find(a => a.name.toLowerCase().includes('setup') || a.name.toLowerCase().endsWith('.exe'));
+        const setup = result.assets.find(a => !a.name.toLowerCase().includes('portable') && (a.name.toLowerCase().includes('setup') || a.name.toLowerCase().endsWith('.exe')));
         if (setup) result.setupDownloadUrl = setup.downloadUrl;
       }
 
@@ -286,12 +286,12 @@ function performSelfRestart(newExePath) {
   const pid = process.pid;
   const batPath = path.join(os.tmpdir(), `agiva_updater_${Date.now()}.bat`);
 
-  // Write handoff batch script
+  // Write handoff batch script with spaces-safe quoting & file-lock retry loop
   const batContent = `@echo off
 chcp 65001 > nul
-set OLD_PID=${pid}
-set NEW_EXE=${newExePath}
-set TARGET_EXE=${targetExe}
+set "OLD_PID=${pid}"
+set "NEW_EXE=${newExePath}"
+set "TARGET_EXE=${targetExe}"
 
 :: Beri jeda agar aplikasi lama selesai menutup
 timeout /t 2 /nobreak > nul
@@ -303,14 +303,21 @@ if %ERRORLEVEL% equ 0 (
     goto wait_loop
 )
 
-:: Timpa executable lama dengan file versi baru
-copy /y "%NEW_EXE%" "%TARGET_EXE%" > nul
+:: Timpa executable lama dengan file versi baru (retry hingga 15x jika masih terkunci wrapper portable)
+set RETRY=0
+:copy_retry
+copy /y "%NEW_EXE%" "%TARGET_EXE%" > nul 2>&1
 if errorlevel 1 (
-    move /y "%NEW_EXE%" "%TARGET_EXE%" > nul
+    set /a RETRY+=1
+    if %RETRY% lss 15 (
+        timeout /t 1 /nobreak > nul
+        goto copy_retry
+    )
+    move /y "%NEW_EXE%" "%TARGET_EXE%" > nul 2>&1
 )
 
 :: Hapus file download sementara jika file sudah disalin
-if exist "%NEW_EXE%" del /f /q "%NEW_EXE%" > nul
+if exist "%NEW_EXE%" del /f /q "%NEW_EXE%" > nul 2>&1
 
 :: Jalankan aplikasi versi terbaru
 start "" "%TARGET_EXE%"
