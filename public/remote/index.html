@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Agiva Mobile Companion — Stream Deck Remote</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #151c2c;
+      --border: #2a364f;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #6366f1;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 12px;
+    }
+    .pin-gate {
+      max-width: 360px;
+      margin: 15vh auto 0;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 22px;
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: 6px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: #080b12;
+      color: #fff;
+      margin: 12px 0;
+    }
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.08s ease;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn.green { background: var(--green); color: #04130d; }
+    .btn.red { background: var(--red); }
+    .btn.yellow { background: var(--yellow); color: #1a1200; }
+    .btn.dark { background: #1e293b; border: 1px solid var(--border); }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .stat-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .stat-pill strong {
+      display: block;
+      font-size: 16px;
+      color: var(--text);
+      margin-top: 2px;
+    }
+    .quick-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .section-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .deck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      gap: 8px;
+    }
+    .deck-tile {
+      background: #1e293b;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      padding: 12px 8px;
+      text-align: center;
+      color: #f8fafc;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      min-height: 68px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      word-break: break-word;
+    }
+    .deck-tile:active {
+      background: var(--accent);
+      border-color: #818cf8;
+      transform: scale(0.95);
+    }
+    .deck-tile.sound { border-color: #0ea5e9; }
+    .deck-tile.effect { border-color: #a855f7; }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .text-in {
+      flex: 1;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #080b12;
+      color: #fff;
+      font-size: 13px;
+    }
+    .feed-box {
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .feed-item {
+      padding: 6px 8px;
+      background: #0d1322;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .toast-msg {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #10b981;
+      color: #03150e;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+      display: none;
+      z-index: 999;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- PIN Login Gate -->
+  <div class="pin-gate" id="pin-gate">
+    <div style="font-size:38px;">📱</div>
+    <h2 style="margin:8px 0 4px;">Agiva Mobile Remote</h2>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);">Masukkan PIN LAN Remote yang tertera di Dashboard PC</p>
+    <input type="password" id="pin-input" class="pin-input" placeholder="••••" maxlength="12" inputmode="numeric">
+    <button type="button" class="btn green" id="btn-pin-login" style="width:100%;">🔓 Masuk ke Stream Deck</button>
+    <div id="pin-err" style="color:var(--red);font-size:12px;margin-top:8px;"></div>
+  </div>
+
+  <!-- Authenticated Deck UI -->
+  <div id="deck-app" style="display:none;">
+    <div class="header">
+      <div>
+        <strong style="font-size:15px;">🎮 Agiva Mobile Deck</strong>
+        <div id="rem-game-label" style="font-size:11px;color:var(--muted);">Terhubung ke PC</div>
+      </div>
+      <button type="button" class="btn dark" id="btn-rem-refresh" style="padding:8px 12px;font-size:12px;">🔄 Sync</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill">👁️ Viewers<strong id="st-viewers">0</strong></div>
+      <div class="stat-pill">❤️ Likes<strong id="st-likes">0</strong></div>
+      <div class="stat-pill">🎁 Gifts<strong id="st-gifts">0</strong></div>
+      <div class="stat-pill">⚡ Queue<strong id="st-queue">0</strong></div>
+    </div>
+
+    <div class="quick-bar">
+      <button type="button" class="btn green" id="btn-rem-master">⏯️ Pause/Resume</button>
+      <button type="button" class="btn yellow" id="btn-rem-clearq">🧹 Clear Queue</button>
+      <button type="button" class="btn red" id="btn-rem-skiptts">🔇 Skip Audio</button>
+      <button type="button" class="btn dark" data-act="spin_wheel">🎡 Spin Wheel</button>
+      <button type="button" class="btn dark" data-act="win_add">🏆 +1 Win</button>
+      <button type="button" class="btn dark" data-act="timer_add" data-val="60">⏳ +60s Timer</button>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">
+        <span>🔊 Touch Soundboard</span>
+        <span id="rem-sound-count">0 suara</span>
+      </div>
+      <div class="deck-grid" id="rem-sound-grid"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title">
+        <span>⚡ Quick Game Effects</span>
+        <span id="rem-effect-count">0 efek</span>
+      </div>
+      <div class="deck-grid" id="rem-effect-grid"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title"><span>🗣️ Quick TTS / Chatbot &amp; 🎵 Spotify</span></div>
+      <div class="input-row">
+        <input type="text" id="rem-tts-input" class="text-in" placeholder="Ketik pesan suara TTS...">
+        <button type="button" class="btn" id="btn-rem-tts">🔊 TTS</button>
+      </div>
+      <div class="input-row">
+        <input type="text" id="rem-song-input" class="text-in" placeholder="Judul lagu Song Request...">
+        <button type="button" class="btn green" id="btn-rem-song">🎵 Play</button>
+        <button type="button" class="btn dark" data-act="spotify_skip">⏭️ Skip</button>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-title"><span>📋 Live Stream Feed</span></div>
+      <div class="feed-box" id="rem-feed"></div>
+    </div>
+  </div>
+
+  <div class="toast-msg" id="toast-msg"></div>
+
+  <script>
+    const urlParams = new URLSearchParams(location.search);
+    let savedPin = urlParams.get('pin') || sessionStorage.getItem('agiva_remote_pin') || '';
+
+    function showToast(msg) {
+      const el = document.getElementById('toast-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(window._tTimer);
+      window._tTimer = setTimeout(() => { el.style.display = 'none'; }, 2000);
+    }
+
+    async function callRemote(path, method = 'GET', body = null) {
+      const res = await fetch(path, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agiva-Pin': savedPin
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      return { status: res.status, data: await res.json().catch(() => ({})) };
+    }
+
+    async function tryLogin(pinVal) {
+      savedPin = String(pinVal || '').trim();
+      const { status, data } = await callRemote('/api/remote/auth', 'POST', { pin: savedPin });
+      if (status === 200 && data.ok) {
+        sessionStorage.setItem('agiva_remote_pin', savedPin);
+        document.getElementById('pin-gate').style.display = 'none';
+        document.getElementById('deck-app').style.display = 'block';
+        loadDeck();
+        connectWs();
+      } else {
+        document.getElementById('pin-err').textContent = data.error || 'PIN salah atau LAN Remote nonaktif.';
+      }
+    }
+
+    document.getElementById('btn-pin-login').addEventListener('click', () => {
+      tryLogin(document.getElementById('pin-input').value);
+    });
+
+    async function sendAction(action, payload = {}) {
+      const { status, data } = await callRemote('/api/remote/action', 'POST', { action, ...payload });
+      if (status === 200 && data.ok) {
+        showToast(data.message || 'Aksi dijalankan!');
+        if (data.masterSwitches) updateMasterBtn(data.masterSwitches.all);
+      } else {
+        showToast(data.error || 'Gagal menjalankan aksi');
+      }
+    }
+
+    function updateMasterBtn(allOn) {
+      const btn = document.getElementById('btn-rem-master');
+      btn.textContent = allOn ? '🟢 Interaksi ON' : '⏸️ Interaksi PAUSED';
+      btn.className = allOn ? 'btn green' : 'btn red';
+    }
+
+    async function loadDeck() {
+      const { status, data } = await callRemote('/api/remote/deck');
+      if (status !== 200 || !data.ok) return;
+
+      document.getElementById('rem-game-label').textContent = `Game Aktif: ${data.activeGameName || data.activeGameId}`;
+      updateMasterBtn(data.masterSwitches?.all !== false);
+
+      if (data.roomStats) {
+        document.getElementById('st-viewers').textContent = data.roomStats.viewers || 0;
+        document.getElementById('st-likes').textContent = data.roomStats.likes || 0;
+        document.getElementById('st-gifts').textContent = data.roomStats.gifts || 0;
+      }
+      document.getElementById('st-queue').textContent = data.queueStatus?.queued || 0;
+
+      const sGrid = document.getElementById('rem-sound-grid');
+      const sounds = data.sounds || [];
+      document.getElementById('rem-sound-count').textContent = `${sounds.length} suara`;
+      sGrid.innerHTML = sounds.map(s => `
+        <button type="button" class="deck-tile sound" data-sound="${s.id}">
+          <span style="font-size:20px;">🔊</span>
+          <span>${s.name || s.id}</span>
+        </button>
+      `).join('');
+      sGrid.querySelectorAll('[data-sound]').forEach(b => {
+        b.addEventListener('click', () => sendAction('play_sound', { soundId: b.dataset.sound }));
+      });
+
+      const eGrid = document.getElementById('rem-effect-grid');
+      const effects = data.effects || [];
+      document.getElementById('rem-effect-count').textContent = `${effects.length} efek`;
+      eGrid.innerHTML = effects.map(ef => `
+        <button type="button" class="deck-tile effect" data-eff="${ef.id}">
+          <span style="font-size:18px;">⚡</span>
+          <span>${ef.label || ef.id}</span>
+        </button>
+      `).join('');
+      eGrid.querySelectorAll('[data-eff]').forEach(b => {
+        b.addEventListener('click', () => sendAction('trigger_effect', { effectId: b.dataset.eff }));
+      });
+    }
+
+    document.getElementById('btn-rem-refresh').addEventListener('click', loadDeck);
+    document.getElementById('btn-rem-master').addEventListener('click', () => sendAction('toggle_master'));
+    document.getElementById('btn-rem-clearq').addEventListener('click', () => sendAction('clear_queue'));
+    document.getElementById('btn-rem-skiptts').addEventListener('click', () => sendAction('skip_tts'));
+
+    document.querySelectorAll('[data-act]').forEach(b => {
+      b.addEventListener('click', () => sendAction(b.dataset.act, { value: b.dataset.val }));
+    });
+
+    document.getElementById('btn-rem-tts').addEventListener('click', () => {
+      const inp = document.getElementById('rem-tts-input');
+      if (!inp.value.trim()) return;
+      sendAction('speak_tts', { text: inp.value.trim() });
+      inp.value = '';
+    });
+
+    document.getElementById('btn-rem-song').addEventListener('click', () => {
+      const inp = document.getElementById('rem-song-input');
+      if (!inp.value.trim()) return;
+      sendAction('spotify_request', { query: inp.value.trim() });
+      inp.value = '';
+    });
+
+    function connectWs() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'stats' && msg.roomStats) {
+            document.getElementById('st-viewers').textContent = msg.roomStats.viewers || 0;
+            document.getElementById('st-likes').textContent = msg.roomStats.likes || 0;
+            document.getElementById('st-gifts').textContent = msg.roomStats.gifts || 0;
+          }
+          if (msg.type === 'master_switches' && msg.masterSwitches) {
+            updateMasterBtn(msg.masterSwitches.all !== false);
+          }
+          if (msg.type === 'event' && msg.event) {
+            const ev = msg.event;
+            const feed = document.getElementById('rem-feed');
+            const div = document.createElement('div');
+            div.className = 'feed-item';
+            const detail = ev.type === 'gift' ? `🎁 ${ev.giftName} (${ev.coins}💎)`
+              : ev.type === 'chat' ? `💬 ${ev.comment}`
+              : ev.type === 'donation' ? `💸 Rp ${Number(ev.amount || 0).toLocaleString('id-ID')}`
+              : ev.type;
+            div.textContent = `@${ev.user}: ${detail}`;
+            feed.insertBefore(div, feed.firstChild);
+            while (feed.children.length > 25) feed.lastChild.remove();
+          }
+        } catch {}
+      };
+      ws.onclose = () => setTimeout(connectWs, 3000);
+    }
+
+    if (savedPin) {
+      document.getElementById('pin-input').value = savedPin;
+      tryLogin(savedPin);
+    }
+  </script>
+</body>
+</html>

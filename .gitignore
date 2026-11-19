@@ -37,3 +37,5 @@ data/actions-config.json
 data/points-db.json
 data/chatbot-config.json
 data/intervals-config.json
+data/spotify-config.json
+data/integrations-config.json

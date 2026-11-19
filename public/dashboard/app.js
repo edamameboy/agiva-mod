@@ -200,6 +200,25 @@ function handleServerMsg(msg) {
         if (pInput) pInput.value = msg.presetsFolder;
       }
       break;
+    case 'spotify_update':
+      if (msg.state) {
+        spotifyState = msg.state;
+        renderSpotifySection(false);
+      }
+      break;
+    case 'streamerbot_status':
+      if (msg.status) {
+        streamerBotState = msg.status;
+        renderStreamerBotAndVoicemodSection(false);
+      }
+      break;
+    case 'integrations_update':
+      if (msg.state) {
+        integrationsState = { ...integrationsState, ...msg.state };
+        renderStreamerBotAndVoicemodSection(false);
+        renderLanRemoteSection(false);
+      }
+      break;
     case 'update_available':
       if (msg.update) handleUpdateAvailable(msg.update);
       break;
@@ -2555,7 +2574,7 @@ function renderCompatPorts() {
     badge.style.background = compatPortsStatus.enabled ? '#55efc4' : '#dfe6e9';
   }
   const ports = compatPortsStatus.ports || {};
-  ['wsRaw62024', 'wsSocket62025', 'httpApi62030'].forEach(key => {
+  ['wsRaw62024', 'wsSocket62025', 'httpApi62030', 'wsTikFinity21213'].forEach(key => {
     const p = ports[key];
     if (!p) return;
     const chk = document.getElementById(`compat-port-${p.port}`);
@@ -2574,13 +2593,14 @@ document.getElementById('btn-save-compat-ports')?.addEventListener('click', asyn
   const ports = {
     wsRaw62024: { enabled: document.getElementById('compat-port-62024')?.checked ?? true },
     wsSocket62025: { enabled: document.getElementById('compat-port-62025')?.checked ?? true },
-    httpApi62030: { enabled: document.getElementById('compat-port-62030')?.checked ?? true }
+    httpApi62030: { enabled: document.getElementById('compat-port-62030')?.checked ?? true },
+    wsTikFinity21213: { enabled: document.getElementById('compat-port-21213')?.checked ?? true }
   };
   const res = await api('PUT', '/api/compat-ports', { enabled, ports });
   if (res.success) {
     compatPortsStatus = res.status;
     renderCompatPorts();
-    toast('Status Port Kompatibilitas (:62024/:62025/:62030) berhasil diperbarui!', 'success');
+    toast('Status Port Kompatibilitas (:62024/:62025/:62030/:21213) berhasil diperbarui!', 'success');
   }
 });
 
@@ -2933,7 +2953,7 @@ function renderUpdateModal(update, state = 'idle') {
   const btnCheck = document.getElementById('btn-modal-check-update');
   const btnApply = document.getElementById('btn-modal-apply-update');
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.5.2';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.6.0';
   if (curVerEl) curVerEl.textContent = `v${curVer}`;
   if (modeEl) modeEl.textContent = formatUpdateModeLabel(update);
 
@@ -3012,7 +3032,7 @@ async function startAutoUpdateDownload(update) {
     return;
   }
 
-  const curVer = update?.currentVersion || appState?.appVersion || '1.5.2';
+  const curVer = update?.currentVersion || appState?.appVersion || '1.6.0';
   const nextVer = update?.latestVersion || 'terbaru';
   const confirmMsg = `Unduh dan pasang Agiva Mod v${nextVer} (dari v${curVer}) secara otomatis sekarang?\n\nDi mode Portable, file .exe akan otomatis ditimpa dan aplikasi langsung me-restart tanpa perlu install ulang.`;
   if (!confirm(confirmMsg)) return;
@@ -3087,7 +3107,7 @@ async function checkAppUpdates(force = false) {
     } else {
       if (iconEl) iconEl.textContent = '✅';
       if (titleEl) titleEl.textContent = 'Aplikasi Up-to-Date';
-      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.5.2'}).`;
+      if (descEl) descEl.textContent = res.releaseNotes || `Anda menggunakan versi terbaru (v${res.currentVersion || '1.6.0'}).`;
       const banner = document.getElementById('update-banner');
       if (banner) banner.style.display = 'none';
       setTopbarUpdateBadge(res, 'idle');
@@ -3183,6 +3203,9 @@ async function init() {
   pointsState = status.pointsSummary || await api('GET', '/api/points').catch(() => null);
   chatbotState = status.chatbotConfig || await api('GET', '/api/chatbot').catch(() => null);
   intervalsState = status.intervalsData || await api('GET', '/api/intervals').catch(() => null);
+  spotifyState = status.spotifyState || await api('GET', '/api/spotify').catch(() => null);
+  streamerBotState = status.streamerBotStatus || await api('GET', '/api/integrations/streamerbot').catch(() => null);
+  integrationsState = status.integrationsState || await api('GET', '/api/integrations/voicemod').catch(() => null);
   renderConnectionState();
   renderStats();
   renderMasterSwitches(appState.masterSwitches);
@@ -3193,6 +3216,9 @@ async function init() {
   renderLoyaltyTab(true);
   renderChatbotSection(true);
   renderIntervalsSection();
+  renderSpotifySection(true);
+  renderStreamerBotAndVoicemodSection(true);
+  renderLanRemoteSection(true);
   if (status.obsStatus) renderObsStatus(status.obsStatus);
 
   // Populate App Info in Settings Card
@@ -3201,7 +3227,7 @@ async function init() {
   const appMode = document.getElementById('info-app-mode');
   const storagePath = document.getElementById('info-storage-path');
   const presetsFolderInput = document.getElementById('info-presets-folder');
-  const curVerStr = `v${status.appVersion || '1.5.2'}`;
+  const curVerStr = `v${status.appVersion || '1.6.0'}`;
 
   if (verBadge) verBadge.textContent = curVerStr;
   if (curVer) curVer.textContent = curVerStr;
@@ -4257,6 +4283,705 @@ document.getElementById('btn-iv-add')?.addEventListener('click', async () => {
     document.getElementById('iv-name').value = '';
     renderIntervalsSection();
     toast(`Interval "${name}" ditambahkan!`, 'success');
+  }
+});
+
+// ─── Phase 4: Spotify Song Requests, Streamer.bot, Voicemod, IFTTT, LAN Remote & Ctrl+K ──
+let spotifyState = null;
+let streamerBotState = null;
+let integrationsState = null;
+
+function renderSpotifySection(populateInputs = true) {
+  if (!spotifyState) return;
+  const cfg = spotifyState.config || {};
+  const badge = document.getElementById('spotify-status-badge');
+  if (badge) {
+    const label = !cfg.enabled
+      ? 'OFF'
+      : (cfg.mode === 'spotify' ? (cfg.hasSpotifyToken ? 'SPOTIFY OAUTH' : 'OAUTH NEEDED') : 'STANDALONE ACTIVE');
+    badge.textContent = label;
+    badge.style.background = cfg.enabled ? '#55efc4' : '#dfe6e9';
+  }
+
+  if (populateInputs) {
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    setVal('sp-enabled-select', cfg.enabled ? 'true' : 'false');
+    setVal('sp-mode-select', cfg.mode || 'standalone');
+    setVal('sp-cost-points', cfg.costPoints ?? 0);
+    setVal('sp-allowed-role', cfg.allowedRole || 'all');
+    setVal('sp-max-queue', cfg.maxQueueSize ?? 20);
+    setVal('sp-max-user', cfg.maxPerUser ?? 3);
+    setVal('sp-client-id', cfg.clientId || '');
+    setVal('sp-client-secret', cfg.clientSecret || '');
+    const expEl = document.getElementById('sp-allow-explicit');
+    if (expEl) expEl.checked = Boolean(cfg.allowExplicit);
+    const autoEl = document.getElementById('sp-autoplay-overlay');
+    if (autoEl) autoEl.checked = cfg.autoPlayOverlayAudio !== false;
+  }
+
+  const npEl = document.getElementById('sp-now-playing');
+  if (npEl) {
+    const cur = spotifyState.currentTrack;
+    if (cur) {
+      npEl.innerHTML = `🎶 <strong>Sedang Diputar:</strong> ${esc(cur.title)} — <em>${esc(cur.artist)}</em> · Req by <code>@${esc(cur.requestedByName || cur.requestedBy)}</code>`;
+    } else {
+      npEl.textContent = 'Belum ada lagu yang sedang diputar. Ketik !play <judul lagu> di chat atau tambah manual di atas.';
+    }
+  }
+
+  const qEl = document.getElementById('sp-queue-list');
+  if (qEl) {
+    const q = spotifyState.queue || [];
+    qEl.innerHTML = q.length === 0
+      ? '<div class="form-hint">Antrean lagu kosong.</div>'
+      : q.map((item, idx) => `
+        <div class="loyalty-row">
+          <div>
+            <strong>#${idx + 1} ${esc(item.title)}</strong> — <span class="form-hint">${esc(item.artist)}</span>
+            <span class="badge-pill" style="margin-left:6px;">@${esc(item.requestedByName || item.requestedBy)}</span>
+          </div>
+          <button type="button" class="btn-sm danger" onclick="removeSpotifyQueueItem('${esc(item.id)}')">✕</button>
+        </div>
+      `).join('');
+  }
+}
+
+window.removeSpotifyQueueItem = async (id) => {
+  const res = await api('DELETE', `/api/spotify/queue/${encodeURIComponent(id)}`);
+  if (res.state) {
+    spotifyState = res.state;
+    renderSpotifySection(false);
+  }
+};
+
+document.getElementById('btn-sp-save')?.addEventListener('click', async () => {
+  const patch = {
+    enabled: document.getElementById('sp-enabled-select')?.value === 'true',
+    mode: document.getElementById('sp-mode-select')?.value || 'standalone',
+    costPoints: Number(document.getElementById('sp-cost-points')?.value) || 0,
+    allowedRole: document.getElementById('sp-allowed-role')?.value || 'all',
+    maxQueueSize: Number(document.getElementById('sp-max-queue')?.value) || 20,
+    maxPerUser: Number(document.getElementById('sp-max-user')?.value) || 3,
+    allowExplicit: Boolean(document.getElementById('sp-allow-explicit')?.checked),
+    autoPlayOverlayAudio: Boolean(document.getElementById('sp-autoplay-overlay')?.checked),
+    clientId: document.getElementById('sp-client-id')?.value.trim() || '',
+    clientSecret: document.getElementById('sp-client-secret')?.value.trim() || ''
+  };
+  const res = await api('PUT', '/api/spotify/config', patch);
+  if (res.state) {
+    spotifyState = res.state;
+    renderSpotifySection(true);
+    toast('Pengaturan Spotify Song Request disimpan!', 'success');
+  }
+});
+
+document.getElementById('btn-sp-oauth')?.addEventListener('click', async () => {
+  const clientId = document.getElementById('sp-client-id')?.value.trim() || '';
+  const clientSecret = document.getElementById('sp-client-secret')?.value.trim() || '';
+  await api('PUT', '/api/spotify/config', { clientId, clientSecret, mode: 'spotify' });
+  const res = await api('GET', '/api/spotify/auth-url');
+  if (res.success && res.url) {
+    openExternalUrl(res.url);
+  } else {
+    toast(res.error || 'Isi Spotify Client ID terlebih dahulu.', 'error');
+  }
+});
+
+document.getElementById('btn-sp-copy-overlay')?.addEventListener('click', () => {
+  const url = `${location.origin}/overlay?widget=song-request`;
+  navigator.clipboard?.writeText(url);
+  toast(`URL Overlay Song Request disalin: ${url}`, 'success');
+});
+
+document.getElementById('btn-sp-add')?.addEventListener('click', async () => {
+  const inp = document.getElementById('sp-manual-query');
+  const query = inp?.value.trim() || '';
+  if (!query) return toast('Masukkan judul lagu terlebih dahulu.', 'error');
+  const res = await api('POST', '/api/spotify/request', { query, user: 'Streamer', force: true });
+  if (res.success) {
+    inp.value = '';
+    spotifyState = res.state;
+    renderSpotifySection(false);
+    toast(`Ditambahkan: ${res.track?.title} — ${res.track?.artist}`, 'success');
+  } else {
+    toast(res.error || 'Gagal menambahkan lagu', 'error');
+  }
+});
+
+document.getElementById('btn-sp-skip')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/spotify/skip', { user: 'Streamer' });
+  if (res.state) {
+    spotifyState = res.state;
+    renderSpotifySection(false);
+    toast('Lagu di-skip!', 'info');
+  }
+});
+
+document.getElementById('btn-sp-clear')?.addEventListener('click', async () => {
+  const res = await api('POST', '/api/spotify/clear');
+  if (res.state) {
+    spotifyState = res.state;
+    renderSpotifySection(false);
+    toast('Antrean lagu dibersihkan.', 'info');
+  }
+});
+
+function renderStreamerBotAndVoicemodSection(populateInputs = true) {
+  const sb = streamerBotState || {};
+  const vm = integrationsState?.voicemod || {};
+  const presets = integrationsState?.iftttPresets || [];
+
+  const sbBadge = document.getElementById('sb-status-badge');
+  if (sbBadge) {
+    const sbTxt = sb.isConnected ? 'SB CONNECTED' : (sb.enabled ? 'SB CONNECTING' : 'SB OFF');
+    const vmTxt = vm.isConnected ? ' · VM ON' : '';
+    sbBadge.textContent = `${sbTxt}${vmTxt}`;
+    sbBadge.style.background = (sb.isConnected || vm.isConnected) ? '#55efc4' : '#dfe6e9';
+  }
+
+  if (populateInputs) {
+    const sbEn = document.getElementById('sb-enabled-select');
+    if (sbEn) sbEn.value = sb.enabled ? 'true' : 'false';
+    const sbUrl = document.getElementById('sb-url-input');
+    if (sbUrl && sb.url) sbUrl.value = sb.url;
+    const sbAct = document.getElementById('sb-action-name');
+    if (sbAct && sb.defaultActionName) sbAct.value = sb.defaultActionName;
+
+    const vmEn = document.getElementById('vm-enabled-select');
+    if (vmEn) vmEn.value = vm.enabled ? 'true' : 'false';
+    const vmKey = document.getElementById('vm-apikey-input');
+    if (vmKey && vm.apiKey) vmKey.value = vm.apiKey;
+    const vmVoice = document.getElementById('vm-voice-select');
+    if (vmVoice && vm.activeVoice) vmVoice.value = vm.activeVoice;
+  }
+
+  const iftttEl = document.getElementById('ifttt-presets-list');
+  if (iftttEl && populateInputs) {
+    iftttEl.innerHTML = presets.map((p, idx) => `
+      <div class="loyalty-row" style="flex-wrap:wrap; gap:6px;">
+        <div style="min-width:180px; font-weight:700; font-size:12px;">${esc(p.name)}</div>
+        <input type="text" class="form-input ifttt-url-in" data-idx="${idx}" value="${esc(p.url || '')}" placeholder="https://maker.ifttt.com/trigger/.../with/key/..." style="flex:1; min-width:180px; margin-bottom:0; padding:5px 8px; font-size:11px;">
+        <button type="button" class="btn-sm success" onclick="testIftttPreset('${esc(p.id)}')">▶ Tes</button>
+      </div>
+    `).join('');
+  }
+}
+
+window.testIftttPreset = async (presetId) => {
+  const res = await api('POST', '/api/integrations/ifttt/trigger', { presetId });
+  if (res.ok) {
+    toast(res.message || `Webhook IFTTT "${res.preset}" berhasil dipicu!`, 'success');
+  } else {
+    toast(res.error || 'Gagal memicu IFTTT webhook', 'error');
+  }
+};
+
+document.getElementById('btn-sb-save')?.addEventListener('click', async () => {
+  const enabled = document.getElementById('sb-enabled-select')?.value === 'true';
+  const url = document.getElementById('sb-url-input')?.value.trim() || 'ws://127.0.0.1:8080/';
+  const defaultActionName = document.getElementById('sb-action-name')?.value.trim() || 'AgivaTikTokEvent';
+  const res = await api('PUT', '/api/integrations/streamerbot', { enabled, url, defaultActionName });
+  if (res.status) {
+    streamerBotState = res.status;
+    renderStreamerBotAndVoicemodSection(false);
+    toast('Konfigurasi Streamer.bot disimpan!', 'success');
+  }
+});
+
+document.getElementById('btn-sb-test')?.addEventListener('click', async () => {
+  const actionName = document.getElementById('sb-action-name')?.value.trim() || 'AgivaTikTokEvent';
+  const res = await api('POST', '/api/integrations/streamerbot/test', { actionName });
+  toast(
+    res.sent
+      ? `DoAction "${actionName}" dikirim ke Streamer.bot (:8080)!`
+      : `Payload DoAction "${actionName}" (14 variabel) disiapkan (Streamer.bot WS belum aktif).`,
+    res.sent ? 'success' : 'info'
+  );
+});
+
+document.getElementById('btn-vm-save')?.addEventListener('click', async () => {
+  const enabled = document.getElementById('vm-enabled-select')?.value === 'true';
+  const apiKey = document.getElementById('vm-apikey-input')?.value.trim() || 'agiva-voicemod-key';
+  const res = await api('PUT', '/api/integrations/voicemod', { enabled, apiKey });
+  if (res.voicemod) {
+    if (!integrationsState) integrationsState = {};
+    integrationsState.voicemod = res.voicemod;
+    renderStreamerBotAndVoicemodSection(false);
+    toast('Pengaturan Voicemod Control API disimpan!', 'success');
+  }
+});
+
+document.getElementById('btn-vm-apply-voice')?.addEventListener('click', async () => {
+  const voice = document.getElementById('vm-voice-select')?.value || 'nofx';
+  const res = await api('POST', '/api/integrations/voicemod/action', { type: 'loadVoice', value: voice });
+  toast(`Voicemod voice diubah ke: ${voice}${res.sent ? '' : ' (Mode Pratinjau)'}`, 'success');
+});
+
+document.getElementById('btn-vm-toggle-hearmyself')?.addEventListener('click', async () => {
+  await api('POST', '/api/integrations/voicemod/action', { type: 'toggleHearMyVoice' });
+  toast('Toggle Hear Myself dikirim ke Voicemod!', 'info');
+});
+
+document.getElementById('btn-ifttt-save')?.addEventListener('click', async () => {
+  const presets = (integrationsState?.iftttPresets || []).map((p, idx) => {
+    const inp = document.querySelector(`.ifttt-url-in[data-idx="${idx}"]`);
+    const url = inp ? inp.value.trim() : p.url;
+    return { ...p, url, enabled: Boolean(url) };
+  });
+  const res = await api('PUT', '/api/integrations/ifttt', { presets });
+  if (res.presets) {
+    if (!integrationsState) integrationsState = {};
+    integrationsState.iftttPresets = res.presets;
+    toast('Preset Webhook IFTTT / Smart Home disimpan!', 'success');
+  }
+});
+
+// ─── Compact Pure-JS ISO QR Code SVG Generator (Offline, Version 1–6 Byte Mode, ECC-L) ──
+const QR_CAP_L = [0, 17, 32, 53, 78, 106, 134];
+const QR_EC_CODEWORDS_L = [0, 7, 10, 15, 20, 26, 18];
+const QR_BLOCKS_L = [0, 1, 1, 1, 1, 1, 2];
+const QR_ALIGN_POS = [[], [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34]];
+
+function qrGfMul(a, b, exp, log) {
+  return (a === 0 || b === 0) ? 0 : exp[(log[a] + log[b]) % 255];
+}
+
+function qrReedSolomon(data, ecLen) {
+  const exp = new Uint8Array(512);
+  const log = new Uint8Array(256);
+  let x = 1;
+  for (let i = 0; i < 255; i++) {
+    exp[i] = x;
+    log[x] = i;
+    x <<= 1;
+    if (x & 0x100) x ^= 0x11d;
+  }
+  for (let i = 255; i < 512; i++) exp[i] = exp[i - 255];
+
+  let gen = [1];
+  for (let i = 0; i < ecLen; i++) {
+    const next = new Array(gen.length + 1).fill(0);
+    for (let j = 0; j < gen.length; j++) {
+      next[j] ^= gen[j];
+      next[j + 1] ^= qrGfMul(gen[j], exp[i], exp, log);
+    }
+    gen = next;
+  }
+
+  const msg = new Uint8Array(data.length + ecLen);
+  msg.set(data, 0);
+  for (let i = 0; i < data.length; i++) {
+    const coef = msg[i];
+    if (coef !== 0) {
+      for (let j = 0; j < gen.length; j++) {
+        msg[i + j] ^= qrGfMul(gen[j], coef, exp, log);
+      }
+    }
+  }
+  return msg.slice(data.length);
+}
+
+function generateQrSvg(text) {
+  const bytes = new TextEncoder().encode(String(text || ''));
+  let ver = 1;
+  while (ver <= 6 && bytes.length > QR_CAP_L[ver]) ver++;
+  if (ver > 6) return `<div style="color:#000;font-size:10px;text-align:center;padding:8px;">URL terlalu panjang untuk QR</div>`;
+
+  const size = 17 + ver * 4;
+  const ecPerBlock = QR_EC_CODEWORDS_L[ver];
+  const numBlocks = QR_BLOCKS_L[ver];
+  const totalDataBytes = QR_CAP_L[ver] + 2;
+
+  const bits = [];
+  const pushBits = (val, len) => {
+    for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1);
+  };
+  pushBits(0b0100, 4);
+  pushBits(bytes.length, 8);
+  for (const b of bytes) pushBits(b, 8);
+  for (let i = 0; i < 4 && bits.length < totalDataBytes * 8; i++) bits.push(0);
+  while (bits.length % 8 !== 0) bits.push(0);
+
+  const dataCw = [];
+  for (let i = 0; i < bits.length; i += 8) {
+    let byte = 0;
+    for (let j = 0; j < 8; j++) byte = (byte << 1) | bits[i + j];
+    dataCw.push(byte);
+  }
+  const pads = [0xec, 0x11];
+  let padIdx = 0;
+  while (dataCw.length < totalDataBytes) {
+    dataCw.push(pads[padIdx++ % 2]);
+  }
+
+  const blockSize = Math.floor(totalDataBytes / numBlocks);
+  const dataBlocks = [];
+  const ecBlocks = [];
+  for (let b = 0; b < numBlocks; b++) {
+    const slice = Uint8Array.from(dataCw.slice(b * blockSize, (b + 1) * blockSize));
+    dataBlocks.push(slice);
+    ecBlocks.push(qrReedSolomon(slice, ecPerBlock));
+  }
+
+  const finalCw = [];
+  for (let i = 0; i < blockSize; i++) {
+    for (let b = 0; b < numBlocks; b++) finalCw.push(dataBlocks[b][i]);
+  }
+  for (let i = 0; i < ecPerBlock; i++) {
+    for (let b = 0; b < numBlocks; b++) finalCw.push(ecBlocks[b][i]);
+  }
+
+  const grid = Array.from({ length: size }, () => new Int8Array(size).fill(-1));
+  const reserved = Array.from({ length: size }, () => new Uint8Array(size));
+
+  const placeFinder = (row, col) => {
+    for (let r = -1; r <= 7; r++) {
+      for (let c = -1; c <= 7; c++) {
+        const rr = row + r, cc = col + c;
+        if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+        const on = (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
+                   (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
+                   (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+        grid[rr][cc] = on ? 1 : 0;
+        reserved[rr][cc] = 1;
+      }
+    }
+  };
+  placeFinder(0, 0);
+  placeFinder(0, size - 7);
+  placeFinder(size - 7, 0);
+
+  const align = QR_ALIGN_POS[ver];
+  if (align.length > 0) {
+    for (const r of align) {
+      for (const c of align) {
+        if (reserved[r][c]) continue;
+        for (let dr = -2; dr <= 2; dr++) {
+          for (let dc = -2; dc <= 2; dc++) {
+            const on = Math.max(Math.abs(dr), Math.abs(dc)) !== 1;
+            grid[r + dr][c + dc] = on ? 1 : 0;
+            reserved[r + dr][c + dc] = 1;
+          }
+        }
+      }
+    }
+  }
+
+  for (let i = 8; i < size - 8; i++) {
+    grid[6][i] = grid[i][6] = (i % 2 === 0) ? 1 : 0;
+    reserved[6][i] = reserved[i][6] = 1;
+  }
+
+  for (let i = 0; i < 9; i++) {
+    if (i !== 6) { reserved[8][i] = 1; reserved[i][8] = 1; }
+  }
+  for (let i = 0; i < 8; i++) {
+    reserved[8][size - 1 - i] = 1;
+    reserved[size - 1 - i][8] = 1;
+  }
+  grid[size - 8][8] = 1;
+  reserved[size - 8][8] = 1;
+
+  const streamBits = [];
+  for (const cw of finalCw) {
+    for (let i = 7; i >= 0; i--) streamBits.push((cw >> i) & 1);
+  }
+
+  let bitPtr = 0;
+  let upward = true;
+  for (let col = size - 1; col >= 1; col -= 2) {
+    if (col === 6) col = 5;
+    for (let step = 0; step < size; step++) {
+      const row = upward ? (size - 1 - step) : step;
+      for (let dx = 0; dx < 2; dx++) {
+        const cc = col - dx;
+        if (!reserved[row][cc]) {
+          const bit = bitPtr < streamBits.length ? streamBits[bitPtr++] : 0;
+          const masked = ((row + cc) % 2 === 0) ? (bit ^ 1) : bit;
+          grid[row][cc] = masked;
+        }
+      }
+    }
+    upward = !upward;
+  }
+
+  // Format bits for ECC-L (01) + Mask 0 (000) -> 0x77c4
+  const fmt = 0x77c4;
+  const fBits = [];
+  for (let i = 0; i < 15; i++) fBits.push((fmt >> i) & 1);
+  const fCoords1 = [[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],[7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+  for (let i = 0; i < 15; i++) {
+    grid[fCoords1[i][0]][fCoords1[i][1]] = fBits[14 - i];
+  }
+  for (let i = 0; i < 7; i++) grid[size - 1 - i][8] = fBits[14 - i];
+  for (let i = 7; i < 15; i++) grid[8][size - 15 + i] = fBits[14 - i];
+
+  let rects = '';
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] === 1) {
+        rects += `<rect x="${c}" y="${r}" width="1" height="1"/>`;
+      }
+    }
+  }
+  return `<svg viewBox="-1 -1 ${size + 2} ${size + 2}" width="152" height="152" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${size + 2}" height="${size + 2}" fill="#fff"/><g fill="#000">${rects}</g></svg>`;
+}
+
+function renderLanRemoteSection(populateInputs = true) {
+  const lan = integrationsState?.lanRemote || { enabled: true, pin: '2486' };
+  const urls = integrationsState?.lanUrls || [`${location.origin}/remote`];
+
+  const badge = document.getElementById('lan-remote-badge');
+  if (badge) {
+    badge.textContent = lan.enabled ? 'ACTIVE' : 'OFF';
+    badge.style.background = lan.enabled ? '#55efc4' : '#dfe6e9';
+  }
+
+  if (populateInputs) {
+    const enEl = document.getElementById('lan-remote-enabled');
+    if (enEl) enEl.value = lan.enabled ? 'true' : 'false';
+    const pinEl = document.getElementById('lan-remote-pin');
+    if (pinEl) pinEl.value = lan.pin || '2486';
+  }
+
+  const primaryUrl = urls[0] || `${location.origin}/remote`;
+  const qrUrlWithPin = `${primaryUrl}?pin=${encodeURIComponent(lan.pin || '2486')}`;
+
+  const urlsBox = document.getElementById('lan-remote-urls');
+  if (urlsBox) {
+    urlsBox.innerHTML = urls.map(u => `<div>🔗 <a href="${esc(u)}?pin=${encodeURIComponent(lan.pin || '')}" target="_blank" style="color:var(--accent-blue);font-weight:700;">${esc(u)}</a> (PIN: <code>${esc(lan.pin || '2486')}</code>)</div>`).join('');
+  }
+
+  const qrBox = document.getElementById('lan-qr-box');
+  if (qrBox) {
+    qrBox.innerHTML = generateQrSvg(qrUrlWithPin);
+  }
+  const qrCap = document.getElementById('lan-qr-caption');
+  if (qrCap) {
+    qrCap.textContent = `PIN: ${lan.pin || '2486'}`;
+  }
+}
+
+document.getElementById('btn-lan-save')?.addEventListener('click', async () => {
+  const enabled = document.getElementById('lan-remote-enabled')?.value === 'true';
+  const pin = document.getElementById('lan-remote-pin')?.value.trim() || '2486';
+  const res = await api('PUT', '/api/remote/config', { enabled, pin });
+  if (res.success) {
+    if (!integrationsState) integrationsState = {};
+    integrationsState.lanRemote = res.lanRemote;
+    integrationsState.lanUrls = res.urls;
+    renderLanRemoteSection(true);
+    toast('Pengaturan Mobile LAN Remote & QR Code diperbarui!', 'success');
+  }
+});
+
+document.getElementById('btn-lan-regen')?.addEventListener('click', async () => {
+  const res = await api('PUT', '/api/remote/config', { regenerate: true });
+  if (res.success) {
+    if (!integrationsState) integrationsState = {};
+    integrationsState.lanRemote = res.lanRemote;
+    integrationsState.lanUrls = res.urls;
+    renderLanRemoteSection(true);
+    toast(`PIN baru dibuat: ${res.lanRemote?.pin}`, 'success');
+  }
+});
+
+// ─── Full Config Backup & Restore (.agiva-backup.json) ───
+document.getElementById('btn-export-full-backup')?.addEventListener('click', () => {
+  window.open('/api/backup/export', '_blank');
+  toast('Mengunduh file Full Backup (.agiva-backup.json)...', 'success');
+});
+
+document.getElementById('input-import-full-backup')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const bundle = JSON.parse(text);
+    const res = await api('POST', '/api/backup/import', bundle);
+    if (res.success) {
+      toast(res.message || 'Full Backup berhasil dipulihkan!', 'success');
+      setTimeout(() => location.reload(), 900);
+    } else {
+      toast(res.error || 'Gagal memulihkan file backup', 'error');
+    }
+  } catch (err) {
+    toast('File backup rusak atau bukan JSON valid: ' + err.message, 'error');
+  }
+  e.target.value = '';
+});
+
+// ─── Global Search & Command Palette (Ctrl+K) ────────────
+function buildCommandPaletteItems(query = '') {
+  const q = String(query || '').toLowerCase().trim();
+  const items = [];
+
+  // 1. Navigation Tabs
+  const tabs = [
+    { id: 'dashboard', title: '📊 Buka Tab: Dashboard Utama' },
+    { id: 'configurator', title: '⚙️ Buka Tab: Actions & Triggers Configurator' },
+    { id: 'tts', title: '🔊 Buka Tab: TTS Bahasa Indonesia & Soundboard' },
+    { id: 'widgets', title: '🎡 Buka Tab: Stream Widgets & Multi-Screen Overlay' },
+    { id: 'loyalty', title: '💎 Buka Tab: Loyalty Points, Chatbot & Interval Timers' },
+    { id: 'effects', title: '✨ Buka Tab: Effects Library' },
+    { id: 'integrations', title: '🔌 Buka Tab: OBS, Ports, Spotify, Streamer.bot & Mobile QR' },
+    { id: 'gifts', title: '🎁 Buka Tab: TikTok Gifts Data' },
+    { id: 'events', title: '📋 Buka Tab: Live Events Log' },
+    { id: 'settings', title: '🔧 Buka Tab: Settings, Backup & Auto Update' }
+  ];
+  for (const t of tabs) {
+    items.push({
+      badge: 'TAB',
+      title: t.title,
+      sub: `Navigasi cepat ke tab ${t.id}`,
+      run: () => {
+        document.querySelector(`.nav-item[data-tab="${t.id}"]`)?.click();
+      }
+    });
+  }
+
+  // 2. Quick System Actions
+  items.push(
+    {
+      badge: 'COMMAND',
+      title: '⏯️ Pause / Resume Semua Interaksi (Master Switch)',
+      sub: 'Toggle Master Switch On/Off',
+      run: () => document.getElementById('sw-all')?.click()
+    },
+    {
+      badge: 'COMMAND',
+      title: '🧪 Buka Live Event Simulator',
+      sub: 'Simulasi Gift, Like, Chat, Follow & Donasi tanpa harus Live',
+      run: () => openModal('modal-simulator')
+    },
+    {
+      badge: 'COMMAND',
+      title: '🔄 Cek & Pasang Auto Update Aplikasi',
+      sub: 'Buka modal Auto Update GitHub Releases',
+      run: () => document.getElementById('btn-topbar-update')?.click()
+    },
+    {
+      badge: 'COMMAND',
+      title: '📥 Export Full Config Backup (.agiva-backup.json)',
+      sub: 'Unduh seluruh konfigurasi game, actions, widgets & TTS',
+      run: () => document.getElementById('btn-export-full-backup')?.click()
+    }
+  );
+
+  // 3. Active Game Effects
+  const activeGame = games.find(g => g.id === appState.activeGameId);
+  if (activeGame && activeGame.effects) {
+    for (const [effId, ef] of Object.entries(activeGame.effects)) {
+      items.push({
+        badge: 'EFFECT',
+        title: `⚡ Test Efek: ${ef.label || effId}`,
+        sub: `Game: ${activeGame.name} · ID: ${effId} · Driver: ${ef.driver || 'ws-mod'}`,
+        run: async () => {
+          await api('POST', '/api/test-effect', { effectId: effId });
+          toast(`Test efek "${ef.label || effId}" dikirim!`, 'success');
+        }
+      });
+    }
+  }
+
+  // 4. Reusable Multi-Step Actions
+  for (const act of (actionsData?.actions || [])) {
+    items.push({
+      badge: 'ACTION',
+      title: `🎬 Jalankan Action: ${act.name}`,
+      sub: `${(act.steps || []).length} steps · ID: ${act.id}`,
+      run: async () => {
+        await api('POST', `/api/actions/${encodeURIComponent(act.id)}/test`);
+        toast(`Action "${act.name}" dijalankan!`, 'success');
+      }
+    });
+  }
+
+  // 5. Soundboard Sounds
+  for (const snd of (ttsSoundConfig?.soundboard?.items || [])) {
+    items.push({
+      badge: 'SOUND',
+      title: `🔊 Putar Soundboard: ${snd.name || snd.id}`,
+      sub: `File: ${snd.file || snd.id}`,
+      run: async () => {
+        await api('POST', '/api/soundboard/play', { id: snd.id });
+        toast(`Memutar suara "${snd.name || snd.id}"`, 'info');
+      }
+    });
+  }
+
+  if (!q) return items.slice(0, 25);
+  return items.filter(it =>
+    it.title.toLowerCase().includes(q) ||
+    it.sub.toLowerCase().includes(q) ||
+    it.badge.toLowerCase().includes(q)
+  ).slice(0, 30);
+}
+
+let currentPaletteItems = [];
+
+function renderCommandPaletteResults(query = '') {
+  const box = document.getElementById('cmd-palette-results');
+  if (!box) return;
+  currentPaletteItems = buildCommandPaletteItems(query);
+  if (currentPaletteItems.length === 0) {
+    box.innerHTML = '<div class="form-hint" style="padding:12px;text-align:center;">Tidak ada hasil yang cocok.</div>';
+    return;
+  }
+  box.innerHTML = currentPaletteItems.map((it, idx) => `
+    <div class="loyalty-row" style="cursor:pointer;" onclick="runCommandPaletteItem(${idx})">
+      <div>
+        <span class="badge-pill" style="margin-right:6px;">${esc(it.badge)}</span>
+        <strong>${esc(it.title)}</strong>
+        <div class="form-hint">${esc(it.sub)}</div>
+      </div>
+      <span class="btn-sm primary">↵ Jalankan</span>
+    </div>
+  `).join('');
+}
+
+window.runCommandPaletteItem = (idx) => {
+  const item = currentPaletteItems[idx];
+  closeModal('modal-cmd-palette');
+  if (item && typeof item.run === 'function') {
+    item.run();
+  }
+};
+
+function openCommandPalette() {
+  openModal('modal-cmd-palette');
+  const inp = document.getElementById('cmd-palette-input');
+  if (inp) {
+    inp.value = '';
+    renderCommandPaletteResults('');
+    setTimeout(() => inp.focus(), 40);
+  }
+}
+
+document.getElementById('btn-open-cmd-palette')?.addEventListener('click', openCommandPalette);
+
+document.getElementById('cmd-palette-input')?.addEventListener('input', (e) => {
+  renderCommandPaletteResults(e.target.value);
+});
+
+document.getElementById('cmd-palette-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && currentPaletteItems.length > 0) {
+    e.preventDefault();
+    window.runCommandPaletteItem(0);
+  } else if (e.key === 'Escape') {
+    closeModal('modal-cmd-palette');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const modal = document.getElementById('modal-cmd-palette');
+    if (modal && modal.style.display === 'flex') {
+      closeModal('modal-cmd-palette');
+    } else {
+      openCommandPalette();
+    }
   }
 });
 

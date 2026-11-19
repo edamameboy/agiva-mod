@@ -93,6 +93,8 @@ const ACTIONS_CONFIG_PATH = path.join(DATA_DIR, 'actions-config.json');
 const POINTS_CONFIG_PATH = path.join(DATA_DIR, 'points-db.json');
 const CHATBOT_CONFIG_PATH = path.join(DATA_DIR, 'chatbot-config.json');
 const INTERVALS_CONFIG_PATH = path.join(DATA_DIR, 'intervals-config.json');
+const SPOTIFY_CONFIG_PATH = path.join(DATA_DIR, 'spotify-config.json');
+const INTEGRATIONS_CONFIG_PATH = path.join(DATA_DIR, 'integrations-config.json');
 
 // Bundled reference paths (read-only fallbacks / seeds)
 const BUNDLED_SOUNDS_DIR = path.join(BUNDLED_ROOT, 'public/sounds');
@@ -198,5 +200,7 @@ module.exports = {
   ACTIONS_CONFIG_PATH,
   POINTS_CONFIG_PATH,
   CHATBOT_CONFIG_PATH,
-  INTERVALS_CONFIG_PATH
+  INTERVALS_CONFIG_PATH,
+  SPOTIFY_CONFIG_PATH,
+  INTEGRATIONS_CONFIG_PATH
 };

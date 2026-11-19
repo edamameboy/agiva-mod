@@ -16,7 +16,7 @@
         <div class="brand-icon" aria-hidden="true">🎮</div>
         <div class="brand-text">
           <span class="brand-name">Agiva Mod</span>
-          <span class="brand-sub">Universal Bridge v1.5.2</span>
+          <span class="brand-sub">Universal Bridge v1.6.0</span>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -82,6 +82,7 @@
             <span class="pulse-dot" id="topbar-update-dot" style="display:none;"></span>
             <span id="topbar-update-text">🔄 Auto Update</span>
           </button>
+          <button type="button" class="theme-toggle" id="btn-open-cmd-palette" title="Cari fitur, efek game, action, soundboard &amp; perintah cepat (Ctrl+K)">🔍 Command (Ctrl+K)</button>
         </div>
 
         <div class="topbar-right">
@@ -650,13 +651,13 @@
           <div class="card settings-card" id="card-app-updates">
             <div class="card-header">
               <span>🚀 Informasi Aplikasi &amp; Pembaruan (GitHub)</span>
-              <span class="badge info" id="app-version-badge">v1.5.2</span>
+              <span class="badge info" id="app-version-badge">v1.6.0</span>
             </div>
             <div class="settings-form">
               <div class="app-info-grid">
                 <div class="info-item">
                   <span class="info-label">Versi Terinstal:</span>
-                  <span class="info-val" id="info-current-ver">v1.5.2</span>
+                  <span class="info-val" id="info-current-ver">v1.6.0</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mode Aplikasi:</span>
@@ -691,7 +692,7 @@
                 <!-- Box when update is available -->
                 <div class="update-banner" id="update-banner" style="display: none;">
                   <div class="update-banner-title">
-                    <span class="badge success" id="update-new-ver-badge">v1.5.2</span>
+                    <span class="badge success" id="update-new-ver-badge">v1.6.0</span>
                     <strong id="update-release-title">Agiva Mod Rilis Baru!</strong>
                   </div>
                   <div class="update-notes-box" id="update-release-notes"></div>
@@ -722,6 +723,17 @@
               <div class="button-group" style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" class="btn-primary" id="btn-check-updates">🔍 Periksa Pembaruan Sekarang</button>
                 <button type="button" class="btn-secondary" id="btn-visit-github">⭐ Kunjungi GitHub Repo</button>
+              </div>
+
+              <hr style="border:none; border-top:1px dashed var(--line); margin:14px 0 10px;">
+              <label class="form-label">💾 Full Config Backup &amp; Restore (.agiva-backup.json)</label>
+              <p class="form-hint" style="margin-bottom:8px;">Cadangkan atau pulihkan seluruh preset game, trigger, reusable actions, widgets, TTS/soundboard, points, chatbot, hotkeys, dan integrasi dalam 1 file.</p>
+              <div class="button-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn-sm success" id="btn-export-full-backup">📥 Export Full Backup (.agiva-backup.json)</button>
+                <label class="btn-sm primary" style="cursor:pointer; margin:0;">
+                  📤 Import Full Backup
+                  <input type="file" id="input-import-full-backup" accept=".json,.agiva-backup.json" style="display:none;">
+                </label>
               </div>
             </div>
           </div>
@@ -1565,8 +1577,19 @@
                   </div>
                   <input type="checkbox" id="compat-port-62030" checked>
                 </div>
+                <div class="port-toggle-row">
+                  <div>
+                    <strong>Port <code>:21213</code> — TikFinity Event API Bridge (<code>ws://127.0.0.1:21213/</code>)</strong>
+                    <div class="form-hint" id="port-status-21213">Status: Checking...</div>
+                  </div>
+                  <input type="checkbox" id="compat-port-21213" checked>
+                </div>
               </div>
-              <button type="button" class="btn-primary" id="btn-save-compat-ports">Terapkan Status Port (On/Off)</button>
+              <div class="input-row" style="margin-top:8px; flex-wrap:wrap;">
+                <button type="button" class="btn-primary" id="btn-save-compat-ports">Terapkan Status Port (On/Off)</button>
+                <a href="/api/compat-ports/example.js" target="_blank" class="btn-sm" style="text-decoration:none;">📥 Contoh Script JS (:21213)</a>
+                <a href="/api/compat-ports/example.py" target="_blank" class="btn-sm" style="text-decoration:none;">📥 Contoh Script Python (:21213)</a>
+              </div>
             </div>
           </div>
 
@@ -1684,6 +1707,191 @@
               </div>
               <label class="form-label">Top Gifter Sesi Ini</label>
               <div id="analytics-top-gifters" class="form-hint">Belum ada data gift pada sesi ini.</div>
+            </div>
+          </div>
+
+          <!-- Card 5: Spotify & Standalone Song Requests (!play, !skip, !revoke) -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🎵 Spotify &amp; Standalone Song Requests (<code>!play</code>, <code>!skip</code>, <code>!revoke</code>)</span>
+              <span class="badge-pill" id="spotify-status-badge">OFF</span>
+            </div>
+            <div class="settings-form">
+              <p class="form-hint">Izinkan penonton request lagu lewat chat <code>!play &lt;judul lagu&gt;</code>. Mode <strong>Standalone / iTunes Preview</strong> langsung jalan tanpa perlu akun Spotify Developer, atau hubungkan <strong>Spotify Web API OAuth</strong>.</p>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="sp-enabled-select">Status Song Request</label>
+                  <select id="sp-enabled-select" class="form-input">
+                    <option value="false">Nonaktif</option>
+                    <option value="true">Aktif (Terima !play dari Chat)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="sp-mode-select">Engine Mode</label>
+                  <select id="sp-mode-select" class="form-input">
+                    <option value="standalone">Standalone + iTunes Audio Preview (Tanpa API Key)</option>
+                    <option value="spotify">Spotify Web API (OAuth Player Queue)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="sp-cost-points">Biaya Loyalty Points (!play)</label>
+                  <input type="number" id="sp-cost-points" class="form-input" value="0" min="0">
+                </div>
+                <div>
+                  <label class="form-label" for="sp-allowed-role">Filter Role Penonton</label>
+                  <select id="sp-allowed-role" class="form-input">
+                    <option value="all">Semua Penonton</option>
+                    <option value="follower">Follower / Subscriber</option>
+                    <option value="subscriber">Khusus Subscriber</option>
+                    <option value="moderator">Moderator</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row-2">
+                <div>
+                  <label class="form-label" for="sp-max-queue">Maks Antrean Global</label>
+                  <input type="number" id="sp-max-queue" class="form-input" value="20" min="1" max="100">
+                </div>
+                <div>
+                  <label class="form-label" for="sp-max-user">Maks Lagu per User</label>
+                  <input type="number" id="sp-max-user" class="form-input" value="3" min="1" max="20">
+                </div>
+              </div>
+              <div class="input-row" style="gap:16px; flex-wrap:wrap;">
+                <label class="checkbox-label"><input type="checkbox" id="sp-allow-explicit"> Izinkan Lagu Explicit</label>
+                <label class="checkbox-label"><input type="checkbox" id="sp-autoplay-overlay" checked> Putar Audio Preview di Overlay</label>
+              </div>
+              <details class="hotkey-editor-details">
+                <summary style="cursor:pointer;font-size:12px;font-weight:700;">🔑 Pengaturan OAuth Spotify Developer (Opsional untuk Mode Spotify Web API)</summary>
+                <div class="form-row-2" style="margin-top:8px;">
+                  <div>
+                    <label class="form-label" for="sp-client-id">Spotify Client ID</label>
+                    <input type="text" id="sp-client-id" class="form-input" placeholder="Paste Spotify Client ID">
+                  </div>
+                  <div>
+                    <label class="form-label" for="sp-client-secret">Spotify Client Secret</label>
+                    <input type="password" id="sp-client-secret" class="form-input" placeholder="Paste Spotify Client Secret">
+                  </div>
+                </div>
+                <button type="button" class="btn-sm primary" id="btn-sp-oauth">🔗 Login OAuth Spotify</button>
+              </details>
+              <div class="input-row">
+                <button type="button" class="btn-primary" id="btn-sp-save">💾 Simpan Pengaturan Song Request</button>
+                <button type="button" class="btn-sm" id="btn-sp-copy-overlay">📋 Copy URL Overlay (<code>?widget=song-request</code>)</button>
+              </div>
+              <div class="input-row">
+                <input type="text" id="sp-manual-query" class="form-input" placeholder="Tambah lagu manual (mis. Hindia Evaluasi)...">
+                <button type="button" class="btn-sm success" id="btn-sp-add">+ Request</button>
+                <button type="button" class="btn-sm" id="btn-sp-skip">⏭️ Skip</button>
+                <button type="button" class="btn-sm danger" id="btn-sp-clear">🗑️ Clear</button>
+              </div>
+              <div id="sp-now-playing" class="obs-resources-box">Belum ada lagu yang sedang diputar.</div>
+              <div class="loyalty-list" id="sp-queue-list"></div>
+            </div>
+          </div>
+
+          <!-- Card 6: Streamer.bot (:8080), Voicemod Control API, IFTTT & Elgato Stream Deck -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <span>🤖 Streamer.bot, 🎙️ Voicemod, 🏠 IFTTT &amp; 🎛️ Elgato Stream Deck</span>
+              <span class="badge-pill" id="sb-status-badge">OFF</span>
+            </div>
+            <div class="settings-form">
+              <label class="form-label">1. Streamer.bot WebSocket Bridge (14 Variabel Placeholder Standar)</label>
+              <div class="form-row-2">
+                <div>
+                  <select id="sb-enabled-select" class="form-input">
+                    <option value="false">Streamer.bot Nonaktif</option>
+                    <option value="true">Streamer.bot Aktif</option>
+                  </select>
+                </div>
+                <div>
+                  <input type="text" id="sb-url-input" class="form-input" value="ws://127.0.0.1:8080/" placeholder="ws://127.0.0.1:8080/">
+                </div>
+              </div>
+              <div class="input-row">
+                <input type="text" id="sb-action-name" class="form-input" value="AgivaTikTokEvent" placeholder="Nama Action Default Streamer.bot">
+                <button type="button" class="btn-sm primary" id="btn-sb-save">💾 Simpan</button>
+                <button type="button" class="btn-sm success" id="btn-sb-test">⚡ Tes DoAction</button>
+              </div>
+
+              <hr style="border:none; border-top:1px dashed var(--line); margin:8px 0;">
+
+              <label class="form-label">2. Voicemod Local Control API (<code>ws://127.0.0.1:59129/v1</code>)</label>
+              <div class="form-row-2">
+                <div>
+                  <select id="vm-enabled-select" class="form-input">
+                    <option value="false">Voicemod Nonaktif</option>
+                    <option value="true">Voicemod Aktif</option>
+                  </select>
+                </div>
+                <div>
+                  <input type="text" id="vm-apikey-input" class="form-input" value="agiva-voicemod-key" placeholder="Voicemod Client Key">
+                </div>
+              </div>
+              <div class="input-row" style="flex-wrap:wrap;">
+                <select id="vm-voice-select" class="form-input" style="max-width:190px; margin-bottom:0;">
+                  <option value="nofx">🗣️ Clean (No FX)</option>
+                  <option value="robot">🤖 Robot</option>
+                  <option value="demon">👹 Demon</option>
+                  <option value="chipmunk">🐿️ Chipmunk</option>
+                  <option value="autotune">🎵 Magic Autotune</option>
+                  <option value="baby">👶 Baby Voice</option>
+                  <option value="cave">🦇 Cave Echo</option>
+                </select>
+                <button type="button" class="btn-sm primary" id="btn-vm-apply-voice">🎙️ Ganti Suara</button>
+                <button type="button" class="btn-sm" id="btn-vm-toggle-hearmyself">👂 Hear Myself</button>
+                <button type="button" class="btn-sm" id="btn-vm-save">💾 Simpan</button>
+              </div>
+
+              <hr style="border:none; border-top:1px dashed var(--line); margin:8px 0;">
+
+              <label class="form-label">3. IFTTT / Smart Home Webhook Presets &amp; Elgato Stream Deck</label>
+              <div class="loyalty-list" id="ifttt-presets-list"></div>
+              <div class="input-row" style="flex-wrap:wrap;">
+                <button type="button" class="btn-sm primary" id="btn-ifttt-save">💾 Simpan URL IFTTT</button>
+                <a href="/api/streamdeck/profile.json" target="_blank" class="btn-sm success" style="text-decoration:none;">🎛️ Download Elgato Stream Deck Profile (.json)</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 7: Mobile Companion / LAN Remote (QR Code & PIN) -->
+          <div class="card settings-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <span>📱 Mobile Companion / LAN Remote (Kontrol Soundboard, Efek &amp; TTS dari HP Wi-Fi Lokal)</span>
+              <span class="badge-pill" id="lan-remote-badge">ACTIVE</span>
+            </div>
+            <div class="settings-form">
+              <div class="form-row-2" style="align-items: start;">
+                <div>
+                  <p class="form-hint">Scan QR Code di samping menggunakan kamera HP yang terhubung ke <strong>Wi-Fi yang sama</strong> untuk membuka Touch Stream Deck tanpa install aplikasi tambahan.</p>
+                  <div class="form-row-2">
+                    <div>
+                      <label class="form-label" for="lan-remote-enabled">Status LAN Remote</label>
+                      <select id="lan-remote-enabled" class="form-input">
+                        <option value="true">Aktif (Izinkan Akses dengan PIN)</option>
+                        <option value="false">Nonaktif</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label" for="lan-remote-pin">PIN Keamanan Sesi</label>
+                      <input type="text" id="lan-remote-pin" class="form-input" value="2486" maxlength="12">
+                    </div>
+                  </div>
+                  <div class="input-row" style="flex-wrap:wrap;">
+                    <button type="button" class="btn-primary" id="btn-lan-save">💾 Simpan PIN</button>
+                    <button type="button" class="btn-sm" id="btn-lan-regen">🎲 Acak PIN Baru</button>
+                    <a href="/remote" target="_blank" class="btn-sm success" style="text-decoration:none;">📱 Buka Mobile Deck di Browser</a>
+                  </div>
+                  <div class="obs-resources-box" id="lan-remote-urls" style="margin-top:8px;">Mendeteksi alamat IP LAN Wi-Fi...</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; background:var(--bg-surface); border:2px solid var(--line); border-radius:var(--radius);">
+                  <div id="lan-qr-box" style="width:168px; height:168px; background:#fff; padding:8px; border-radius:8px; display:flex; align-items:center; justify-content:center;"></div>
+                  <span class="form-hint" id="lan-qr-caption" style="margin-top:6px; font-weight:700; text-align:center;">Scan QR dari HP</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1948,7 +2156,7 @@
         <div class="app-info-grid">
           <div class="info-item">
             <span class="info-label">Versi Terpasang</span>
-            <span class="info-val" id="modal-update-current-ver">v1.5.2</span>
+            <span class="info-val" id="modal-update-current-ver">v1.6.0</span>
           </div>
           <div class="info-item">
             <span class="info-label">Rilis GitHub Terbaru</span>
@@ -1990,6 +2198,20 @@
         <button type="button" class="btn-secondary" id="btn-modal-check-update">🔍 Cek Rilis Terbaru</button>
         <button type="button" class="btn-primary" id="btn-modal-apply-update" style="display: none; font-weight: 800; background: var(--accent-green); color: #000;">⚡ Download &amp; Pasang Otomatis</button>
         <button type="button" class="btn-sm" id="btn-modal-open-release">🌐 Buka GitHub Releases</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: Global Command Palette / Search (Ctrl+K) -->
+  <div class="modal-backdrop" id="modal-cmd-palette" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modal-cmd-palette-title">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <span id="modal-cmd-palette-title">🔍 Global Search &amp; Command Palette (Ctrl+K)</span>
+        <button type="button" class="btn-close-modal" data-close="modal-cmd-palette" aria-label="Tutup">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="cmd-palette-input" class="form-input" placeholder="Ketik nama efek game, reusable action, suara soundboard, tab, atau perintah cepat..." autocomplete="off">
+        <div class="loyalty-list" id="cmd-palette-results" style="max-height: 380px; margin-top: 10px;"></div>
       </div>
     </div>
   </div>

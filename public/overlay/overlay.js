@@ -27,6 +27,9 @@ let overlayGiftFeed = [];
 let sliderMappings = [];
 let activePointsDrop = null;
 let masterPausedState = false;
+let spotifyState = null;
+let activeSongAudio = null;
+let activeSongTrackId = '';
 const coinJarCoins = [];
 let coinJarLoopRunning = false;
 const fxCanvasParticles = [];
@@ -675,6 +678,73 @@ function renderActiveWidget() {
         <div class="w-frame-banner">🎮 AGIVA LIVE STREAM</div>
       </div>
     `;
+  } else if (activeWidget === 'song-request' || activeWidget === 'spotify') {
+    const cur = spotifyState?.currentTrack || null;
+    const q = (spotifyState?.queue || []).slice(0, 4);
+    const cmd = spotifyState?.config?.commandPlay || '!play';
+    const coverHtml = cur?.coverUrl
+      ? `<img src="${esc(cur.coverUrl)}" alt="" style="width:68px;height:68px;border-radius:12px;object-fit:cover;border:2px solid var(--ov-accent, #10b981);flex-shrink:0;">`
+      : `<div style="width:68px;height:68px;border-radius:12px;background:rgba(16,185,129,0.2);border:2px solid #10b981;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0;">🎵</div>`;
+
+    widgetStage.innerHTML = `
+      <div class="w-card" style="min-width: 390px; max-width: 460px;">
+        <div class="w-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>🎵 SONG REQUEST LIVE</span>
+          <span style="font-size:11px;color:#4ade80;">Ketik ${esc(cmd)} &lt;judul&gt;</span>
+        </div>
+        ${cur ? `
+          <div style="display:flex;gap:12px;align-items:center;background:rgba(15,23,42,0.65);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);">
+            ${coverHtml}
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:15px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(cur.title)}</div>
+              <div style="font-size:12px;font-weight:700;color:#38bdf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${esc(cur.artist)}</div>
+              <div style="font-size:11px;color:#cbd5e1;margin-top:4px;">🎧 Req by <strong style="color:#facc15;">@${esc(cur.requestedByName || cur.requestedBy || 'Viewer')}</strong></div>
+            </div>
+          </div>
+        ` : `
+          <div style="text-align:center;padding:14px 8px;color:#94a3b8;font-size:13px;">
+            Belum ada lagu diputar.<br>Ketik <strong style="color:#4ade80;">${esc(cmd)} Judul Lagu</strong> di Live Chat!
+          </div>
+        `}
+        ${q.length > 0 ? `
+          <div style="margin-top:10px;">
+            <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-bottom:6px;">Antrean Berikutnya (${spotifyState.queue.length})</div>
+            <div class="w-list">
+              ${q.map((item, idx) => `
+                <div class="w-list-item" style="font-size:12px;padding:6px 10px;">
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;">#${idx + 1} ${esc(item.title)} — ${esc(item.artist)}</span>
+                  <span style="color:#facc15;font-size:11px;">@${esc(item.requestedByName || item.requestedBy)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // Optional preview audio playback on song-request widget
+    if (cur && cur.id !== activeSongTrackId) {
+      activeSongTrackId = cur.id;
+      if (activeSongAudio) {
+        try { activeSongAudio.pause(); } catch {}
+        activeSongAudio = null;
+      }
+      if (!muteAudioParam && spotifyState?.config?.autoPlayOverlayAudio !== false && cur.previewUrl) {
+        try {
+          const aud = new Audio(cur.previewUrl);
+          aud.volume = 0.8;
+          activeSongAudio = aud;
+          aud.onended = () => {
+            fetch('/api/spotify/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'AutoNext' }) }).catch(() => {});
+          };
+          aud.play().catch(() => {});
+        } catch {}
+      }
+    } else if (!cur && activeSongAudio) {
+      activeSongTrackId = '';
+      try { activeSongAudio.pause(); } catch {}
+      activeSongAudio = null;
+    }
   }
 }
 
@@ -961,6 +1031,9 @@ async function loadInitialWidgets() {
       currentFollowers = st.roomStats?.followers || currentFollowers;
       masterPausedState = st.masterSwitches?.all === false;
     }
+    if (activeWidget === 'song-request' || activeWidget === 'spotify') {
+      spotifyState = await fetch('/api/spotify').then(r => r.json()).catch(() => ({ queue: [], currentTrack: null }));
+    }
 
     renderActiveWidget();
 
@@ -1084,6 +1157,12 @@ function connectWS() {
       }
       if (msg.type === 'wheel_spin') {
         animateWheelSpin(msg);
+      }
+      if (msg.type === 'spotify_update' && msg.state) {
+        spotifyState = msg.state;
+        if (activeWidget === 'song-request' || activeWidget === 'spotify') {
+          renderActiveWidget();
+        }
       }
     } catch {}
   };

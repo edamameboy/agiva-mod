@@ -27,6 +27,9 @@ const ActionEngine = require('./core/actionEngine');
 const PointsManager = require('./points/pointsManager');
 const ChatbotDriver = require('./drivers/chatbotDriver');
 const IntervalScheduler = require('./core/intervalScheduler');
+const SpotifyDriver = require('./integrations/spotifyDriver');
+const StreamerBotDriver = require('./integrations/streamerBotDriver');
+const VoicemodDriver = require('./integrations/voicemodDriver');
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT) || 3000;
@@ -191,6 +194,19 @@ const compatBridge = new CompatBridgeServer({
   triggerEffectFn: enqueueEffectById
 });
 
+const spotifyDriver = new SpotifyDriver({ broadcastFn: broadcastDash });
+const streamerBotDriver = new StreamerBotDriver({
+  broadcastFn: broadcastDash,
+  onInboundActionFn: (cmd) => {
+    if (!cmd) return;
+    if (cmd.effectId) enqueueEffectById(cmd.effectId, cmd.user || 'StreamerBot', 'streamerbot');
+    if (cmd.ttsText) audioTtsDriver.speak(String(cmd.ttsText), { user: 'StreamerBot' }, true);
+    if (cmd.soundId) audioTtsDriver.playSound(String(cmd.soundId));
+    if (cmd.actionId && actionEngine) actionEngine.executeAction(String(cmd.actionId), cmd).catch(() => {});
+  }
+});
+const voicemodDriver = new VoicemodDriver({ broadcastFn: broadcastDash });
+
 const donationSocketProvider = new DonationSocketProvider((donData) => {
   handleDonation(donData);
 });
@@ -326,13 +342,18 @@ queue.setProcessor(async (item) => {
     });
   }
 
-  // 6. Broadcast to Compatibility Ports (:62024 / :62025) & Session Analytics
+  // 6. Broadcast to Compatibility Ports (:62024 / :62025 / :21213), Streamer.bot & Session Analytics
   compatBridge.broadcastEvent('interaksi', {
     effectId: item.effectId,
     label: item.label || resolved?.label || item.effectId,
     user: item.user,
     source: item.source,
     gameId: resolved?.gameId
+  });
+  streamerBotDriver.onStreamEvent('effect', {
+    effectId: item.effectId,
+    user: item.user,
+    gameId: resolved?.gameId || effectMap.getConfig().activeGameId
   });
   sessionStore.recordEffectTriggered();
 });
@@ -472,6 +493,7 @@ function handleGift(data) {
   chatbotDriver.onGift({ user, nickname: userMeta.nickname, giftName, coins }, { tiktokConn: tiktokConnection });
   sessionStore.recordGift({ user, giftName, giftId: data.giftId, coins, repeatCount });
   compatBridge.broadcastEvent('gift', event);
+  streamerBotDriver.onStreamEvent('gift', { user, nickname: userMeta.nickname, giftName, giftId: data.giftId, coins, repeatCount });
 
   // Automatic Gift TTS if enabled in TTS config
   const ttsCfg = audioTtsDriver.config.tts;
@@ -670,6 +692,13 @@ function handleChat(data) {
 
   // Active Chatbot custom commands
   chatbotDriver.handleIncomingChat(comment, userMeta, vars, pointsManager, { tiktokConn: tiktokConnection }).catch(() => {});
+
+  // Spotify & Standalone Song Request Commands (!play, !sr, !skip, !revoke, !song)
+  spotifyDriver.handleChatCommand(comment, userMeta, {
+    pointsManager,
+    replyFn: (msg) => chatbotDriver.sendMessage(msg, vars, { tiktokConn: tiktokConnection })
+  }).catch(() => {});
+  streamerBotDriver.onStreamEvent('chat', { user, nickname: userMeta.nickname, comment });
 
   // Check Chat TTS (!tts or all chat mode) with optional Points cost
   audioTtsDriver.handleChatTts({ ...userMeta, comment }, effectMap.masterSwitches.tts !== false, {
@@ -1133,6 +1162,7 @@ app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
 app.use('/overlay', express.static(path.join(__dirname, '../public/overlay')));
+app.use('/remote', express.static(path.join(__dirname, '../public/remote')));
 app.use('/sounds', express.static(paths.SOUNDS_DIR));
 if (paths.BUNDLED_SOUNDS_DIR !== paths.SOUNDS_DIR) {
   app.use('/sounds', express.static(paths.BUNDLED_SOUNDS_DIR));
@@ -1171,6 +1201,12 @@ app.get('/api/status', (req, res) => {
     widgetState: widgetManager.getState(),
     compatPorts: compatBridge.getStatus(),
     obsStatus: obsDriver.getStatus(),
+    spotifyState: spotifyDriver.getState(),
+    streamerBotStatus: streamerBotDriver.getStatus(),
+    integrationsState: {
+      ...voicemodDriver.getState(),
+      lanUrls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+    },
     desktopStatus: global.agivaElectronBridge ? global.agivaElectronBridge.getStatus() : { isElectron: false, hudOpen: false, hudLocked: false },
     appVersion: updater.getCurrentVersion(),
     storagePath: paths.WRITABLE_ROOT,
@@ -2456,6 +2492,401 @@ app.post('/api/open-external', (req, res) => {
   res.json({ success: true, opened: false, mode: 'browser', url });
 });
 
+// ─── Phase 4: TikFinity Event API (:21213) Example Script Downloads ──────────
+app.get('/api/compat-ports/example.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="agiva-tikfinity-21213-client.js"');
+  res.send(compatBridge.getExampleScript('js'));
+});
+
+app.get('/api/compat-ports/example.py', (req, res) => {
+  res.setHeader('Content-Type', 'text/x-python; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="agiva-tikfinity-21213-client.py"');
+  res.send(compatBridge.getExampleScript('py'));
+});
+
+// ─── Phase 4: Spotify & Standalone Song Requests (!play, !skip, !revoke) ─────
+app.get('/api/spotify', (req, res) => {
+  res.json(spotifyDriver.getState());
+});
+
+app.put('/api/spotify/config', (req, res) => {
+  const state = spotifyDriver.updateConfig(req.body || {});
+  res.json({ success: true, state });
+});
+
+app.get('/api/spotify/auth-url', (req, res) => {
+  try {
+    const url = spotifyDriver.getAuthUrl();
+    res.json({ success: true, url });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/spotify/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) return res.status(400).send(`Spotify OAuth Error: ${error}`);
+  try {
+    await spotifyDriver.exchangeCode(code);
+    res.redirect('/dashboard?spotify=connected');
+  } catch (e) {
+    res.status(400).send(`Gagal menghubungkan Spotify: ${e.message}`);
+  }
+});
+
+app.post('/api/spotify/request', async (req, res) => {
+  const { query, user = 'Streamer', force = true } = req.body || {};
+  const result = await spotifyDriver.requestSong(query, { uniqueId: user, nickname: user, isModerator: true }, { pointsManager, force: Boolean(force) });
+  if (!result.ok) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, ...result, state: spotifyDriver.getState() });
+});
+
+app.post('/api/spotify/skip', (req, res) => {
+  const result = spotifyDriver.skipTrack(req.body?.user || 'Streamer');
+  res.json({ success: true, ...result, state: spotifyDriver.getState() });
+});
+
+app.post('/api/spotify/clear', (req, res) => {
+  const state = spotifyDriver.clearQueue();
+  res.json({ success: true, state });
+});
+
+app.delete('/api/spotify/queue/:id', (req, res) => {
+  const result = spotifyDriver.removeTrack(req.params.id);
+  res.json({ success: result.ok, state: spotifyDriver.getState() });
+});
+
+// ─── Phase 4: Streamer.bot (:8080), Voicemod, IFTTT & Elgato Stream Deck ─────
+app.get('/api/integrations/streamerbot', (req, res) => {
+  res.json(streamerBotDriver.getStatus());
+});
+
+app.put('/api/integrations/streamerbot', (req, res) => {
+  const status = streamerBotDriver.updateConfig(req.body || {});
+  res.json({ success: true, status });
+});
+
+app.post('/api/integrations/streamerbot/test', (req, res) => {
+  const actionName = req.body?.actionName || streamerBotDriver.config.defaultActionName || 'AgivaTikTokEvent';
+  const vars = streamerBotDriver.buildStandardVariables('gift', {
+    user: 'Sultan_Agiva',
+    nickname: 'Sultan Agiva',
+    giftName: 'Lion',
+    giftId: 5827,
+    coins: 29999,
+    repeatCount: 1,
+    gameId: effectMap.getConfig().activeGameId
+  });
+  const result = streamerBotDriver.doAction(actionName, vars);
+  res.json({ success: true, ...result });
+});
+
+app.get('/api/integrations/voicemod', (req, res) => {
+  res.json({
+    ...voicemodDriver.getState(),
+    lanUrls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+  });
+});
+
+app.put('/api/integrations/voicemod', (req, res) => {
+  const voicemod = voicemodDriver.updateVoicemodConfig(req.body || {});
+  res.json({ success: true, voicemod });
+});
+
+app.post('/api/integrations/voicemod/action', (req, res) => {
+  const { type = 'loadVoice', value = 'nofx' } = req.body || {};
+  const result = voicemodDriver.executeVoicemodAction(type, value);
+  res.json({ success: true, ...result });
+});
+
+app.put('/api/integrations/ifttt', (req, res) => {
+  const presets = voicemodDriver.updateIftttPresets(req.body?.presets || []);
+  res.json({ success: true, presets });
+});
+
+app.post('/api/integrations/ifttt/trigger', async (req, res) => {
+  const { presetId, vars = {} } = req.body || {};
+  const result = await voicemodDriver.triggerIftttPreset(presetId, {
+    user: 'Sultan_Agiva',
+    giftName: 'Universe',
+    coins: 34999,
+    amount: 100000,
+    ...vars
+  });
+  res.json({ success: result.ok, ...result });
+});
+
+app.get('/api/streamdeck/profile.json', (req, res) => {
+  const activeGame = effectMap.getActiveGameConfig();
+  const baseUrl = `http://127.0.0.1:${DASHBOARD_PORT}`;
+  const actions = [
+    { name: 'Pause / Resume Interaksi', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'toggle_master' } },
+    { name: 'Clear Effect Queue', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'clear_queue' } },
+    { name: 'Skip Active TTS / Audio', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'skip_tts' } },
+    { name: 'Spin Gacha Wheel', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'spin_wheel' } },
+    { name: 'Subathon Timer +60s', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'timer_add', value: 60 } },
+    { name: 'Win Counter +1', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'win_add' } },
+    { name: 'Lose Counter +1', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'lose_add' } },
+    { name: 'Skip Lagu Spotify', method: 'POST', url: `${baseUrl}/api/streamdeck/trigger`, body: { action: 'spotify_skip' } }
+  ];
+  const gameEffects = Object.entries(activeGame?.effects || {}).slice(0, 16).map(([id, ef]) => ({
+    name: `Effect: ${ef.label || id}`,
+    method: 'POST',
+    url: `${baseUrl}/api/streamdeck/trigger`,
+    body: { action: 'trigger_effect', effectId: id }
+  }));
+
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="agiva-elgato-streamdeck-actions.json"');
+  res.send(JSON.stringify({
+    profileName: `Agiva Mod — ${activeGame?.name || 'Universal'}`,
+    version: updater.getCurrentVersion(),
+    baseUrl,
+    quickActions: actions,
+    gameEffects
+  }, null, 2));
+});
+
+function executeDeckQuickAction(body = {}, sourceLabel = 'StreamDeck') {
+  const { action, effectId, soundId, text, query, value } = body;
+  if (action === 'toggle_master') {
+    const next = !effectMap.masterSwitches.all;
+    const sw = effectMap.setMasterSwitches({ all: next });
+    broadcastDash({ type: 'master_switches', masterSwitches: sw });
+    return { ok: true, message: next ? 'Interaksi Diaktifkan (ON)' : 'Interaksi Dijeda (PAUSED)', masterSwitches: sw };
+  }
+  if (action === 'clear_queue') {
+    queue.clear();
+    return { ok: true, message: 'Antrean efek dibersihkan!' };
+  }
+  if (action === 'skip_tts') {
+    audioTtsDriver.stopAllAudio();
+    return { ok: true, message: 'Audio & TTS di-skip!' };
+  }
+  if (action === 'spin_wheel') {
+    const spin = widgetManager.spinWheel(sourceLabel);
+    return { ok: true, message: 'Spin Wheel diputar!', spin };
+  }
+  if (action === 'win_add') {
+    const counter = widgetManager.controlCounter('win_add', Number(value) || 1);
+    return { ok: true, message: 'Win +1', counter };
+  }
+  if (action === 'lose_add') {
+    const counter = widgetManager.controlCounter('lose_add', Number(value) || 1);
+    return { ok: true, message: 'Lose +1', counter };
+  }
+  if (action === 'timer_add') {
+    const sec = Number(value) || 60;
+    const timer = widgetManager.controlTimer('add', sec, sourceLabel);
+    return { ok: true, message: `Timer +${sec}s`, timer };
+  }
+  if (action === 'play_sound' && soundId) {
+    audioTtsDriver.playSound(String(soundId));
+    return { ok: true, message: `Memutar suara: ${soundId}` };
+  }
+  if (action === 'trigger_effect' && effectId) {
+    enqueueEffectById(String(effectId), sourceLabel, 'remote_deck');
+    return { ok: true, message: `Trigger efek: ${effectId}` };
+  }
+  if (action === 'speak_tts' && text) {
+    audioTtsDriver.speak(String(text), { user: sourceLabel }, true);
+    return { ok: true, message: 'Suara TTS dikirim!' };
+  }
+  if (action === 'spotify_skip') {
+    const res = spotifyDriver.skipTrack(sourceLabel);
+    return { ok: true, message: 'Lagu di-skip!', ...res };
+  }
+  if (action === 'spotify_request' && query) {
+    spotifyDriver.requestSong(String(query), { uniqueId: sourceLabel, nickname: sourceLabel, isModerator: true }, { pointsManager, force: true }).catch(() => {});
+    return { ok: true, message: `Request lagu: ${query}` };
+  }
+  return { ok: false, error: 'Aksi tidak dikenali' };
+}
+
+app.post('/api/streamdeck/trigger', (req, res) => {
+  const result = executeDeckQuickAction(req.body || {}, 'StreamDeck');
+  if (!result.ok) return res.status(400).json(result);
+  res.json(result);
+});
+
+// ─── Phase 4: Mobile Companion / LAN Remote Endpoints ────────────────────────
+app.get('/api/remote/info', (req, res) => {
+  res.json({
+    ok: true,
+    lanRemote: voicemodDriver.lanRemote,
+    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+  });
+});
+
+app.put('/api/remote/config', (req, res) => {
+  const lanRemote = voicemodDriver.updateLanRemote(req.body || {});
+  res.json({
+    success: true,
+    lanRemote,
+    urls: voicemodDriver.getLanUrls(DASHBOARD_PORT)
+  });
+});
+
+app.post('/api/remote/auth', (req, res) => {
+  const pin = req.body?.pin || req.headers['x-agiva-pin'] || '';
+  if (!voicemodDriver.lanRemote.enabled) {
+    return res.status(403).json({ ok: false, error: 'Mobile LAN Remote sedang dinonaktifkan di Dashboard.' });
+  }
+  if (!voicemodDriver.verifyPin(pin)) {
+    return res.status(401).json({ ok: false, error: 'PIN LAN Remote tidak sesuai.' });
+  }
+  res.json({ ok: true });
+});
+
+function requireRemotePin(req, res, next) {
+  const pin = req.headers['x-agiva-pin'] || req.query.pin || req.body?.pin || '';
+  if (!voicemodDriver.verifyPin(pin)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized: PIN LAN Remote salah atau nonaktif.' });
+  }
+  next();
+}
+
+app.get('/api/remote/deck', requireRemotePin, (req, res) => {
+  const cfg = effectMap.getConfig();
+  const activeGame = effectMap.getActiveGameConfig();
+  const effects = Object.entries(activeGame?.effects || {}).map(([id, ef]) => ({
+    id,
+    label: ef.label || id,
+    category: ef.category || 'general'
+  }));
+  const sounds = audioTtsDriver.getConfig()?.soundboard?.items || [];
+  res.json({
+    ok: true,
+    activeGameId: cfg.activeGameId,
+    activeGameName: activeGame?.name || cfg.activeGameId,
+    masterSwitches: effectMap.masterSwitches,
+    roomStats,
+    queueStatus: queue.status,
+    effects,
+    sounds
+  });
+});
+
+app.post('/api/remote/action', requireRemotePin, (req, res) => {
+  const result = executeDeckQuickAction(req.body || {}, 'MobileRemote');
+  if (!result.ok) return res.status(400).json(result);
+  res.json(result);
+});
+
+// ─── Phase 4: Full Config Backup & Restore (.agiva-backup.json) ──────────────
+app.get('/api/backup/export', (req, res) => {
+  flushPendingStores();
+  const gamesDir = gameDetect.getGamesDir();
+  const gamesCustom = {};
+  try {
+    if (fs.existsSync(gamesDir)) {
+      for (const entry of fs.readdirSync(gamesDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          const gFile = path.join(gamesDir, entry.name, 'game.json');
+          if (fs.existsSync(gFile)) {
+            try { gamesCustom[entry.name] = JSON.parse(fs.readFileSync(gFile, 'utf8')); } catch {}
+          }
+        }
+      }
+    }
+  } catch {}
+
+  const bundle = {
+    schema: 'agiva-full-backup-v1',
+    appVersion: updater.getCurrentVersion(),
+    exportedAt: new Date().toISOString(),
+    effectsConfig: effectMap.getConfig(),
+    gamesPresets: gamesCustom,
+    actionsData: actionEngine.getAll(),
+    widgetsConfig: widgetManager.getState(),
+    ttsSoundConfig: audioTtsDriver.getConfig(),
+    pointsConfig: pointsManager.config,
+    chatbotConfig: chatbotDriver.config,
+    intervalsData: intervalScheduler.getState(),
+    compatConfig: compatBridge.config,
+    hotkeysConfig,
+    spotifyConfig: spotifyDriver.exportRawConfig(),
+    streamerBotConfig: streamerBotDriver.config,
+    voicemodState: voicemodDriver.getState()
+  };
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="agiva-backup-${dateStr}.agiva-backup.json"`);
+  res.send(JSON.stringify(bundle, null, 2));
+});
+
+app.post('/api/backup/import', (req, res) => {
+  const bundle = req.body || {};
+  if (bundle.schema !== 'agiva-full-backup-v1' || typeof bundle !== 'object') {
+    return res.status(400).json({ success: false, error: 'File backup tidak valid (bukan format agiva-full-backup-v1).' });
+  }
+
+  try {
+    if (bundle.gamesPresets && typeof bundle.gamesPresets === 'object') {
+      const gamesDir = gameDetect.getGamesDir();
+      for (const [gameFolder, gameJson] of Object.entries(bundle.gamesPresets)) {
+        const safeFolder = String(gameFolder).replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!safeFolder || !gameJson || typeof gameJson !== 'object') continue;
+        const targetDir = path.join(gamesDir, safeFolder);
+        if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+        fs.writeFileSync(path.join(targetDir, 'game.json'), JSON.stringify(gameJson, null, 2), 'utf8');
+      }
+      gameDetect.scan();
+    }
+
+    if (bundle.effectsConfig && typeof bundle.effectsConfig === 'object') {
+      effectMap.config = {
+        ...effectMap.config,
+        ...bundle.effectsConfig
+      };
+      effectMap.save();
+      if (effectMap.config.queueSettings) {
+        queue.updateSettings(effectMap.config.queueSettings);
+      }
+    }
+    if (bundle.actionsData && typeof bundle.actionsData === 'object') {
+      actionEngine.importBundle(bundle.actionsData);
+    }
+    if (bundle.ttsSoundConfig && typeof bundle.ttsSoundConfig === 'object') {
+      audioTtsDriver.saveConfig(bundle.ttsSoundConfig);
+    }
+    if (bundle.pointsConfig && typeof bundle.pointsConfig === 'object') {
+      pointsManager.updateConfig(bundle.pointsConfig);
+    }
+    if (bundle.chatbotConfig && typeof bundle.chatbotConfig === 'object') {
+      chatbotDriver.updateConfig(bundle.chatbotConfig);
+    }
+    if (bundle.intervalsData && typeof bundle.intervalsData === 'object') {
+      if (bundle.intervalsData.settings) intervalScheduler.updateSettings(bundle.intervalsData.settings);
+    }
+    if (bundle.hotkeysConfig && typeof bundle.hotkeysConfig === 'object') {
+      hotkeysConfig = { ...hotkeysConfig, ...bundle.hotkeysConfig };
+      try {
+        fs.writeFileSync(HOTKEYS_PATH, JSON.stringify(hotkeysConfig, null, 2), 'utf8');
+      } catch {}
+      registerAllHotkeys();
+    }
+    if (bundle.spotifyConfig?.config) {
+      spotifyDriver.updateConfig(bundle.spotifyConfig.config);
+    }
+    if (bundle.streamerBotConfig) {
+      streamerBotDriver.updateConfig(bundle.streamerBotConfig);
+    }
+    if (bundle.voicemodState?.iftttPresets) {
+      voicemodDriver.updateIftttPresets(bundle.voicemodState.iftttPresets);
+    }
+
+    res.json({
+      success: true,
+      message: 'Seluruh konfigurasi Agiva Mod berhasil dipulihkan dari file backup!'
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── Redirect root to dashboard ───────────────────────────────────────────────
 app.get('/', (req, res) => res.redirect('/dashboard'));
 
@@ -2463,7 +2894,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 httpServer.listen(DASHBOARD_PORT, () => {
   console.log('');
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.5.2      ║');
+  console.log('║   🎮 Agiva Universal Streamer Mod Bridge — v1.6.0      ║');
   console.log('╚════════════════════════════════════════════════════════╝');
   console.log(`  📊 Dashboard:   http://localhost:${DASHBOARD_PORT}/dashboard`);
   console.log(`  📺 OBS Overlay: http://localhost:${DASHBOARD_PORT}/overlay`);
@@ -2501,6 +2932,9 @@ function flushPendingStores() {
   try { pointsManager?.flushSaveSync(); } catch {}
   try { chatbotDriver?.flushSaveSync(); } catch {}
   try { intervalScheduler?.flushSaveSync(); } catch {}
+  try { spotifyDriver?.flushSaveSync(); } catch {}
+  try { streamerBotDriver?.flushSaveSync(); } catch {}
+  try { voicemodDriver?.flushSaveSync(); } catch {}
 }
 process.on('beforeExit', flushPendingStores);
 process.on('SIGINT', () => {
